@@ -100,6 +100,15 @@ The floor is an 11 × 11 tile grid. The door, counter, kitchen, pickup spot and 
 ### Saving
 Progress saves automatically every few seconds and at closing time. It is saved **per wallet address** on this device, in the host page's local storage. Saved: shop, day, Beans, XP, level, rating, dishes, station level, furniture layout, wallpaper, floor, owned designs, staff slots and staff. Reconnecting the same wallet shows **Welcome back** with everything restored. A day in progress restarts from its opening. Saves are checked on load, and a broken or tampered save is ignored.
 
+### Share your day on X
+Every day summary draws a **1200 × 675 day card**: a photo of your shop mid-afternoon, the day's numbers, and your
+manager's portrait and family, with `@RareFriendsNFT #RareFriends #RareFriendsCafe` in the footer.
+
+- **Post to X:** on phones, the share sheet gets the picture and the post text, so pick X. On desktop, the picture is copied to your clipboard (saved instead if copying is blocked) and a prefilled X post opens: paste the picture (Ctrl/Cmd+V) and press Post.
+- **Copy picture** / **Save picture:** just the card.
+- Post text: *"Day N at <shop> ☕ served X guests, earned Y Beans, ★★★★☆ 4.2. My Rare Friend #ID (<family>) runs the shop! Play: <link> @RareFriendsNFT #RareFriends #RareFriendsCafe"* (always ≤ 280 characters).
+- Sharing uses the trusted host page. It is unavailable under the plain SDK CLI runtime.
+
 ## Rare Recipe Capsules (simulated RF)
 Capsules use the SDK's chance-game client (`buy`, `play`, `settle`, `redeem`). Each action is confirmed in the
 runtime's own dialog. All RF is **simulated** in the preview; the preview wallet starts with 20 RF. Capsule

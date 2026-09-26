@@ -48,6 +48,13 @@ try {
   page.setDefaultTimeout(30_000);
   page.on("pageerror", error => errors.push(error.message));
   const fixture = await installFixture(page, origin, { artworkCall });
+  // Record the host page's share actions instead of opening X or touching the real clipboard.
+  await page.addInitScript(() => {
+    if (window !== window.top) return;
+    window.__shared = { opened: [], copied: [] };
+    window.open = url => { window.__shared.opened.push(String(url)); return null; };
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { write: async items => { window.__shared.copied.push(items.flatMap(item => item.types)); } } });
+  });
   // The same wallet also holds #3412: extend the fixture's owner-filtered discovery reads.
   await page.route("https://rpc.mainnet.chain.robinhood.com/**", async route => {
     const request = route.request().method() === "POST" ? route.request().postDataJSON() : null;
@@ -85,6 +92,30 @@ try {
   await game.getByRole("button", { name: "Open Flour Moon", exact: true }).click();
   await page.waitForTimeout(6000);
   await page.locator(".rf-game-frame").screenshot({ path: "./artifacts/host-playing.png" });
+  // Let the day run to closing; the summary shows the day card and shares through the host.
+  await game.getByRole("heading", { name: "Day 1 closed" }).waitFor({ timeout: 240_000 });
+  await game.getByRole("img", { name: /Day 1 report card for Flour Moon/ }).waitFor();
+  await game.getByRole("button", { name: "Post to X", exact: true }).click();
+  await game.getByText(/Picture copied and X opened/).waitFor();
+  const shared = await page.evaluate(() => window.__shared);
+  assert.equal(shared.opened.length, 1);
+  const intent = new URL(shared.opened[0]);
+  assert.equal(intent.origin + intent.pathname, "https://x.com/intent/post");
+  const text = intent.searchParams.get("text");
+  for (const tag of ["@RareFriendsNFT", "#RareFriends", "#RareFriendsCafe", "Flour Moon", "#7730"]) assert.ok(text.includes(tag), `post text includes ${tag}`);
+  assert.deepEqual(shared.copied, [["image/png"]], "the day card is copied as a PNG picture");
+  await game.getByRole("button", { name: "Copy picture", exact: true }).click();
+  await game.getByText("Day card copied as a picture.").waitFor();
+  await page.locator(".rf-game-frame").screenshot({ path: "./artifacts/host-day-summary.png" });
+  const card = await game.getByRole("img", { name: /Day 1 report card/ }).evaluate(image => {
+    const canvas = document.createElement("canvas"); canvas.width = image.naturalWidth; canvas.height = image.naturalHeight;
+    canvas.getContext("2d").drawImage(image, 0, 0);
+    return { width: image.naturalWidth, height: image.naturalHeight, data: canvas.toDataURL("image/png").split(",")[1] };
+  });
+  assert.deepEqual([card.width, card.height], [1200, 675]);
+  const cardBytes = card.data;
+  (await import("node:fs")).writeFileSync("./artifacts/day-card.png", Buffer.from(cardBytes, "base64"));
+
   const key = `rarefriends-cafe:save:v1:${OWNER.toLowerCase()}`;
   const saved = JSON.parse(await page.evaluate(name => localStorage.getItem(name), key));
   assert.equal(saved?.shop, "pastry", "progress is saved for this wallet address");
@@ -93,6 +124,7 @@ try {
   // Reload: the same wallet gets its shop back.
   await enter();
   await game.getByRole("heading", { name: "Welcome back to Flour Moon" }).waitFor();
+  assert.match(await game.locator(".cafe-perk, .rf-frame-menu").first().innerText(), /day 2/, "the next day is ready after closing");
   assert.equal(await cafe.getAttribute("data-shop"), "pastry");
   await page.locator(".rf-game-frame").screenshot({ path: "./artifacts/host-welcome-back.png" });
   assert.deepEqual([...errors, ...fixture.errors], [], "browser errors");

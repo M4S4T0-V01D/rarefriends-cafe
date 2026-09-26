@@ -19,3 +19,12 @@ export function parseStaffRoster(ids: unknown, managerId: bigint, limit = 40): n
   if (!clean.includes(Number(managerId))) return null;
   return clean.filter(id => id !== Number(managerId)).slice(0, limit);
 }
+
+/**
+ * Sharing the end-of-day card. The sandbox can't copy, download or open tabs, so on a click the game sends
+ * SHARE_REQUEST (action, post text, PNG blob) and the trusted host performs it, replying with SHARE_RESULT.
+ */
+export const SHARE_REQUEST = "rarefriends-cafe:share";
+export const SHARE_RESULT = "rarefriends-cafe:share-result";
+export type ShareAction = "post" | "copy" | "save";
+export type ShareOutcome = "shared" | "copied-and-opened" | "saved-and-opened" | "copied" | "saved" | "cancelled" | "failed";

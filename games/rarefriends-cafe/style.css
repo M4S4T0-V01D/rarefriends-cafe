@@ -136,3 +136,10 @@
 }
 .cafe-game button[aria-pressed="true"]:hover:not(:disabled), .cafe-game button[aria-checked="true"]:hover:not(:disabled), .cafe-game button[aria-selected="true"]:hover:not(:disabled) { background: #333; color: var(--paper); }
 .cafe-shops button[aria-checked="true"]:hover:not(:disabled) { background: #fff; color: var(--ink); }
+
+/* End-of-day share card */
+.cafe-share { margin: 6px 0 12px; padding: 10px; background: #fff; border: 1.5px solid var(--ink); }
+.cafe-share h3 { margin: 0 0 8px; font-size: 13px; }
+.cafe-share img { display: block; width: 100%; height: auto; border: 1px solid var(--ink); }
+.cafe-share .cafe-buttons { margin-bottom: 4px; }
+@media (max-width: 640px) { .cafe-share { padding: 6px; } .cafe-share h3 { font-size: 11px; } }

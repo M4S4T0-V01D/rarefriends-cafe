@@ -15,6 +15,7 @@ game for the [Rare Friends Vibeathon](https://github.com/spokesz/rarefriends-vib
 - **Pick your shop:** coffee & sweets café, seafood restaurant, pastry shop, burger diner or Asian noodle house. Each has its own 9-dish menu, dish art and kitchen station.
 - **Make it yours:** build mode on an 11 × 11 tile grid. Place, rotate, move and sell tables, plants, lamps, bookshelves, a record player, a piano and rugs. Choose from 6 wallpapers and 6 floor designs.
 - **Keep your progress:** your shop saves automatically for your wallet address, and reconnecting brings it back.
+- **Share every day on X:** the day summary draws a report card picture. **Post to X** sends it with *"@RareFriendsNFT #RareFriends #RareFriendsCafe"*, or you can copy or save the picture.
 - **$RAREFRIENDS:** Rare Recipe Capsules cost (simulated) RF. Keep a recipe for a shop bonus or redeem it for its RF value.
 
 | | |
@@ -32,6 +33,10 @@ game for the [Rare Friends Vibeathon](https://github.com/spokesz/rarefriends-vib
 | **Staff slots** | **Rare Recipe Capsule** | **Welcome back (saved per wallet)** |
 | ![Staff panel](docs/staff.png) | ![Capsule reveal](docs/capsule.png) | ![Restored shop](docs/welcome-back.png) |
 
+**End-of-day card, ready to post:**
+
+![Day report card with the shop, stats, manager and tags](docs/day-card.png)
+
 ## How it plays
 
 1. **Choose your shop** and open for the day. Guest Friends walk in and sit down; regulars #7730 and #3412 drop by too.
@@ -40,7 +45,7 @@ game for the [Rare Friends Vibeathon](https://github.com/spokesz/rarefriends-vib
 4. Fast service means bigger **tips in Beans**. Spend Beans on dishes, kitchen station levels, staff slots, furniture and designs.
 5. **Staff:** put your own Friends (or guest applicants) in slots as waiters, who serve on their own, or chefs, who add kitchen slots.
 6. **Build (B):** arrange tables and décor on the tile grid. Placements that would block guests or staff are refused. Décor, wallpaper and floors raise **ambience** for better tips, patience and more guests.
-7. At closing, a **day summary** shows guests served, tips and rating. Your progress is saved, so open the next day now or come back later.
+7. At closing, a **day summary** shows guests served, tips and rating, plus your **day card** picture. **Post to X**, **Copy picture** or **Save picture**. Your progress is saved, so open the next day now or come back later.
 8. Tap the **capsule machine** for **Rare Recipe Capsules** (1 simulated RF each). Keeping a recipe unlocks your shop's silver or moonlight special, tip bonuses, or Genesis VIP guests who pay 3×. Or redeem it for its fixed RF value.
 
 Full rules, costs, odds and controls: [games/rarefriends-cafe/README.md](games/rarefriends-cafe/README.md).
@@ -86,8 +91,12 @@ The runtime page is the SDK's own **`GameHost`**: wallet connection, owned-Frien
    runs the SDK's account-filtered `readOwnedFriends` for the connected wallet. It never scans the collection.
 2. **Per-wallet saves.** The sandbox has no storage, so the trusted page stores each wallet's progress in
    its own `localStorage` under `rarefriends-cafe:save:v1:<wallet address>`.
+3. **Sharing the day card.** The sandbox can't copy, download or open tabs. When you press a share button,
+   the game hands the card picture and post text to the trusted page. On phones, the share sheet sends both to
+   the X app. On desktop, the page copies the picture (or saves it) and opens a prefilled X post, because X post
+   links can't carry images: paste the picture and press Post. Nothing is posted without you pressing Post.
 
-The game gets both only over `postMessage`, when it asks. It accepts the answer only from its parent
+The game gets the roster and save only over `postMessage`, when it asks. It accepts the answer only from its parent
 window, and only if the roster contains the manager Friend the runtime just verified, so the roster and
 save always belong to that wallet. The host accepts saves only from its own game frame, for a Friend in
 that wallet. There are no signatures, transactions or extra wallet prompts. Under the plain SDK CLI
@@ -97,14 +106,17 @@ that wallet. There are no signatures, transactions or extra wallet prompts. Unde
 
 ```sh
 npm run typecheck      # tsc strict (game + host)
-npm test               # 19 engine tests: shops, service loop, patience, day cycle, build/placement rules,
-                       # ambience, staff slots + owned staff, save/restore + tamper rejection, perks, economy
+npm test               # 21 engine tests: shops, service loop, patience, day cycle, build/placement rules,
+                       # ambience, staff slots + owned staff, save/restore + tamper rejection, next-day resume,
+                       # perks, economy, X post text (tags, ≤ 280 characters)
 npm run check          # friendsdk check: game.json economy + sandbox/source boundary
 npm run test:browser   # SDK mock-wallet browser runs (screenshots in ./artifacts/):
                        #  • SDK CLI host at 960 px: shop pick, keyboard service, build (pointer + keyboard),
                        #    floor tab, staff hire, capsule buy→open→keep, mute; 360 px touch + build bar
                        #  • custom host: two-Friend wallet → #3412 hired as chef with canonical art,
-                       #    save written for the wallet address, reload → "Welcome back" restore
+                       #    a full day to closing → 1200×675 day card, Post to X (prefilled post with
+                       #    @RareFriendsNFT #RareFriends #RareFriendsCafe + picture copied), Copy picture,
+                       #    save written for the wallet address, reload → "Welcome back" on day 2
 ```
 
 All of these run in CI before deploying. `test:browser` needs Playwright's Chromium (`npx playwright install chromium`).
@@ -140,6 +152,7 @@ client, **simulated and clearly labelled**:
 
 - Saves live in the browser on this device, keyed by wallet address. Another device or browser starts fresh, and clearing site data erases the save. Saves are client-side, so a determined player could edit their own (simulated) Beans.
 - Capsule RF balances and kept recipes live in the SDK's session ledger and reset on reload.
+- X can't take a picture through a post link, and posting for you would need X's paid API plus your login. So on desktop the card is copied for you to paste; on phones the share sheet attaches it. Posting always needs your tap on X.
 - Guest Friends are procedural art in the Rare Friends style, not specific tokens.
 - The owned-staff roster needs the RPC to return the wallet's full transfer history. If discovery fails, guest applicants still work.
 - Wallet support is the SDK's (injected / EIP-6963). WalletConnect is not supplied, so phones need a wallet with an in-app browser.

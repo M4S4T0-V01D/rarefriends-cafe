@@ -287,11 +287,11 @@ export type CafeSave = {
   unlocked: string[]; items: { kind: ItemKind; x: number; y: number; dir: 0 | 1 }[]; wallpaper: string; floor: string; finishes: string[];
   staffSlots: number; staff: { slot: number; owned?: number; guest?: number; role: StaffRole }[]; totalServed: number;
 };
-/** Long-term progress only. A day in progress resumes from its start. */
+/** Long-term progress only. A day in progress resumes from its start; a closed day resumes at the next one. */
 export function serializeCafe(state: CafeState): CafeSave | null {
   if (!state.started) return null;
   return {
-    v: SAVE_VERSION, shop: state.shop, day: state.day, beans: state.beans, xp: state.xp, level: state.level, rating: Math.round(state.rating * 100) / 100,
+    v: SAVE_VERSION, shop: state.shop, day: state.phase === "summary" ? state.day + 1 : state.day, beans: state.beans, xp: state.xp, level: state.level, rating: Math.round(state.rating * 100) / 100,
     machine: state.machine, unlocked: [...state.unlocked], items: state.items.map(({ kind, x, y, dir }) => ({ kind, x, y, dir })),
     wallpaper: state.wallpaper, floor: state.floor, finishes: [...state.finishes], staffSlots: state.staffSlots,
     staff: state.staff.map(member => ({ slot: member.slot, role: member.role, ...member.who })), totalServed: state.totalServed,

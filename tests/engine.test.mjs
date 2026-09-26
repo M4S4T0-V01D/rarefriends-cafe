@@ -162,6 +162,14 @@ test("progress saves and restores per wallet (long-term state only)", () => {
   assert.equal(other.staff.length, 1, "owned staff not in this wallet's roster are dropped");
 });
 
+test("a closed day resumes at the next day", () => {
+  const state = cafe(); openCafe(state);
+  assert.ok(until(state, () => state.phase === "summary", DAY_LENGTH + 120));
+  const fresh = cafe();
+  assert.equal(restoreCafe(fresh, JSON.parse(JSON.stringify(serializeCafe(state)))), true);
+  assert.equal(fresh.day, 2);
+});
+
 test("tampered or broken saves are rejected whole", () => {
   const base = cafe(); base.beans = 500; openCafe(base);
   const good = serializeCafe(base);
@@ -219,4 +227,15 @@ test("capsule table matches the documented economy", () => {
   assert.equal(game.outcomes.reduce((sum, o) => sum + o.chanceBps, 0), 10000);
   const expected = game.outcomes.reduce((sum, o) => sum + BigInt(o.reward) * BigInt(o.chanceBps), 0n) / 10000n;
   assert.equal(expected, 880000000000000000n);
+});
+
+test("end-of-day post text tags Rare Friends and fits in one post", async () => {
+  const { shareText, postLength, SHARE_TAGS } = await import("../games/rarefriends-cafe/card.ts");
+  const state = cafe({ shop: "seafood" }); openCafe(state); run(state, 30);
+  state.day = 12345; state.today.served = 999; state.today.beans = 1234567;
+  const text = shareText(state, 123456789n, 6);
+  assert.ok(text.includes("@RareFriendsNFT") && text.includes("#RareFriends") && text.includes("#RareFriendsCafe"));
+  assert.ok(text.endsWith(SHARE_TAGS));
+  assert.ok(text.includes("Tide & Shell") && text.includes("#123456789") && text.includes("Colossus"));
+  assert.ok(postLength(text) <= 280, `post is ${postLength(text)} characters`);
 });

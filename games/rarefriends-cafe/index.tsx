@@ -20,7 +20,8 @@ import { placementProblem, type Tile } from "./layout.ts";
 import { BuildBar, ShopPicker, SpriteChip, StaffPanel, staffCandidates, toolLabel, type BuildTool } from "./panels.tsx";
 import { REGULAR_SPRITES } from "./regulars.ts";
 import { VIEW, friendRows, hitTest, renderScene, tileAt, type BuildView, type Floater } from "./render.ts";
-import { HOST_HELLO, HOST_STATE, SAVE_WRITE, parseStaffRoster } from "./roster.ts";
+import { HOST_HELLO, HOST_STATE, SAVE_WRITE, SHARE_REQUEST, SHARE_RESULT, parseStaffRoster, type ShareAction, type ShareOutcome } from "./roster.ts";
+import { renderDayCard, shareText } from "./card.ts";
 import "@rarefriends/friendsdk/frame.css";
 import "./style.css";
 
@@ -52,6 +53,8 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
   const floaters = useRef<Floater[]>([]), hover = useRef<Tile | null>(null), sound = useRef<FriendSoundKit | null>(null);
   const buildView = useRef<BuildView | null>(null);
   const epoch = useRef(0), locked = useRef(false), linked = useRef(false), lastSave = useRef("");
+  const daySnapshot = useRef<HTMLCanvasElement | null>(null), shareTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [card, setCard] = useState<{ day: number; blob: Blob; url: string; text: string } | null>(null), [shareStatus, setShareStatus] = useState("");
   const [status, setStatus] = useState("Setting up your shop and loading your Friend…"), [failed, setFailed] = useState(false), [revision, setRevision] = useState(0);
   const [hud, setHud] = useState<Hud | null>(null), [menu, setMenu] = useState<Menu>(null), [tab, setTab] = useState<Tab>("menu");
   const [toast, setToast] = useState(""), [muted, setMuted] = useState(true), [reducedMotion, setReducedMotion] = useState(false);
@@ -116,6 +119,17 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
     };
     // Roster and saved progress from the trusted host; accepted only from the parent window.
     const receiveRoster = (event: MessageEvent) => {
+      if (event.source === window.parent && event.data?.type === SHARE_RESULT) {
+        if (shareTimer.current) clearTimeout(shareTimer.current);
+        const messages: Record<ShareOutcome, string> = {
+          shared: "Shared! Pick X in your share sheet to post it.", cancelled: "Share cancelled.", failed: "Couldn't share from this browser. Try Save picture.",
+          "copied-and-opened": "Picture copied and X opened: paste it into your post (Ctrl/Cmd+V), then press Post.",
+          "saved-and-opened": "Picture saved and X opened: attach the saved picture to your post, then press Post.",
+          copied: "Day card copied as a picture.", saved: "Day card saved as a picture.",
+        };
+        setShareStatus(messages[event.data.result as ShareOutcome] ?? messages.failed);
+        return;
+      }
       if (event.source !== window.parent || event.data?.type !== HOST_STATE) return;
       if (cafe.current) applyHost(event.data); else pendingHost.current = event.data;
     };
@@ -157,6 +171,11 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
         }
         if (running) for (const floater of floaters.current) floater.age += dt;
         floaters.current = floaters.current.filter(floater => floater.age < 1.6);
+        // Keep a mid-afternoon photo of the busy shop for the end-of-day card.
+        if (state.phase === "open" && !live.current.build && !daySnapshot.current && dayProgress(state) >= 0.6) {
+          const photo = document.createElement("canvas"); photo.width = VIEW.width; photo.height = VIEW.height;
+          photo.getContext("2d")!.drawImage(node, 0, 0, VIEW.width, VIEW.height); daySnapshot.current = photo;
+        }
         renderScene(ctx, { state, now, reducedMotion: live.current.reducedMotion, guests: GUESTS, regulars: regularMap, friend: sprites,
           staffSprites: staffSprites.current, floaters: floaters.current, hover: hover.current, build: live.current.build ? buildView.current : null }, pixelScale);
         if (now - lastHud > 150) { lastHud = now; setHud(readHud(state)); }
@@ -280,7 +299,7 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
     const state = cafe.current;
     if (!state || paused) return;
     if (state.phase === "intro" && !state.started) chooseShop(state, shopChoice);
-    void sound.current?.unlock(); openCafe(state); setHud(readHud(state)); cue("action-ready"); focusCanvas();
+    void sound.current?.unlock(); openCafe(state); daySnapshot.current = null; setShareStatus(""); setHud(readHud(state)); cue("action-ready"); focusCanvas();
   }
   function purchase(item: "machine" | "slot") {
     const state = cafe.current;
@@ -296,6 +315,31 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
     if (problem) setError(problem); else { setError(""); cue("purchase"); }
     setHud(readHud(state)); refresh();
   }
+
+  // ---------- End-of-day card: a picture of the day, shared through the trusted host ----------
+  const summaryDay = hud?.phase === "summary" ? hud.day : null;
+  useEffect(() => {
+    const state = cafe.current, sprites = friend.current;
+    if (summaryDay === null || !state || !sprites) return;
+    const image = renderDayCard({ state, friendId, familyId: sprites.familyId, scene: daySnapshot.current ?? canvas.current,
+      portrait: friendRows(sprites, "down", false, 0) });
+    let url = "", cancelled = false;
+    image.toBlob(blob => {
+      if (!blob || cancelled) return;
+      url = URL.createObjectURL(blob);
+      setCard({ day: summaryDay, blob, url, text: shareText(state, friendId, sprites.familyId) });
+    }, "image/png");
+    return () => { cancelled = true; if (url) URL.revokeObjectURL(url); };
+  }, [summaryDay, friendId]);
+  function shareCard(action: ShareAction) {
+    if (!card || paused) return;
+    setShareStatus(action === "post" ? "Opening X…" : action === "copy" ? "Copying…" : "Saving…");
+    window.parent.postMessage({ type: SHARE_REQUEST, action, text: card.text, image: card.blob, filename: `rarefriends-cafe-day-${card.day}.png` }, "*");
+    if (shareTimer.current) clearTimeout(shareTimer.current);
+    shareTimer.current = setTimeout(() => setShareStatus("Sharing works on the RareFriends Cafe page (the GitHub Pages link), not in this runtime."), 2500);
+    cue("select");
+  }
+  useEffect(() => () => { if (shareTimer.current) clearTimeout(shareTimer.current); }, []);
 
   // ---------- Rare Recipe Capsules: the SDK's simulated RF chance-game actions ----------
   async function act(work: () => Promise<void>, after?: (value: GameSnapshot) => void) {
@@ -430,6 +474,17 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
         <p><span>Rating</span><strong>{stars(state.rating)} {state.rating.toFixed(1)}</strong></p>
       </div>
       <p>{state.today.lost === 0 && state.today.served > 0 ? "Perfect service. Not a single guest left unhappy!" : "Spend your Beans before the next day: rearrange, hire staff, or add dishes."}</p>
+      <div className="cafe-share">
+        <h3>Share your day on X</h3>
+        {card?.day === state.day ? <img src={card.url} alt={`Day ${state.day} report card for ${shop.name}`} /> : <p role="status">Drawing your day card…</p>}
+        <p className="cafe-note">{card?.day === state.day ? card.text.split("\n").at(-1) : ""} · the picture and tags go into your post. You press Post on X.</p>
+        <div className="cafe-buttons">
+          <button type="button" className="rf-frame-primary" disabled={paused || card?.day !== state.day} onClick={() => shareCard("post")}>Post to X</button>
+          <button type="button" disabled={paused || card?.day !== state.day} onClick={() => shareCard("copy")}>Copy picture</button>
+          <button type="button" disabled={paused || card?.day !== state.day} onClick={() => shareCard("save")}>Save picture</button>
+        </div>
+        {shareStatus && <p role="status">{shareStatus}</p>}
+      </div>
       <button type="button" className="rf-frame-primary" disabled={paused} onClick={startDay}>Open day {state.day + 1}</button>
       <button type="button" disabled={paused} onClick={enterBuild}>Build</button>
       <button type="button" disabled={paused} onClick={() => openMenu("upgrades")}>Upgrades</button>
