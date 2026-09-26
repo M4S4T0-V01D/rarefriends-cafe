@@ -1,11 +1,27 @@
 {
   "name": "RareFriends Cafe",
-  "consumable": "Rare Blend Capsule",
+  "consumable": "Rare Recipe Capsule",
   "price": "1000000000000000000",
   "outcomes": [
-    { "name": "House Blend", "chanceBps": 6000, "reward": "500000000000000000" },
-    { "name": "Silver Roast", "chanceBps": 2800, "reward": "1000000000000000000" },
-    { "name": "Moonlight Roast", "chanceBps": 1000, "reward": "2000000000000000000" },
-    { "name": "Golden Bean", "chanceBps": 200, "reward": "5000000000000000000" }
+    {
+      "name": "House Secret",
+      "chanceBps": 6000,
+      "reward": "500000000000000000"
+    },
+    {
+      "name": "Silver Recipe",
+      "chanceBps": 2800,
+      "reward": "1000000000000000000"
+    },
+    {
+      "name": "Moonlight Recipe",
+      "chanceBps": 1000,
+      "reward": "2000000000000000000"
+    },
+    {
+      "name": "Golden Recipe",
+      "chanceBps": 200,
+      "reward": "5000000000000000000"
+    }
   ]
 }

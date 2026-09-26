@@ -90,3 +90,49 @@
 .cafe-card > :not(.cafe-portrait) { grid-column: 2; }
 .cafe-portrait { grid-column: 1; grid-row: 1 / span 5; align-self: center; width: 54px; height: 54px; image-rendering: pixelated; background: var(--rose); border: 1.5px solid var(--ink); }
 @media (max-width: 640px) { .cafe-portrait { width: 30px; height: 30px; grid-row: 1 / span 3; } .cafe-card { column-gap: 6px; } }
+
+/* Shop picker */
+.cafe-shops { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin: 8px 0 12px; }
+.cafe-shops button { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; padding: 8px; box-shadow: 2px 2px 0 var(--ink); border-left: 6px solid var(--shop, var(--rose)); }
+.cafe-shops button[aria-checked="true"] { background: #fff; outline: 2px solid var(--ink); outline-offset: 1px; }
+.cafe-shops small { color: var(--muted); font-size: 11px; }
+.cafe-dishes { width: 120px; height: 40px; }
+
+/* Staff */
+.cafe-chip { flex: none; image-rendering: pixelated; background: #fff; border: 1px solid var(--ink); }
+.cafe-row > .cafe-chip + span { margin-right: auto; }
+.cafe-slot { border-bottom: 1px solid #cfccc4; padding-bottom: 6px; }
+.cafe-slot > .cafe-row { border-bottom: 0; }
+.cafe-roles { display: flex; gap: 6px; margin: 0 0 6px 48px; }
+.cafe-roles button { min-height: 28px; padding: 3px 10px; box-shadow: none; font-size: 12px; }
+.cafe-roles button[aria-checked="true"] { background: var(--ink); color: var(--paper); }
+.cafe-candidates { display: grid; gap: 6px; margin: 4px 0 8px 48px; max-height: 190px; overflow: auto; }
+.cafe-candidates button { display: flex; align-items: center; gap: 8px; text-align: left; box-shadow: none; padding: 5px 8px; }
+.cafe-candidates small { display: block; color: var(--muted); font-size: 10px; }
+
+/* Build mode */
+.cafe-build { position: absolute; left: 12px; right: 12px; bottom: 58px; display: grid; gap: 6px; padding: 8px; background: var(--card); border: 1.5px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); }
+.cafe-build-head { display: flex; align-items: center; gap: 8px; }
+.cafe-build-head .cafe-tabs { margin: 0; flex: none; }
+.cafe-build-head .cafe-tabs button { flex: none; min-height: 30px; padding: 4px 10px; }
+.cafe-build-status { flex: 1; min-width: 0; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cafe-build-row { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 3px; scrollbar-width: thin; }
+.cafe-build-row button { flex: none; display: flex; align-items: center; gap: 6px; text-align: left; box-shadow: none; padding: 5px 9px; font-size: 12px; }
+.cafe-build-row button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+.cafe-build-row small { display: block; font-size: 10px; opacity: .75; }
+.cafe-swatch { display: block; width: 22px; height: 22px; border: 1px solid var(--ink); flex: none; }
+
+@media (max-width: 640px) {
+  .cafe-shops { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; }
+  .cafe-shops button { padding: 4px 6px; }
+  .cafe-dishes { width: 84px; height: 28px; }
+  .cafe-build { left: 4px; right: 4px; bottom: 36px; padding: 4px; gap: 3px; box-shadow: 2px 2px 0 var(--ink); }
+  .cafe-build-head .cafe-tabs button { min-height: 22px; padding: 1px 5px; font-size: 9px; }
+  .cafe-build-status { font-size: 9px; }
+  .cafe-build-row button { padding: 2px 5px; font-size: 9px; min-height: 24px; }
+  .cafe-build-row small { font-size: 8px; }
+  .cafe-swatch { width: 14px; height: 14px; }
+  .cafe-roles, .cafe-candidates { margin-left: 0; }
+}
+.cafe-game button[aria-pressed="true"]:hover:not(:disabled), .cafe-game button[aria-checked="true"]:hover:not(:disabled), .cafe-game button[aria-selected="true"]:hover:not(:disabled) { background: #333; color: var(--paper); }
+.cafe-shops button[aria-checked="true"]:hover:not(:disabled) { background: #fff; color: var(--ink); }
