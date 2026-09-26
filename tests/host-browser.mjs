@@ -86,7 +86,7 @@ try {
   await game.getByRole("button", { name: "Choose", exact: true }).click();
   await game.getByRole("button", { name: /Your Friend #3412/ }).click();
   await game.getByRole("radio", { name: "Chef" }).click();
-  await game.getByText(/Skeleton · owned/).waitFor();
+  await game.getByText(/Gen 1 · Legendary · Lv 1/).waitFor();
   await page.locator(".rf-game-frame").screenshot({ path: "./artifacts/host-staff.png" });
   await game.getByRole("button", { name: /^Close Upgrades/ }).click();
   await game.getByRole("button", { name: "Open Flour Moon", exact: true }).click();
@@ -119,7 +119,8 @@ try {
   const key = `rarefriends-cafe:save:v1:${OWNER.toLowerCase()}`;
   const saved = JSON.parse(await page.evaluate(name => localStorage.getItem(name), key));
   assert.equal(saved?.shop, "pastry", "progress is saved for this wallet address");
-  assert.deepEqual(saved.staff, [{ slot: 0, role: "chef", owned: 3412 }]);
+  assert.deepEqual(saved.staff.map(({ slot, role, owned }) => ({ slot, role, owned })), [{ slot: 0, role: "chef", owned: 3412 }]);
+  assert.equal(typeof saved.staff[0].xp, "number", "worker XP is saved");
 
   // Reload: the same wallet gets its shop back.
   await enter();

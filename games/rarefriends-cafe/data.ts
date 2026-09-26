@@ -80,8 +80,38 @@ export const MAX_STAFF_SLOTS = 5;
 /** Cost and café level for staff slot number (index + 2). */
 export const STAFF_SLOT_COSTS = [120, 280, 520, 900] as const;
 export const STAFF_SLOT_LEVELS = [2, 3, 5, 7] as const;
-/** Owned Friends are experienced: faster helpers (and 2-dish trays) or faster chefs. */
-export const OWNED_STAFF_BONUS = { speed: 1.25, carry: 2, cook: 0.9 } as const;
+export type StaffRoleInfo = Readonly<{ id: "waiter" | "chef" | "promoter"; name: string; text: string }>;
+export const STAFF_ROLES: readonly StaffRoleInfo[] = [
+  { id: "waiter", name: "Waiter", text: "Takes orders and delivers dishes." },
+  { id: "chef", name: "Chef", text: "Cooks in the kitchen: +1 dish at a time, and faster." },
+  { id: "promoter", name: "Promoter", text: "Works the street and brings passers-by in." },
+];
+/**
+ * Worker tier from the Friend's on-chain Generations generation: Gen 1 is the highest tier, Gen 6 the lowest.
+ * Guest applicants (not your NFTs) rank below Gen 6.
+ */
+export const GENERATION_TIERS: Readonly<Record<number, { name: string; power: number }>> = {
+  1: { name: "Gen 1 · Legendary", power: 1.3 }, 2: { name: "Gen 2 · Epic", power: 1.25 }, 3: { name: "Gen 3 · Rare", power: 1.2 },
+  4: { name: "Gen 4 · Uncommon", power: 1.15 }, 5: { name: "Gen 5 · Common", power: 1.1 }, 6: { name: "Gen 6 · Rookie", power: 1.05 },
+};
+export const GUEST_TIER = { name: "Guest applicant", power: 1 } as const;
+export const tierOf = (generation: number | null) => generation === null ? GUEST_TIER : GENERATION_TIERS[Math.min(6, Math.max(1, generation))];
+/** Worker XP (one per task, dish or guest brought in) needed for levels 2–10. Each level adds 4% to the worker's power. */
+export const WORKER_LEVEL_XP = [10, 25, 45, 70, 100, 140, 190, 250, 320] as const;
+export const workerLevel = (xp: number) => 1 + WORKER_LEVEL_XP.filter(need => xp >= need).length;
+/** Fatigue 0–100. Tired at 70 (slower); exhausted at 100 (stops working until rested). */
+export const FATIGUE = { tired: 70, exhausted: 100, perTask: 4, perDish: 3, promoterPerSecond: 0.3, levelRelief: 0.04 } as const;
+/** A break takes 15 s rested, up to 30 s exhausted. */
+export const breakSeconds = (fatigue: number) => 15 + 15 * Math.min(1, Math.max(0, fatigue) / 100);
+
+// ---------- Street and expansion ----------
+/** A Friend walks past on the street about every 1.6 s; this share of them step in (more with promoters and ambience). */
+export const PASSERBY_INTERVAL = 1.6;
+export const BASE_WALK_IN = 0.34;
+export const PROMOTER_PULL = 0.12;
+/** Expanding adds 2 tiles to each side of the shop. */
+export const EXPAND_COSTS = [400, 900, 1600] as const;
+export const EXPAND_LEVELS = [3, 5, 7] as const;
 
 // ---------- Build mode ----------
 export type ItemKind = "table" | "plant" | "lamp" | "shelf" | "record" | "rug" | "piano";
@@ -97,8 +127,8 @@ export const CATALOG: readonly CatalogItem[] = [
 ];
 export const catalogItem = (kind: ItemKind) => CATALOG.find(item => item.kind === kind)!;
 export const START_TABLES = 3;
-/** Most tables allowed at a café level. */
-export const tableLimit = (level: number) => Math.min(10, START_TABLES + level);
+/** Most tables allowed at a shop level (more room after expanding helps fit them). */
+export const tableLimit = (level: number) => Math.min(16, START_TABLES + level);
 export const SELL_REFUND = 0.5;
 
 export type Finish = Readonly<{ id: string; name: string; cost: number; ambience: number; colors: readonly string[] }>;

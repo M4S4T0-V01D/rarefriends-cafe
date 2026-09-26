@@ -2,10 +2,10 @@
 
 import { useEffect, useRef } from "react";
 import {
-  CATALOG, FAMILY_NAMES, FLOORS, MAX_STAFF_SLOTS, SHOPS, WALLPAPERS, catalogItem, tableLimit,
+  CATALOG, FAMILY_NAMES, FLOORS, MAX_STAFF_SLOTS, SHOPS, STAFF_ROLES, WALLPAPERS, WORKER_LEVEL_XP, catalogItem, tableLimit, tierOf, workerLevel,
   type DishShape, type Finish, type ItemKind, type ShopId,
 } from "./data.ts";
-import { purchaseCost, purchaseLevel, staffAt, tableCount, type CafeState, type StaffRole, type StaffWho } from "./engine.ts";
+import { generationOf, purchaseCost, purchaseLevel, staffAt, staffPower, tableCount, type CafeState, type StaffRole, type StaffWho } from "./engine.ts";
 import type { GuestArt } from "./guests.ts";
 import { drawShape, INK } from "./render.ts";
 
@@ -49,33 +49,40 @@ export function ShopPicker({ value, onChange }: { value: ShopId; onChange: (id: 
 export type StaffCandidate = { who: StaffWho; label: string; detail: string; rows: readonly string[] | null };
 export function staffCandidates(state: CafeState, guests: readonly GuestArt[], ownedRows: (id: number) => readonly string[] | null, ownedFamily: (id: number) => number | null): StaffCandidate[] {
   return [
-    ...state.ownedFriends.map(id => {
-      const family = ownedFamily(id);
-      return { who: { owned: id }, label: `Your Friend #${id}`, detail: `${family === null ? "Loading…" : FAMILY_NAMES[family]} · owned: 25% faster, carries 2 / cooks 10% faster`, rows: ownedRows(id) };
+    // Your own Friends first, best generation (Gen 1) at the top.
+    ...[...state.ownedFriends].sort((a, b) => (state.generations[a] ?? 99) - (state.generations[b] ?? 99)).map(id => {
+      const family = ownedFamily(id), tier = tierOf(state.generations[id] ?? null);
+      return { who: { owned: id }, label: `Your Friend #${id}`, detail: `${state.generations[id] ? tier.name : "Owned"} · ${family === null ? "loading art…" : FAMILY_NAMES[family]} · power ×${tier.power.toFixed(2)}`, rows: ownedRows(id) };
     }),
-    ...state.applicants.map(index => ({ who: { guest: index }, label: `${guests[index].name} (guest Friend)`, detail: `${guests[index].family} · applicant`, rows: guests[index].frames[0] })),
+    ...state.applicants.map(index => ({ who: { guest: index }, label: `${guests[index].name} (guest Friend)`, detail: `${guests[index].family} · guest applicant · power ×1.00`, rows: guests[index].frames[0] })),
   ];
 }
 const sameWho = (a: StaffWho, b: StaffWho) => ("owned" in a && "owned" in b && a.owned === b.owned) || ("guest" in a && "guest" in b && a.guest === b.guest);
 
-export function StaffPanel({ state, candidates, picking, onPick, onAssign, onRole, onUnlock, paused }: {
+export function StaffPanel({ state, candidates, picking, onPick, onAssign, onRole, onUnlock, onBreak, paused }: {
   state: CafeState; candidates: StaffCandidate[]; picking: number | null; paused: boolean;
-  onPick: (slot: number | null) => void; onAssign: (slot: number, who: StaffWho | null) => void; onRole: (slot: number, role: StaffRole) => void; onUnlock: () => void;
+  onPick: (slot: number | null) => void; onAssign: (slot: number, who: StaffWho | null) => void; onRole: (slot: number, role: StaffRole) => void;
+  onUnlock: () => void; onBreak: (workerId: number) => void;
 }) {
   const cost = purchaseCost(state, "slot"), level = purchaseLevel(state, "slot");
   const describe = (who: StaffWho) => candidates.find(candidate => sameWho(candidate.who, who));
   return <>
-    <p className="cafe-note">{state.ownedFriends.length ? `${state.ownedFriends.length} more of your Friends can work here.` : "Only your manager Friend was found in this wallet, so guest Friends are applying."} Waiters take orders and deliver; each chef cooks one more dish at a time.</p>
+    <p className="cafe-note">{state.ownedFriends.length ? `${state.ownedFriends.length} more of your Friends can work here. Gen 1 is the top tier, Gen 6 the lowest.` : "Only your manager Friend was found in this wallet, so guest Friends are applying."} Workers level up as they work and get tired: send them to the break room when their energy runs low.</p>
     {Array.from({ length: state.staffSlots }, (_, slot) => {
       const member = staffAt(state, slot), info = member ? describe(member.who) : null;
       return <div className="cafe-slot" key={slot}>
         <div className="cafe-row">
           <SpriteChip rows={info?.rows ?? null} label={info?.label ?? "Empty slot"} />
-          <span><strong>{info?.label ?? `Slot ${slot + 1} · empty`}</strong><small>{member ? info?.detail : "Choose a Friend for this slot."}</small></span>
+          <span><strong>{info?.label ?? `Slot ${slot + 1} · empty`}</strong><small>{member ? `${tierOf(generationOf(state, member.who)).name} · Lv ${workerLevel(member.xp)} · power ×${staffPower(state, member).toFixed(2)}` : "Choose a Friend for this slot."}</small>
+            {member && <span className="cafe-meters">
+              <i title="Worker XP" style={{ ["--fill" as string]: `${xpFraction(member.xp) * 100}%` }} className="cafe-meter-xp" />
+              <i title="Energy" style={{ ["--fill" as string]: `${100 - member.fatigue}%` }} className={member.fatigue >= 70 ? "cafe-meter-energy cafe-meter-low" : "cafe-meter-energy"} />
+            </span>}</span>
           <button type="button" disabled={paused} aria-expanded={picking === slot} onClick={() => onPick(picking === slot ? null : slot)}>{member ? "Change" : "Choose"}</button>
         </div>
         {member && <div className="cafe-roles" role="radiogroup" aria-label={`Role for slot ${slot + 1}`}>
-          {(["waiter", "chef"] as const).map(role => <button type="button" role="radio" key={role} aria-checked={member.role === role} disabled={paused} onClick={() => onRole(slot, role)}>{role === "waiter" ? "Waiter" : "Chef"}</button>)}
+          {STAFF_ROLES.map(role => <button type="button" role="radio" key={role.id} aria-checked={member.role === role.id} title={role.text} disabled={paused} onClick={() => onRole(slot, role.id)}>{role.name}</button>)}
+          {(() => { const worker = state.workers.find(item => item.slot === slot); return worker && <button type="button" disabled={paused || worker.duty !== "work" || member.fatigue < 20} onClick={() => onBreak(worker.id)}>{worker.duty !== "work" ? "On break" : `Break · ${Math.round(100 - member.fatigue)}%`}</button>; })()}
           <button type="button" disabled={paused} onClick={() => onAssign(slot, null)}>Dismiss</button>
         </div>}
         {picking === slot && <div className="cafe-candidates">
@@ -93,6 +100,11 @@ export function StaffPanel({ state, candidates, picking, onPick, onAssign, onRol
       <button type="button" disabled={paused || state.level < level || state.beans < cost} onClick={onUnlock}>{state.level < level ? `Lv ${level}` : `☕ ${cost}`}</button>
     </div>}
   </>;
+}
+
+function xpFraction(xp: number) {
+  const level = workerLevel(xp), from = level > 1 ? WORKER_LEVEL_XP[level - 2] : 0, to = WORKER_LEVEL_XP[level - 1];
+  return to === undefined ? 1 : (xp - from) / (to - from);
 }
 
 export type BuildTool = { tab: "items" | "walls" | "floors"; mode: "place" | "move" | "sell"; kind: ItemKind; dir: 0 | 1 };

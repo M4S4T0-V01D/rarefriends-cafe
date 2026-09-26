@@ -75,14 +75,14 @@ function CafeHost() {
       if (!next) return;
       const current = controller = new AbortController();
       void readOwnedFriends(client, next, { signal: current.signal })
-        .then(result => { if (!current.signal.aborted) { roster = result.friends.map(friend => friend.id.toString()); broadcast(); } })
+        .then(result => { if (!current.signal.aborted) { roster = result.friends.map(friend => `${friend.id}:${friend.generation}`); broadcast(); } })
         .catch(() => { /* Staff roster is optional; the game falls back to guest Friends. */ });
     };
     // Only the game frame we host may ask or save. Saves are accepted only for a Friend in this wallet's roster.
     const receive = (event: MessageEvent) => {
       if (!event.source || !frames().includes(event.source as Window)) return;
       if (event.data?.type === HOST_HELLO) send(event.source as Window);
-      else if (event.data?.type === SAVE_WRITE && account && roster?.includes(String(event.data.manager))) writeSave(account, event.data.save);
+      else if (event.data?.type === SAVE_WRITE && account && roster?.some(entry => entry.split(":")[0] === String(event.data.manager))) writeSave(account, event.data.save);
       else if (event.data?.type === SHARE_REQUEST && ["post", "copy", "save"].includes(event.data.action) && event.data.image instanceof Blob
         && event.data.image.type === "image/png" && event.data.image.size < 5_000_000 && typeof event.data.text === "string" && event.data.text.length <= 1000) {
         const source = event.source as Window, action = event.data.action as ShareAction;

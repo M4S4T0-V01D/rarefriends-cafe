@@ -2,6 +2,10 @@
 // Uses the SDK CLI's own runtime page; tests/host-browser.mjs covers the custom host (staff roster + saves).
 import assert from "node:assert/strict";
 import { testGame } from "@rarefriends/friendsdk/testing";
+import { cameraFor, project, toView } from "../games/rarefriends-cafe/layout.ts";
+
+/** Viewport position of a grid tile at the starting shop size, through the game's camera. */
+const tilePoint = (box, x, y, size = 10) => { const view = toView(cameraFor(size), project(x, y)); return { x: box.x + box.width * view.x / 960, y: box.y + box.height * view.y / 640 }; };
 
 const game = "./games/rarefriends-cafe";
 const shot = (page, name) => page.locator(".rf-game-frame").screenshot({ path: `./artifacts/${name}.png` });
@@ -36,14 +40,13 @@ await testGame(game, {
     assert.equal(await attr(frame, "build"), "on");
     const items = await number(frame, "items");
     await frame.getByRole("button", { name: /^Potted monstera/ }).click();
-    const box = await canvas.boundingBox();
-    // Tile (9, 9): project → (480, 168 + 18 × 16.5) in the 960 × 640 reference space.
-    await page.mouse.click(box.x + box.width * 480 / 960, box.y + box.height * (168 + 18 * 16.5) / 640);
+    const box = await canvas.boundingBox(), spot = tilePoint(box, 9, 9);
+    await page.mouse.click(spot.x, spot.y);
     await frame.getByText("Potted monstera placed.").waitFor();
     assert.equal(await number(frame, "items"), items + 1);
     await frame.getByRole("button", { name: /^Faded rose rug/ }).click();
     await canvas.focus();
-    for (const key of ["ArrowDown", "ArrowDown", "Enter"]) await page.keyboard.press(key);
+    for (const key of ["ArrowUp", "ArrowUp", "Enter"]) await page.keyboard.press(key);
     await frame.getByText("Faded rose rug placed.").waitFor();
     await frame.getByRole("tab", { name: "Floor" }).click();
     await shot(page, "desktop-build");
@@ -56,7 +59,10 @@ await testGame(game, {
     await frame.getByRole("button", { name: "Choose", exact: true }).click();
     await frame.locator(".cafe-candidates button").first().click();
     await frame.getByRole("radio", { name: "Chef" }).click();
+    await frame.getByText(/Guest applicant · Lv 1/).first().waitFor();
     await shot(page, "desktop-staff");
+    await frame.getByRole("tab", { name: "Shop" }).click();
+    await frame.getByText("Expand to 12 × 12").waitFor();
     await frame.getByRole("button", { name: /^Close Upgrades/ }).click();
 
     // Rare Recipe Capsule: buy (runtime confirmation), open (runtime confirmation), keep.

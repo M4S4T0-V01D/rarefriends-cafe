@@ -143,3 +143,9 @@
 .cafe-share img { display: block; width: 100%; height: auto; border: 1px solid var(--ink); }
 .cafe-share .cafe-buttons { margin-bottom: 4px; }
 @media (max-width: 640px) { .cafe-share { padding: 6px; } .cafe-share h3 { font-size: 11px; } }
+.cafe-meters { display: flex; gap: 4px; margin-top: 4px; }
+.cafe-meters i { display: block; width: 70px; height: 5px; background: #d9d6cf; position: relative; }
+.cafe-meters i::after { content: ""; position: absolute; inset: 0 auto 0 0; width: var(--fill); background: var(--ink); }
+.cafe-meters .cafe-meter-xp::after { background: var(--rose); }
+.cafe-meters .cafe-meter-low::after { background: #b86d6d; }
+.cafe-roles { flex-wrap: wrap; }

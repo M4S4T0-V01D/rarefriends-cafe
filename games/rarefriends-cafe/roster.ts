@@ -12,12 +12,25 @@ export const HOST_HELLO = "rarefriends-cafe:hello";
 export const HOST_STATE = "rarefriends-cafe:state";
 export const SAVE_WRITE = "rarefriends-cafe:save";
 
-/** Owned Friend IDs other than the manager, or null when the roster does not belong to the manager's wallet. */
-export function parseStaffRoster(ids: unknown, managerId: bigint, limit = 40): number[] | null {
+/** One roster entry per owned Friend: `"<token id>:<generation>"` (generation 1 is the top worker tier). */
+export type RosterFriend = { id: number; generation: number | null };
+/**
+ * Parse the host's roster. Returns the manager's generation and the other owned Friends, or null when the roster
+ * does not belong to the manager's wallet (the verified manager must be listed).
+ */
+export function parseStaffRoster(ids: unknown, managerId: bigint, limit = 40): { manager: number | null; staff: RosterFriend[] } | null {
   if (!Array.isArray(ids)) return null;
-  const clean = [...new Set(ids.map(id => typeof id === "string" && /^[0-9]{1,15}$/.test(id) ? Number(id) : NaN))].filter(id => Number.isSafeInteger(id) && id > 0);
-  if (!clean.includes(Number(managerId))) return null;
-  return clean.filter(id => id !== Number(managerId)).slice(0, limit);
+  const seen = new Set<number>(), friends: RosterFriend[] = [];
+  for (const entry of ids) {
+    const match = typeof entry === "string" ? /^([0-9]{1,15})(?::([0-9]{1,3}))?$/.exec(entry) : null;
+    if (!match) continue;
+    const id = Number(match[1]), generation = match[2] === undefined ? null : Number(match[2]);
+    if (!Number.isSafeInteger(id) || id < 1 || seen.has(id)) continue;
+    seen.add(id); friends.push({ id, generation: generation !== null && generation >= 1 && generation <= 255 ? generation : null });
+  }
+  const managerEntry = friends.find(friend => friend.id === Number(managerId));
+  if (!managerEntry) return null;
+  return { manager: managerEntry.generation, staff: friends.filter(friend => friend !== managerEntry).slice(0, limit) };
 }
 
 /**

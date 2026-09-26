@@ -1,9 +1,9 @@
-/** Canvas renderer: greyscale isometric shop with faded accent colours, drawn in the 960 × 640 reference space. */
+/** Canvas renderer: greyscale isometric shop and street with faded accent colours, framed by a camera in the 960 × 640 view. */
 import type { GenerationSprites } from "@rarefriends/friendsdk/sprites";
-import { FLOORS, WALLPAPERS, dishById, shopById, type DishId, type DishShape, type ItemKind, type Shop } from "./data.ts";
-import { ambience, chefs, dayProgress, manager, tables, type CafeState, type Customer, type Facing, type StaffWho, type Worker } from "./engine.ts";
+import { FLOORS, WALLPAPERS, dishById, shopById, workerLevel, type DishId, type DishShape, type ItemKind, type Shop } from "./data.ts";
+import { ambience, dayProgress, manager, memberOf, plan, tables, type CafeState, type Customer, type Facing, type Passerby, type StaffWho, type Worker } from "./engine.ts";
 import type { GuestArt } from "./guests.ts";
-import { CAPSULE_MACHINE, CAPSULE_SPOT, COUNTER, DOOR, KITCHEN, PICKUP, project, seatOf, unproject, type Item, type Tile } from "./layout.ts";
+import { cameraFor, project, seatOf, toWorld, unproject, type Camera, type Item, type Tile } from "./layout.ts";
 
 export const VIEW = { width: 960, height: 640 } as const;
 export const INK = "#161616", PAPER = "#efede7";
@@ -65,57 +65,52 @@ const tileQuad = (x: number, y: number, inset = 0) =>
   [project(x - 0.5 + inset, y - 0.5 + inset), project(x + 0.5 - inset, y - 0.5 + inset), project(x + 0.5 - inset, y + 0.5 - inset), project(x - 0.5 + inset, y + 0.5 - inset)];
 function line(ctx: CanvasRenderingContext2D, a: Point, b: Point) { ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
 
-// ---------- Static layer: paper, walls and floor ----------
+// ---------- Static layer: paper, street, walls and floors ----------
 let backdrop: { canvas: HTMLCanvasElement; key: string } | null = null;
 const W = (x: number, y: number, h: number) => project(x, y, h);
-const S = -0.5, E = 10.5, H = 132;
+const S = -0.5, H = 132;
 
-/** Paint a wallpaper pattern on one wall plane: along = "x" is the street wall, "y" the kitchen wall. */
-function wallpaper(ctx: CanvasRenderingContext2D, id: string, along: "x" | "y", colors: readonly string[]) {
+/** Paint a wallpaper pattern on one wall plane of length `length`: along = "x" is the street-side back wall, "y" the kitchen wall. */
+function wallpaper(ctx: CanvasRenderingContext2D, id: string, along: "x" | "y", colors: readonly string[], length: number) {
   const at = (t: number, h: number) => along === "x" ? W(S + t, S, h) : W(S, S + t, h);
-  poly(ctx, [at(0, 0), at(11, 0), at(11, H), at(0, H)], colors[along === "x" ? 1 : 0], INK);
+  poly(ctx, [at(0, 0), at(length, 0), at(length, H), at(0, H)], colors[along === "x" ? 1 : 0], INK);
   ctx.save();
-  ctx.beginPath(); [at(0, 38), at(11, 38), at(11, H), at(0, H)].forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); ctx.closePath(); ctx.clip();
+  ctx.beginPath(); [at(0, 38), at(length, 38), at(length, H), at(0, H)].forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); ctx.closePath(); ctx.clip();
   ctx.strokeStyle = "rgba(22,22,22,.12)"; ctx.fillStyle = "rgba(22,22,22,.1)"; ctx.lineWidth = 1;
-  if (id === "stripes") { ctx.lineWidth = 5; ctx.strokeStyle = "rgba(216,182,180,.55)"; for (let t = 0.25; t < 11; t += 0.5) line(ctx, at(t, 38), at(t, H)); }
-  else if (id === "dots") { for (let t = 0.25; t < 11; t += 0.5) for (let h = 48; h < H; h += 16) { const p = at(t + ((h / 16) % 2) * 0.25, h); ctx.beginPath(); ctx.arc(p.x, p.y, 2, 0, Math.PI * 2); ctx.fill(); } }
-  else if (id === "brick") { for (let h = 38, row = 0; h < H; h += 10, row++) { line(ctx, at(0, h), at(11, h)); for (let t = (row % 2) * 0.3; t < 11; t += 0.6) line(ctx, at(t, h), at(t, h + 10)); } }
-  else if (id === "panel") { ctx.strokeStyle = "rgba(22,22,22,.2)"; for (let t = 0; t < 11; t += 0.34) line(ctx, at(t, 38), at(t, H)); }
+  if (id === "stripes") { ctx.lineWidth = 5; ctx.strokeStyle = "rgba(216,182,180,.55)"; for (let t = 0.25; t < length; t += 0.5) line(ctx, at(t, 38), at(t, H)); }
+  else if (id === "dots") { for (let t = 0.25; t < length; t += 0.5) for (let h = 48; h < H; h += 16) { const p = at(t + ((h / 16) % 2) * 0.25, h); ctx.beginPath(); ctx.arc(p.x, p.y, 2, 0, Math.PI * 2); ctx.fill(); } }
+  else if (id === "brick") { for (let h = 38, row = 0; h < H; h += 10, row++) { line(ctx, at(0, h), at(length, h)); for (let t = (row % 2) * 0.3; t < length; t += 0.6) line(ctx, at(t, h), at(t, h + 10)); } }
+  else if (id === "panel") { ctx.strokeStyle = "rgba(22,22,22,.2)"; for (let t = 0; t < length; t += 0.34) line(ctx, at(t, 38), at(t, H)); }
   else if (id === "damask") {
     ctx.fillStyle = "rgba(247,245,240,.35)";
-    for (let t = 0.5; t < 11; t += 1) for (let h = 56; h < H; h += 30) {
+    for (let t = 0.5; t < length; t += 1) for (let h = 56; h < H; h += 30) {
       const p = at(t + ((h / 30) % 2) * 0.5, h); ctx.beginPath(); ctx.ellipse(p.x, p.y, 5, 8, 0, 0, Math.PI * 2); ctx.fill();
       ctx.beginPath(); ctx.ellipse(p.x, p.y, 9, 3, 0, 0, Math.PI * 2); ctx.fill();
     }
   }
   ctx.restore();
-  // Wainscot band with panel lines.
-  poly(ctx, [at(0, 0), at(11, 0), at(11, 38), at(0, 38)], along === "x" ? "#c4c1b9" : "#b3b0a8", INK);
+  poly(ctx, [at(0, 0), at(length, 0), at(length, 38), at(0, 38)], along === "x" ? "#c4c1b9" : "#b3b0a8", INK);
   ctx.strokeStyle = "rgba(22,22,22,.18)";
-  for (let t = 0; t <= 11; t += 0.5) line(ctx, at(t, 0), at(t, 38));
+  for (let t = 0; t <= length; t += 0.5) line(ctx, at(t, 0), at(t, 38));
 }
 
 function paintFloorTile(ctx: CanvasRenderingContext2D, id: string, x: number, y: number, colors: readonly string[]) {
   const quad = tileQuad(x, y);
-  const alt = (x + y) % 2 === 1;
+  const alt = ((x + y) % 2 + 2) % 2 === 1;
   if (id === "checker") { poly(ctx, quad, alt ? colors[1] : colors[0]); return; }
   if (id === "planks") {
     poly(ctx, quad, colors[0]);
     ctx.strokeStyle = "rgba(22,22,22,.14)";
     for (let t = -0.25; t < 0.5; t += 0.25) line(ctx, project(x - 0.5, y + t), project(x + 0.5, y + t));
-    const seam = ((x * 7 + y * 3) % 4) / 4 - 0.5; line(ctx, project(x + seam, y - 0.5), project(x + seam, y - 0.25));
+    const seam = (((x * 7 + y * 3) % 4) + 4) % 4 / 4 - 0.5; line(ctx, project(x + seam, y - 0.5), project(x + seam, y - 0.25));
     return;
   }
-  if (id === "hex") {
-    poly(ctx, quad, colors[alt ? 1 : 0]);
-    ctx.strokeStyle = "rgba(247,245,240,.7)"; poly(ctx, tileQuad(x, y, 0.2), "rgba(0,0,0,0)", "rgba(247,245,240,.6)");
-    return;
-  }
+  if (id === "hex") { poly(ctx, quad, colors[alt ? 1 : 0]); poly(ctx, tileQuad(x, y, 0.2), "rgba(0,0,0,0)", "rgba(247,245,240,.6)"); return; }
   if (id === "terrazzo") {
     poly(ctx, quad, colors[0]);
     const flecks = [C.rose, C.sage, C.dark, C.blue, C.butter];
     for (let i = 0; i < 6; i++) {
-      const seed = (x * 31 + y * 17 + i * 13) % 97, p = project(x - 0.4 + (seed % 9) / 10, y - 0.4 + ((seed * 7) % 9) / 10);
+      const seed = Math.abs(x * 31 + y * 17 + i * 13) % 97, p = project(x - 0.4 + (seed % 9) / 10, y - 0.4 + ((seed * 7) % 9) / 10);
       ctx.fillStyle = flecks[seed % flecks.length]; ctx.globalAlpha = 0.6; ctx.fillRect(p.x, p.y, 2.5, 1.8); ctx.globalAlpha = 1;
     }
     return;
@@ -128,58 +123,77 @@ function paintFloorTile(ctx: CanvasRenderingContext2D, id: string, x: number, y:
     }
     return;
   }
+  if (id === "kitchen") { poly(ctx, quad, alt ? "#e9e7e2" : "#d9d6cf"); poly(ctx, tileQuad(x, y, 0.25), "rgba(0,0,0,0)", "rgba(22,22,22,.08)"); return; }
+  if (id === "lounge") { poly(ctx, quad, alt ? "#d8c9b6" : "#cdbda8"); return; }
+  if (id === "sidewalk") { poly(ctx, quad, alt ? "#dcdad4" : "#d2d0ca"); poly(ctx, tileQuad(x, y, 0.03), "rgba(0,0,0,0)", "rgba(22,22,22,.12)"); return; }
   // marble
   poly(ctx, quad, colors[alt ? 1 : 0]);
   ctx.strokeStyle = "rgba(160,140,138,.4)";
-  const a = project(x - 0.5, y + ((x * 3 + y) % 5) / 10 - 0.2), b = project(x + 0.5, y - ((x + y * 3) % 5) / 10 + 0.2);
+  const a = project(x - 0.5, y + (Math.abs(x * 3 + y) % 5) / 10 - 0.2), b = project(x + 0.5, y - (Math.abs(x + y * 3) % 5) / 10 + 0.2);
   ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.quadraticCurveTo((a.x + b.x) / 2 + 6, (a.y + b.y) / 2 - 4, b.x, b.y); ctx.stroke();
 }
 
-function paintBackdrop(state: CafeState, scale: number) {
+function paintBackdrop(state: CafeState, scale: number, camera: Camera) {
   const canvas = document.createElement("canvas");
   canvas.width = Math.round(VIEW.width * scale); canvas.height = Math.round(VIEW.height * scale);
   const ctx = canvas.getContext("2d")!;
   ctx.scale(scale, scale);
-  const shop = shopById(state.shop), level = ambience(state);
   ctx.fillStyle = PAPER; ctx.fillRect(0, 0, VIEW.width, VIEW.height);
   ctx.fillStyle = "rgba(22,22,22,.05)";
   for (let y = 4; y < VIEW.height; y += 12) for (let x = (y / 12) % 2 ? 10 : 4; x < VIEW.width; x += 12) ctx.fillRect(x, y, 1.5, 1.5);
+  ctx.translate(camera.x, camera.y); ctx.scale(camera.zoom, camera.zoom);
+  const shop = shopById(state.shop), level = ambience(state), layout = plan(state), N = layout.size;
+
+  // Outside: sidewalk, curb and a quiet road.
+  for (let y = layout.laneStart; y <= layout.laneEnd; y++) for (let x = N; x <= layout.lane; x++) paintFloorTile(ctx, "sidewalk", x, y, []);
+  poly(ctx, [project(layout.lane + 0.5, layout.laneStart - 0.5), project(layout.lane + 2.5, layout.laneStart - 0.5), project(layout.lane + 2.5, layout.laneEnd + 0.5), project(layout.lane + 0.5, layout.laneEnd + 0.5)], "#9b9994");
+  ctx.strokeStyle = C.light; ctx.lineWidth = 2; ctx.setLineDash([10, 12]);
+  line(ctx, project(layout.lane + 1.5, layout.laneStart - 0.5), project(layout.lane + 1.5, layout.laneEnd + 0.5)); ctx.setLineDash([]); ctx.lineWidth = 1;
+  box(ctx, layout.lane + 0.55, (layout.laneStart + layout.laneEnd) / 2, 0.1, layout.laneEnd - layout.laneStart + 1, 4, "#c7c4bd", "#a9a6a0", "#b8b5ae");
+  // A striped crossing in front of the door.
+  for (let i = 0; i < 4; i++) poly(ctx, [project(layout.lane + 0.7, layout.door.y - 0.45 + i * 0.25), project(layout.lane + 2.3, layout.door.y - 0.45 + i * 0.25), project(layout.lane + 2.3, layout.door.y - 0.35 + i * 0.25), project(layout.lane + 0.7, layout.door.y - 0.35 + i * 0.25)], "rgba(247,245,240,.8)");
+
   const paper = WALLPAPERS.find(item => item.id === state.wallpaper) ?? WALLPAPERS[0];
-  wallpaper(ctx, paper.id, "y", paper.colors);
-  wallpaper(ctx, paper.id, "x", paper.colors);
-  // Windows on the street wall, frosted pale blue, with awnings in the shop's accent.
-  for (const start of [1.6, 4.6]) {
+  wallpaper(ctx, paper.id, "y", paper.colors, N);
+  wallpaper(ctx, paper.id, "x", paper.colors, N);
+  // Street-side back wall: the shop sign and menu board over the dining room, then windows with awnings.
+  poly(ctx, [W(3.1, S, 60), W(5.9, S, 60), W(5.9, S, 110), W(3.1, S, 110)], "#2c2c2b", INK);
+  ctx.save(); ctx.strokeStyle = "rgba(247,245,240,.55)"; ctx.lineWidth = 1.2;
+  for (let row = 0; row < 4; row++) line(ctx, W(3.5, S, 98 - row * 10), W(5 + (row % 2) * 0.5, S, 98 - row * 10));
+  ctx.restore();
+  poly(ctx, [W(2.9, S, 114), W(6.1, S, 114), W(6.1, S, 130), W(2.9, S, 130)], C.light, INK);
+  const title = W(4.5, S, 118);
+  ctx.save(); ctx.translate(title.x, title.y); ctx.transform(1, -0.5, 0, 1, 0, 0); ctx.fillStyle = INK; ctx.font = "bold 11px ui-monospace, monospace"; ctx.textAlign = "center"; ctx.fillText(shop.sign, 0, 0); ctx.restore();
+  for (let start = 6.8; start + 2.2 <= N - 1.2; start += 3) {
     const w = 2.2, lo = 50, hi = 112;
     poly(ctx, [W(start, S, lo), W(start + w, S, lo), W(start + w, S, hi), W(start, S, hi)], "#c9d2da", INK);
     ctx.strokeStyle = INK; line(ctx, W(start + w / 2, S, lo), W(start + w / 2, S, hi)); line(ctx, W(start, S, (lo + hi) / 2), W(start + w, S, (lo + hi) / 2));
     for (let i = 0; i < 4; i++) poly(ctx, [W(start + i * w / 4, S, hi + 4), W(start + (i + 1) * w / 4, S, hi + 4), W(start + (i + 1) * w / 4, S - 0.25, hi - 6), W(start + i * w / 4, S - 0.25, hi - 6)], i % 2 ? C.light : shop.accent, INK);
   }
-  // Door with its OPEN sign.
-  poly(ctx, [W(DOOR.x - 0.5, S, 0), W(DOOR.x + 0.5, S, 0), W(DOOR.x + 0.5, S, 92), W(DOOR.x - 0.5, S, 92)], C.dark, INK);
-  poly(ctx, [W(DOOR.x - 0.36, S, 50), W(DOOR.x + 0.36, S, 50), W(DOOR.x + 0.36, S, 84), W(DOOR.x - 0.36, S, 84)], "#8f9aa5", INK);
-  const sign = W(DOOR.x, S, 106);
-  ctx.fillStyle = C.light; ctx.strokeStyle = INK; ctx.fillRect(sign.x - 26, sign.y - 9, 52, 16); ctx.strokeRect(sign.x - 26, sign.y - 9, 52, 16);
-  ctx.fillStyle = INK; ctx.font = "bold 10px ui-monospace, monospace"; ctx.textAlign = "center"; ctx.fillText("OPEN", sign.x, sign.y + 3);
-  // Menu board with the shop's sign painted above it.
-  poly(ctx, [W(S, 1.2, 60), W(S, 4.8, 60), W(S, 4.8, 110), W(S, 1.2, 110)], "#2c2c2b", INK);
-  ctx.save(); ctx.strokeStyle = "rgba(247,245,240,.55)"; ctx.lineWidth = 1.2;
-  for (let row = 0; row < 4; row++) line(ctx, W(S, 1.6, 98 - row * 10), W(S, 3.6 + (row % 2) * 0.6, 98 - row * 10));
-  ctx.restore();
-  poly(ctx, [W(S, 1.0, 114), W(S, 5.0, 114), W(S, 5.0, 130), W(S, 1.0, 130)], C.light, INK);
-  const title = W(S, 3, 118);
-  ctx.save(); ctx.translate(title.x, title.y); ctx.transform(1, 0.5, 0, 1, 0, 0); ctx.fillStyle = INK; ctx.font = "bold 11px ui-monospace, monospace"; ctx.textAlign = "center"; ctx.fillText(shop.sign, 0, 0); ctx.restore();
-  // Shelf with jars over the kitchen.
-  poly(ctx, [W(S, 5.4, 120), W(S, 8.6, 120), W(S + 0.25, 8.6, 120), W(S + 0.25, 5.4, 120)], C.mid, INK);
-  [C.rose, C.sage, C.butter, C.blue].forEach((color, index) => { const p = W(S + 0.12, 5.8 + index * 0.75, 120); ctx.fillStyle = color; ctx.fillRect(p.x - 5, p.y - 14, 10, 14); ctx.strokeStyle = INK; ctx.strokeRect(p.x - 5, p.y - 14, 10, 14); });
-  if (level >= 1) framed(ctx, W(S, 6.4, 88), C.sage);
-  if (level >= 2) framed(ctx, W(S, 8.2, 84), shop.accent);
-  if (level >= 4) framed(ctx, W(7.5, S, 94), C.lavender, true);
-  // Floor tiles.
+  if (level >= 4) framed(ctx, W(N - 1.6, S, 94), C.lavender, true);
+  // Kitchen wall: a hood over the stoves and shelves of jars.
+  poly(ctx, [W(S, 0, 96), W(S, layout.kitchenEnd, 96), W(S + 0.35, layout.kitchenEnd, 104), W(S + 0.35, 0, 104)], "#a9a6a0", INK);
+  for (let y = 0.6; y < layout.kitchenEnd - 0.4; y += 0.8) {
+    const p = W(S + 0.12, y, 116), color = [C.rose, C.sage, C.butter, C.blue][Math.floor(y) % 4];
+    ctx.fillStyle = color; ctx.fillRect(p.x - 5, p.y - 14, 10, 14); ctx.strokeStyle = INK; ctx.strokeRect(p.x - 5, p.y - 14, 10, 14);
+  }
+  // Break room wall: a sign and a picture.
+  const sign = W(S, layout.kitchenEnd + 2, 96);
+  ctx.save(); ctx.translate(sign.x, sign.y); ctx.transform(1, 0.5, 0, 1, 0, 0);
+  ctx.fillStyle = C.light; ctx.fillRect(-36, -12, 72, 18); ctx.strokeStyle = INK; ctx.strokeRect(-36, -12, 72, 18);
+  ctx.fillStyle = INK; ctx.font = "bold 10px ui-monospace, monospace"; ctx.textAlign = "center"; ctx.fillText("BREAK ROOM", 0, 1); ctx.restore();
+  if (level >= 1) framed(ctx, W(S, layout.kitchenEnd + 3.2, 70), C.sage);
+  if (level >= 2) framed(ctx, W(S, 2, 70), shop.accent);
+
+  // Floors: kitchen tiles, lounge wood in the break room, the chosen design in the dining room.
   const floor = FLOORS.find(item => item.id === state.floor) ?? FLOORS[0];
-  for (let y = 0; y < 11; y++) for (let x = 0; x < 11; x++) paintFloorTile(ctx, floor.id, x, y, floor.colors);
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const kind = x < 2 && y < layout.kitchenEnd || (x === 1 && y === layout.kitchenEnd) ? "kitchen" : x < 3 && y > layout.kitchenEnd ? "lounge" : floor.id;
+    paintFloorTile(ctx, kind, x, y, floor.colors);
+  }
   ctx.strokeStyle = C.line; ctx.lineWidth = 0.6;
-  for (let t = -0.5; t <= 10.5; t += 1) { line(ctx, project(t, -0.5), project(t, 10.5)); line(ctx, project(-0.5, t), project(10.5, t)); }
-  poly(ctx, [project(-0.5, -0.5), project(10.5, -0.5), project(10.5, 10.5), project(-0.5, 10.5)], "rgba(0,0,0,0)", INK);
+  for (let t = -0.5; t <= N - 0.5; t += 1) { line(ctx, project(t, -0.5), project(t, N - 0.5)); line(ctx, project(-0.5, t), project(N - 0.5, t)); }
+  poly(ctx, [project(-0.5, -0.5), project(N - 0.5, -0.5), project(N - 0.5, N - 0.5), project(-0.5, N - 0.5)], "rgba(0,0,0,0)", INK);
   return canvas;
 }
 function framed(ctx: CanvasRenderingContext2D, at: Point, color: string, right = false) {
@@ -351,16 +365,12 @@ function drawStation(ctx: CanvasRenderingContext2D, shop: Shop, top: Point, tile
     steam();
   }
 }
+/** The counter is the kitchen's wall: the pass (ready dishes + bell), the shop's station, the register and service ware. */
 function drawCounter(ctx: CanvasRenderingContext2D, tile: Tile, scene: Scene) {
+  const { state, now, reducedMotion } = scene, shop = shopById(state.shop), layout = plan(state);
   box(ctx, tile.x, tile.y, 1, 1, 36, "#6a6864", C.dark, "#4d4c49");
-  const top = project(tile.x, tile.y, 36);
-  const { state, now, reducedMotion } = scene, shop = shopById(state.shop);
-  if (tile.y === 1) {
-    box(ctx, tile.x, tile.y, 0.45, 0.4, 14, "#cfccc5", "#9e9b95", "#b8b5ae", 36);
-    ctx.fillStyle = C.sage; ctx.fillRect(top.x - 5, top.y - 22, 10, 5);
-  } else if (tile.y === 2) {
-    drawStation(ctx, shop, top, tile, state.orders.some(order => order.state === "cooking"), now, reducedMotion);
-  } else if (tile.y === 3) {
+  const top = project(tile.x, tile.y, 36), offset = tile.y - layout.pass.y;
+  if (offset === 0) {
     const ready = state.orders.filter(order => order.state === "ready");
     ctx.fillStyle = C.light; ctx.beginPath(); ctx.ellipse(top.x, top.y, 20, 8, 0, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = INK; ctx.stroke();
     ready.slice(0, 4).forEach((order, index) => drawDish(ctx, order.dish, top.x - 12 + (index % 2) * 18, top.y - 4 - Math.floor(index / 2) * 12, 0.85));
@@ -369,27 +379,58 @@ function drawCounter(ctx: CanvasRenderingContext2D, tile: Tile, scene: Scene) {
       ctx.fillStyle = C.butter; ctx.strokeStyle = INK; ctx.beginPath(); ctx.arc(top.x + 18, top.y - 26, 9 * pulse, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
       ctx.fillStyle = INK; ctx.font = "bold 11px ui-monospace, monospace"; ctx.textAlign = "center"; ctx.fillText(String(ready.length), top.x + 18, top.y - 22);
     }
-  } else if (tile.y === 4) {
+  } else if (offset === -1) drawStation(ctx, shop, top, tile, state.orders.some(order => order.state === "cooking"), now, reducedMotion);
+  else if (offset === 1) { box(ctx, tile.x, tile.y, 0.45, 0.4, 14, "#cfccc5", "#9e9b95", "#b8b5ae", 36); ctx.fillStyle = C.sage; ctx.fillRect(top.x - 5, top.y - 22, 10, 5); }
+  else if (offset === 2) {
     box(ctx, tile.x, tile.y, 0.7, 0.6, 22, "rgba(220,228,234,.55)", "rgba(190,200,208,.55)", "rgba(205,214,221,.55)", 36);
-    const menu = shopById(state.shop).menu;
+    const menu = shop.menu;
     drawShape(ctx, menu[3].shape, menu[3].color, menu[3].accent, top.x - 6, top.y - 10, 0.55);
     drawShape(ctx, menu[4].shape, menu[4].color, menu[4].accent, top.x + 6, top.y - 8, 0.55);
-  } else {
-    ctx.fillStyle = C.sage; ctx.beginPath(); ctx.arc(top.x, top.y - 14, 8, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = INK; ctx.stroke();
-    box(ctx, tile.x, tile.y, 0.3, 0.3, 10, "#b6a594", "#8c7d6e", "#a19080", 36);
+  } else if (Math.abs(offset) % 2 === 1) { ctx.fillStyle = C.sage; ctx.beginPath(); ctx.arc(top.x, top.y - 12, 7, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = INK; ctx.stroke(); box(ctx, tile.x, tile.y, 0.3, 0.3, 9, "#b6a594", "#8c7d6e", "#a19080", 36); }
+  else { for (const dx of [-7, 0, 7]) { ctx.fillStyle = C.light; ctx.fillRect(top.x + dx - 3, top.y - 9, 6, 8); ctx.strokeStyle = INK; ctx.strokeRect(top.x + dx - 3, top.y - 9, 6, 8); } }
+}
+/** Kitchen appliances along the back wall: a tall fridge, then stoves, prep tops and a sink. */
+function drawStove(ctx: CanvasRenderingContext2D, tile: Tile, busy: boolean, now: number, reducedMotion: boolean) {
+  if (tile.y === 0) { box(ctx, tile.x, tile.y, 0.9, 0.9, 88, "#e6e3dc", "#b9b6af", "#cfccc5"); return; }
+  if (tile.y % 3 === 2) { box(ctx, tile.x, tile.y, 0.9, 1, 34, "#bdbab3", "#8e8b85", "#a5a29c"); const top = project(tile.x, tile.y, 34); ctx.fillStyle = "#afbccb"; ctx.beginPath(); ctx.ellipse(top.x, top.y, 9, 4, 0, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = INK; ctx.stroke(); return; }
+  box(ctx, tile.x, tile.y, 0.9, 1, 34, "#8f8c86", "#6b6964", "#7d7a75");
+  const top = project(tile.x, tile.y, 34);
+  ctx.strokeStyle = INK;
+  for (const dy of [-4, 4]) { ctx.beginPath(); ctx.ellipse(top.x + dy * 1.6, top.y + dy * 0.2, 6, 2.5, 0, 0, Math.PI * 2); ctx.stroke(); }
+  if (busy && tile.y % 3 === 1) {
+    const flicker = reducedMotion ? 0 : Math.sin(now / 90 + tile.y) * 1.5;
+    ctx.fillStyle = "rgba(227,201,160,.9)"; ctx.beginPath(); ctx.ellipse(top.x - 6, top.y - 1, 4, 1.6 + flicker * 0.2, 0, 0, Math.PI * 2); ctx.fill();
   }
 }
-function drawKitchen(ctx: CanvasRenderingContext2D, tile: Tile) {
-  if (tile.y === 0) box(ctx, tile.x, tile.y, 0.9, 0.9, 88, "#e6e3dc", "#b9b6af", "#cfccc5");
-  else if (tile.y % 2) box(ctx, tile.x, tile.y, 0.9, 1, 34, "#8f8c86", "#6b6964", "#7d7a75");
-  else {
-    box(ctx, tile.x, tile.y, 0.9, 1, 34, "#bdbab3", "#8e8b85", "#a5a29c");
-    const top = project(tile.x, tile.y, 34); ctx.strokeStyle = INK;
-    for (const dy of [-4, 4]) { ctx.beginPath(); ctx.ellipse(top.x + dy * 1.6, top.y + dy * 0.2, 6, 2.5, 0, 0, Math.PI * 2); ctx.stroke(); }
-  }
+/** Interior half-height walls between the kitchen, the break room and the dining room. */
+function drawWall(ctx: CanvasRenderingContext2D, tile: Tile, along: "x" | "y") {
+  if (along === "x") box(ctx, tile.x, tile.y, 1, 0.3, 70, "#d0cdc6", "#b3b0a8", "#c4c1b9");
+  else box(ctx, tile.x, tile.y, 0.3, 1, 70, "#d0cdc6", "#b3b0a8", "#c4c1b9");
 }
-function drawCapsuleMachine(ctx: CanvasRenderingContext2D, now: number, reducedMotion: boolean) {
-  const { x, y } = CAPSULE_MACHINE;
+function drawSofa(ctx: CanvasRenderingContext2D, x: number, y: number, length: number) {
+  box(ctx, x, y, 0.5, length, 14, C.lavender, "#9d95ab", "#b1a9c0");
+  box(ctx, x - 0.2, y, 0.12, length, 30, C.lavender, "#9d95ab", "#b1a9c0");
+}
+/** Low front walls (so the room stays visible) with the front door, its frame, awning and OPEN sign. */
+function drawFrontWall(ctx: CanvasRenderingContext2D, tile: Tile, side: "right" | "left") {
+  if (side === "right") box(ctx, tile.x + 0.44, tile.y, 0.12, 1, 22, "#d0cdc6", "#b3b0a8", "#c4c1b9");
+  else box(ctx, tile.x, tile.y + 0.44, 1, 0.12, 22, "#d0cdc6", "#b3b0a8", "#c4c1b9");
+}
+function drawDoor(ctx: CanvasRenderingContext2D, layout: ReturnType<typeof plan>, accent: string) {
+  const x = layout.size - 0.5, y = layout.door.y;
+  for (const dy of [-0.5, 0.5]) box(ctx, x, y + dy, 0.14, 0.12, 96, C.dark, "#2c2c2b", "#333");
+  poly(ctx, [project(x, y - 0.55, 96), project(x, y + 0.55, 96), project(x + 0.5, y + 0.55, 84), project(x + 0.5, y - 0.55, 84)], accent, INK);
+  const sign = project(x + 0.2, y, 108);
+  ctx.fillStyle = C.light; ctx.strokeStyle = INK; ctx.fillRect(sign.x - 24, sign.y - 9, 48, 15); ctx.strokeRect(sign.x - 24, sign.y - 9, 48, 15);
+  ctx.fillStyle = INK; ctx.font = "bold 10px ui-monospace, monospace"; ctx.textAlign = "center"; ctx.fillText("OPEN", sign.x, sign.y + 2);
+}
+function drawStreetLamp(ctx: CanvasRenderingContext2D, tile: Point) {
+  const base = project(tile.x, tile.y);
+  ctx.fillStyle = C.dark; ctx.fillRect(base.x - 1.5, base.y - 96, 3, 96);
+  ctx.fillStyle = C.butter; ctx.strokeStyle = INK; ctx.beginPath(); ctx.arc(base.x, base.y - 100, 7, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+}
+function drawCapsuleMachine(ctx: CanvasRenderingContext2D, tile: Tile, now: number, reducedMotion: boolean) {
+  const { x, y } = tile;
   shadow(ctx, x, y, 22);
   box(ctx, x, y, 0.7, 0.7, 44, "#e6e2da", C.rose, "#e2c7c5");
   const top = project(x, y, 44);
@@ -467,32 +508,56 @@ function drawCustomer(ctx: CanvasRenderingContext2D, scene: Scene, customer: Cus
     ctx.fillText("♥", head.x + 8, head.y - 2 - t * 18); ctx.globalAlpha = 1;
   }
 }
+function drawPasserby(ctx: CanvasRenderingContext2D, scene: Scene, passer: Passerby) {
+  const frame = scene.reducedMotion ? 0 : Math.floor(scene.now / 150 + passer.id);
+  shadow(ctx, passer.walker.x, passer.walker.y, 12);
+  let rows: readonly string[] = scene.guests[passer.guest % scene.guests.length].frames[frame % 2];
+  const regular = passer.regular !== null ? scene.regulars.get(passer.regular) : null;
+  if (regular) rows = friendRows(regular, passer.walker.facing, true, frame % 8);
+  drawSprite(ctx, rows, passer.walker.x, passer.walker.y, 0, "#2b2b2b");
+}
 function drawWorker(ctx: CanvasRenderingContext2D, scene: Scene, worker: Worker) {
-  const { walker: body } = worker, { now, reducedMotion } = scene;
+  const { walker: body } = worker, { now, reducedMotion, state } = scene;
   const frame = reducedMotion ? 0 : Math.floor(now / 110) % 8, boss = worker.role === "manager";
+  const resting = worker.duty === "resting";
   shadow(ctx, body.x, body.y, boss ? 20 : 14);
   const rows = boss ? friendRows(scene.friend, body.facing, body.moving, body.moving ? frame : 0) : staffRows(scene, worker.who!, body.facing, body.moving, frame);
   const hover = boss && scene.friend.familyId === 5 && !reducedMotion ? Math.round(2 + Math.sin(now / 300) * 2) : 0;
   const owned = !boss && worker.who && "owned" in worker.who;
-  drawSprite(ctx, rows, body.x, body.y, hover, boss || owned ? INK : "#333", boss ? 4 : 3);
+  const chefBob = worker.role === "chef" && !body.moving && !reducedMotion && state.orders.some(order => order.state === "cooking") ? Math.round(Math.sin(now / 160 + worker.id) * 1.5) : 0;
+  drawSprite(ctx, rows, body.x, body.y, hover + chefBob + (resting ? 8 : 0), boss || owned ? INK : "#333", boss ? 4 : 3);
   const head = project(body.x, body.y, (boss ? 80 : 62) + hover);
-  // Apron tag: manager wears faded rose, your own Friends butter, guest staff sage.
+  // Apron tag: manager faded rose, your own Friends butter, guest staff sage.
   ctx.fillStyle = boss ? C.rose : owned ? C.butter : C.sage; ctx.strokeStyle = INK; ctx.lineWidth = 1.2;
   ctx.beginPath(); ctx.moveTo(head.x, head.y - 10); ctx.lineTo(head.x + 6, head.y - 4); ctx.lineTo(head.x, head.y + 2); ctx.lineTo(head.x - 6, head.y - 4); ctx.closePath(); ctx.fill(); ctx.stroke();
-  if (owned && worker.who && "owned" in worker.who) {
-    ctx.font = "bold 9px ui-monospace, monospace"; ctx.textAlign = "center"; ctx.lineWidth = 3; ctx.strokeStyle = PAPER;
-    ctx.strokeText(`#${worker.who.owned}`, head.x, head.y + 14); ctx.fillStyle = INK; ctx.fillText(`#${worker.who.owned}`, head.x, head.y + 14); ctx.lineWidth = 1;
-  }
   worker.carrying.forEach((id, index) => {
-    const order = scene.state.orders.find(item => item.id === id);
+    const order = state.orders.find(item => item.id === id);
     if (order) drawDish(ctx, order.dish, head.x - 12 + index * 14 + (worker.carrying.length === 1 ? 12 : 0), head.y - 16, 0.8);
   });
   if (worker.action > 0) { ctx.fillStyle = INK; ctx.font = "bold 12px ui-monospace, monospace"; ctx.textAlign = "center"; ctx.fillText("✎", head.x + 16, head.y - 6); }
-}
-function drawChef(ctx: CanvasRenderingContext2D, scene: Scene, who: StaffWho, index: number) {
-  const tile = KITCHEN[2 + index * 2], frame = scene.reducedMotion ? 0 : Math.floor(scene.now / 400 + index) % 2;
-  const facing: Facing = frame ? "right" : "down";
-  drawSprite(ctx, staffRows(scene, who, facing, false, 0), tile.x + 0.45, tile.y, 34 + frame, "owned" in who ? INK : "#333");
+  if (boss) return;
+  const member = memberOf(state, worker);
+  if (!member) return;
+  // Name tag, worker level and an energy bar (rose when tired).
+  const label = `${owned && worker.who && "owned" in worker.who ? `#${worker.who.owned}` : "Guest"} · Lv${workerLevel(member.xp)}`;
+  ctx.font = "bold 9px ui-monospace, monospace"; ctx.textAlign = "center"; ctx.lineWidth = 3; ctx.strokeStyle = PAPER;
+  ctx.strokeText(label, head.x, head.y + 14); ctx.fillStyle = INK; ctx.fillText(label, head.x, head.y + 14); ctx.lineWidth = 1;
+  const energy = 1 - member.fatigue / 100;
+  ctx.fillStyle = "#d9d6cf"; ctx.fillRect(head.x - 12, head.y + 18, 24, 3);
+  ctx.fillStyle = member.fatigue >= 70 ? "#b86d6d" : member.fatigue >= 45 ? "#b89b73" : C.mid; ctx.fillRect(head.x - 12, head.y + 18, 24 * energy, 3);
+  if (resting) {
+    const t = reducedMotion ? 0.4 : (now / 1200) % 1;
+    ctx.globalAlpha = 1 - t * 0.6; ctx.fillStyle = INK; ctx.font = "bold 13px ui-monospace, monospace"; ctx.fillText("z Z", head.x + 14, head.y - 10 - t * 12); ctx.globalAlpha = 1;
+    ctx.strokeStyle = C.mid; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(head.x - 16, head.y - 12, 6, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (1 - worker.rest / Math.max(1, worker.restTotal))); ctx.stroke(); ctx.lineWidth = 1;
+  } else if (member.fatigue >= 70) {
+    // Tired: tap them to send them on a break.
+    bubble(ctx, head.x, head.y - 4, null, member.fatigue >= 100);
+    ctx.fillStyle = INK; ctx.font = "bold 12px ui-monospace, monospace"; ctx.fillText(member.fatigue >= 100 ? "zzz!" : "zzz", head.x, head.y - 16);
+  } else if (worker.role === "promoter" && !body.moving) {
+    const wave = reducedMotion ? 0 : Math.sin(now / 250 + worker.id) * 2;
+    ctx.fillStyle = C.light; ctx.strokeStyle = INK; ctx.fillRect(head.x + 10, head.y - 18 + wave, 30, 16); ctx.strokeRect(head.x + 10, head.y - 18 + wave, 30, 16);
+    ctx.fillStyle = INK; ctx.font = "bold 9px ui-monospace, monospace"; ctx.fillText("♥ IN", head.x + 25, head.y - 7 + wave);
+  }
 }
 
 // ---------- Frame ----------
@@ -511,19 +576,24 @@ function grainCanvas() {
 }
 
 export function renderScene(ctx: CanvasRenderingContext2D, scene: Scene, pixelScale: number) {
-  const { state, now, reducedMotion, build } = scene, level = ambience(state);
+  const { state, now, reducedMotion, build } = scene, level = ambience(state), layout = plan(state), camera = cameraFor(state.size);
+  const shop = shopById(state.shop);
   ctx.setTransform(pixelScale, 0, 0, pixelScale, 0, 0);
   ctx.imageSmoothingEnabled = false;
-  const cacheKey = `${state.shop}:${state.wallpaper}:${state.floor}:${level}:${pixelScale}`;
-  if (backdrop?.key !== cacheKey) backdrop = { canvas: paintBackdrop(state, pixelScale), key: cacheKey };
+  const cacheKey = `${state.shop}:${state.wallpaper}:${state.floor}:${level}:${state.size}:${pixelScale}`;
+  if (backdrop?.key !== cacheKey) backdrop = { canvas: paintBackdrop(state, pixelScale, camera), key: cacheKey };
   ctx.drawImage(backdrop.canvas, 0, 0, VIEW.width, VIEW.height);
+  // Everything below is drawn in world space through the camera.
+  const scale = pixelScale * camera.zoom;
+  ctx.setTransform(scale, 0, 0, scale, pixelScale * camera.x, pixelScale * camera.y);
   for (const item of state.items) if (item.kind === "rug") drawRug(ctx, item);
 
   if (build) {
     ctx.strokeStyle = "rgba(22,22,22,.28)"; ctx.setLineDash([2, 3]);
-    for (let t = -0.5; t <= 10.5; t += 1) { line(ctx, project(t, -0.5), project(t, 10.5)); line(ctx, project(-0.5, t), project(10.5, t)); }
+    for (let t = 2.5; t <= layout.size - 0.5; t += 1) line(ctx, project(t, -0.5), project(t, layout.size - 0.5));
+    for (let t = -0.5; t <= layout.size - 0.5; t += 1) line(ctx, project(2.5, t), project(layout.size - 0.5, t));
     ctx.setLineDash([]);
-    for (const tile of [DOOR, PICKUP, CAPSULE_SPOT]) poly(ctx, tileQuad(tile.x, tile.y, 0.08), "rgba(22,22,22,.12)");
+    for (const tile of [layout.door, layout.pickup, layout.capsuleSpot, { x: 3, y: layout.breakDoor.y }]) poly(ctx, tileQuad(tile.x, tile.y, 0.08), "rgba(22,22,22,.12)");
     const selected = state.items.find(item => item.id === build.selected);
     if (selected) poly(ctx, tileQuad(selected.x, selected.y, 0.04), "rgba(226,215,173,.5)", INK);
     if (build.cursor) poly(ctx, tileQuad(build.cursor.x, build.cursor.y, 0.02), "rgba(0,0,0,0)", INK);
@@ -539,10 +609,16 @@ export function renderScene(ctx: CanvasRenderingContext2D, scene: Scene, pixelSc
   type Layer = { depth: number; order: number; draw: () => void };
   const layers: Layer[] = [];
   const add = (depth: number, order: number, draw: () => void) => layers.push({ depth, order, draw });
-  for (const tile of KITCHEN) add(tile.x + tile.y, 0, () => drawKitchen(ctx, tile));
-  chefs(state).forEach((member, index) => { const tile = KITCHEN[2 + index * 2]; add(tile.x + tile.y + 0.4, 1, () => drawChef(ctx, scene, member.who, index)); });
-  for (const tile of COUNTER) add(tile.x + tile.y, 0, () => drawCounter(ctx, tile, scene));
-  add(CAPSULE_MACHINE.x + CAPSULE_MACHINE.y, 0, () => drawCapsuleMachine(ctx, now, reducedMotion));
+  const cooking = state.orders.some(order => order.state === "cooking");
+  for (const tile of layout.stoves) add(tile.x + tile.y, 0, () => drawStove(ctx, tile, cooking, now, reducedMotion));
+  for (const tile of layout.counter) add(tile.x + tile.y, 0, () => drawCounter(ctx, tile, scene));
+  for (const tile of layout.walls) add(tile.x + tile.y, 0, () => drawWall(ctx, tile, tile.y === layout.kitchenEnd ? "x" : "y"));
+  add(layout.kitchenEnd + 1.2, 0, () => drawSofa(ctx, 0, layout.kitchenEnd + 1.5, 1.8));
+  add(layout.capsule.x + layout.capsule.y, 0, () => drawCapsuleMachine(ctx, layout.capsule, now, reducedMotion));
+  for (let y = 0; y < layout.size; y++) if (y !== layout.door.y) add(layout.size - 1 + y + 0.6, 3, () => drawFrontWall(ctx, { x: layout.size - 1, y }, "right"));
+  for (let x = 0; x < layout.size; x++) add(x + layout.size - 1 + 0.6, 3, () => drawFrontWall(ctx, { x, y: layout.size - 1 }, "left"));
+  add(layout.size - 1 + layout.door.y + 0.7, 3, () => drawDoor(ctx, layout, shop.accent));
+  for (const y of [layout.laneStart + 1, Math.floor(layout.size / 2) + 1, layout.laneEnd - 1]) add(layout.lane + 0.45 + y, 1, () => drawStreetLamp(ctx, { x: layout.lane + 0.45, y }));
   const tableNumbers = new Map(tables(state).map((item, index) => [item.id, index + 1]));
   const accents = [C.rose, C.sage, C.butter, C.lavender];
   for (const item of state.items) {
@@ -564,6 +640,7 @@ export function renderScene(ctx: CanvasRenderingContext2D, scene: Scene, pixelSc
       add(ghost.x + ghost.y + 0.02, 9, () => { tint(); ctx.globalAlpha = 0.65; drawTable(ctx, { ...ghost, id: 0 }, 0, C.butter); ctx.globalAlpha = 1; });
     } else add(ghost.x + ghost.y + 0.02, 9, () => { tint(); ctx.globalAlpha = 0.65; drawItem(ctx, ghost.kind, ghost, now, true); ctx.globalAlpha = 1; });
   }
+  for (const passer of state.passersby) add(passer.walker.x + passer.walker.y, 1, () => drawPasserby(ctx, scene, passer));
   for (const customer of state.customers) add(customer.walker.x + customer.walker.y, 1, () => drawCustomer(ctx, scene, customer));
   for (const worker of state.workers) add(worker.walker.x + worker.walker.y + 0.01, 2, () => drawWorker(ctx, scene, worker));
   layers.sort((a, b) => a.depth - b.depth || a.order - b.order).forEach(layer => layer.draw());
@@ -571,7 +648,7 @@ export function renderScene(ctx: CanvasRenderingContext2D, scene: Scene, pixelSc
   // Numbered task markers for the manager's list.
   if (!build) boss.queue.forEach((job, index) => {
     let point: Point | null = null;
-    if (job.kind === "pickup") point = project(PICKUP.x - 0.6, PICKUP.y, 70);
+    if (job.kind === "pickup") point = project(layout.pickup.x - 0.6, layout.pickup.y, 70);
     else if (job.kind === "take" || job.kind === "serve") {
       const customer = state.customers.find(item => item.id === job.customer);
       if (customer) point = project(customer.walker.x, customer.walker.y, 112);
@@ -583,7 +660,7 @@ export function renderScene(ctx: CanvasRenderingContext2D, scene: Scene, pixelSc
 
   // Ceiling ornaments earned through ambience.
   if (level >= 3) {
-    const a = project(0.5, -0.5, 128), b = project(10, -0.5, 128);
+    const a = project(3, -0.5, 128), b = project(layout.size - 0.5, -0.5, 128);
     ctx.strokeStyle = INK; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.quadraticCurveTo((a.x + b.x) / 2, (a.y + b.y) / 2 + 26, b.x, b.y); ctx.stroke();
     for (let i = 1; i < 8; i++) {
       const t = i / 8, x = a.x + (b.x - a.x) * t, y = a.y + (b.y - a.y) * t + 52 * t * (1 - t) + 6;
@@ -591,8 +668,8 @@ export function renderScene(ctx: CanvasRenderingContext2D, scene: Scene, pixelSc
     }
   }
   if (level >= 5) {
-    const point = project(5, 5, 250), sway = reducedMotion ? 0 : Math.sin(now / 1200) * 2;
-    ctx.strokeStyle = INK; line(ctx, { x: point.x, y: 0 }, { x: point.x + sway, y: point.y });
+    const middle = (layout.size + 3) / 2, point = project(middle, layout.size / 2, 250), sway = reducedMotion ? 0 : Math.sin(now / 1200) * 2;
+    ctx.strokeStyle = INK; line(ctx, { x: point.x, y: point.y - 200 }, { x: point.x + sway, y: point.y });
     const glow = ctx.createRadialGradient(point.x + sway, point.y + 10, 4, point.x + sway, point.y + 10, 90);
     glow.addColorStop(0, "rgba(233,227,196,.55)"); glow.addColorStop(1, "rgba(233,227,196,0)"); ctx.fillStyle = glow; ctx.fillRect(point.x - 100, point.y - 80, 200, 200);
     ctx.fillStyle = C.butter; ctx.beginPath(); ctx.arc(point.x + sway, point.y + 10, 13, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
@@ -608,6 +685,8 @@ export function renderScene(ctx: CanvasRenderingContext2D, scene: Scene, pixelSc
     ctx.globalAlpha = 1; ctx.lineWidth = 1;
   }
 
+  // Screen-space finish: time-of-day wash, film grain and a soft vignette.
+  ctx.setTransform(pixelScale, 0, 0, pixelScale, 0, 0);
   const progress = state.phase === "open" ? dayProgress(state) : 1;
   const wash = progress < 0.25 ? `rgba(175,188,203,${0.1 * (1 - progress * 4)})` : progress > 0.65 ? `rgba(198,170,160,${Math.min(0.16, (progress - 0.65) * 0.45)})` : null;
   if (wash && !build) { ctx.fillStyle = wash; ctx.fillRect(0, 0, VIEW.width, VIEW.height); }
@@ -618,29 +697,29 @@ export function renderScene(ctx: CanvasRenderingContext2D, scene: Scene, pixelSc
   ctx.fillStyle = vignette; ctx.fillRect(0, 0, VIEW.width, VIEW.height);
 }
 
-// ---------- Hit testing ----------
-export type Hit = { kind: "customer"; id: number } | { kind: "counter" } | { kind: "capsule" } | { kind: "tile"; tile: Tile } | null;
-/** Grid tile under a reference-viewport point, or null outside the floor. */
-export function tileAt(sx: number, sy: number): Tile | null {
-  const grid = unproject(sx, sy), tile = { x: Math.round(grid.x), y: Math.round(grid.y) };
-  return tile.x < 0 || tile.y < 0 || tile.x > 10 || tile.y > 10 ? null : tile;
+// ---------- Hit testing (reference-viewport coordinates) ----------
+export type Hit = { kind: "customer"; id: number } | { kind: "worker"; id: number } | { kind: "counter" } | { kind: "capsule" } | { kind: "tile"; tile: Tile } | null;
+const worldPoint = (state: CafeState, sx: number, sy: number) => toWorld(cameraFor(state.size), { x: sx, y: sy });
+/** Dining-room tile under a viewport point, or null. */
+export function tileAt(state: CafeState, sx: number, sy: number): Tile | null {
+  const world = worldPoint(state, sx, sy), grid = unproject(world.x, world.y), tile = { x: Math.round(grid.x), y: Math.round(grid.y) };
+  return tile.x < 3 || tile.y < 0 || tile.x >= state.size || tile.y >= state.size ? null : tile;
 }
 export function hitTest(state: CafeState, sx: number, sy: number): Hit {
+  const { x: wx, y: wy } = worldPoint(state, sx, sy), layout = plan(state);
+  const near = (x: number, y: number, top: number) => { const point = project(x, y); return Math.abs(wx - point.x) <= 26 && wy <= point.y + 8 && wy >= point.y - top; };
+  for (const worker of [...state.workers].reverse()) if (worker.role !== "manager" && near(worker.walker.x, worker.walker.y, 90)) return { kind: "worker", id: worker.id };
   const front = [...state.customers].sort((a, b) => (b.walker.x + b.walker.y) - (a.walker.x + a.walker.y));
-  for (const customer of front) {
-    const point = project(customer.walker.x, customer.walker.y);
-    const bubbleTop = customer.state === "waiting" || customer.state === "ordered" ? 112 : 64;
-    if (Math.abs(sx - point.x) <= 26 && sy <= point.y + 8 && sy >= point.y - bubbleTop) return { kind: "customer", id: customer.id };
-  }
-  const grid = unproject(sx, sy), tile = { x: Math.round(grid.x), y: Math.round(grid.y) };
-  const machine = project(CAPSULE_MACHINE.x, CAPSULE_MACHINE.y);
-  if ((Math.abs(sx - machine.x) < 30 && sy < machine.y + 12 && sy > machine.y - 90) || (tile.x === CAPSULE_SPOT.x && tile.y === CAPSULE_SPOT.y)) return { kind: "capsule" };
+  for (const customer of front) if (near(customer.walker.x, customer.walker.y, customer.state === "waiting" || customer.state === "ordered" ? 112 : 64)) return { kind: "customer", id: customer.id };
+  const grid = unproject(wx, wy), tile = { x: Math.round(grid.x), y: Math.round(grid.y) };
+  const machine = project(layout.capsule.x, layout.capsule.y);
+  if ((Math.abs(wx - machine.x) < 30 && wy < machine.y + 12 && wy > machine.y - 90) || (tile.x === layout.capsuleSpot.x && tile.y === layout.capsuleSpot.y)) return { kind: "capsule" };
   const table = tables(state).find(item => item.x === tile.x && item.y === tile.y);
   if (table) {
     const customer = state.customers.find(item => item.table === table.id);
     return customer ? { kind: "customer", id: customer.id } : null;
   }
-  if ((tile.x === 1 && tile.y >= 1 && tile.y <= 5) || (tile.x === PICKUP.x && tile.y === PICKUP.y) || (tile.x === 0 && tile.y <= 6)) return { kind: "counter" };
-  if (tile.x < 0 || tile.y < 0 || tile.x > 10 || tile.y > 10) return null;
+  if ((tile.x <= 2 && tile.y < layout.kitchenEnd) || (tile.x === layout.pickup.x && tile.y === layout.pickup.y)) return { kind: "counter" };
+  if (tile.x < 3 || tile.y < 0 || tile.x >= state.size || tile.y >= state.size) return null;
   return { kind: "tile", tile };
 }
