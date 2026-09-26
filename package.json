@@ -1,0 +1,31 @@
+{
+  "name": "rarefriends-cafe",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "RareFriends Cafe — a greyscale 2.5D isometric café sim for the Rare Friends Vibeathon (FriendSDK v0.1.2)",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "dev": "friendsdk dev ./games/rarefriends-cafe",
+    "dev:lan": "friendsdk dev ./games/rarefriends-cafe --host 0.0.0.0 --port 4173",
+    "build": "friendsdk build ./games/rarefriends-cafe",
+    "check": "friendsdk check ./games/rarefriends-cafe",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "node --test tests/*.test.mjs",
+    "test:browser": "node tests/browser.mjs"
+  },
+  "dependencies": {
+    "@rarefriends/friendsdk": "file:vendor/rarefriends-friendsdk-0.1.2.tgz",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.12",
+    "@types/react-dom": "^19.1.9",
+    "playwright": "^1.63.0",
+    "typescript": "^6.0.3"
+  }
+}

@@ -1,0 +1,92 @@
+/* RareFriends Cafe — black, white and greys with faded rose, sage, butter and dusty-blue accents. */
+.cafe-game { --ink: #161616; --paper: #efede7; --card: #f7f5f0ee; --line: #161616; --muted: #6d6b67; --rose: #d8b6b4; --sage: #b4c3ab; --butter: #e2d7ad; --blue: #afbccb;
+  position: relative; width: 100%; height: 100%; overflow: hidden; background: var(--paper); color: var(--ink); font: 13px/1.4 ui-monospace, "SFMono-Regular", Menlo, monospace; }
+.cafe-game * { box-sizing: border-box; }
+.cafe-world { position: absolute; inset: 0; }
+.cafe-world canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: pointer; outline-offset: -3px; }
+.cafe-world canvas:focus-visible { outline: 3px solid var(--ink); }
+.cafe-game button { font: inherit; min-height: 34px; padding: 7px 12px; border: 1.5px solid var(--ink); background: var(--paper); color: var(--ink); cursor: pointer; box-shadow: 2px 2px 0 var(--ink); }
+.cafe-game button:hover:not(:disabled) { background: #fff; }
+.cafe-game button:active:not(:disabled) { transform: translate(1px, 1px); box-shadow: 1px 1px 0 var(--ink); }
+.cafe-game button:disabled { opacity: .45; cursor: default; box-shadow: none; }
+.cafe-game button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+.cafe-game .rf-frame-primary { background: var(--ink); color: var(--paper); }
+.cafe-game .rf-frame-primary:hover:not(:disabled) { background: #333; }
+
+.cafe-hud { position: absolute; top: 12px; left: 12px; right: 12px; display: flex; align-items: flex-start; gap: 10px; pointer-events: none; }
+.cafe-card { display: grid; gap: 4px; min-width: 212px; padding: 9px 12px; background: var(--card); border: 1.5px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); margin-right: auto; }
+.cafe-title { font-size: 15px; letter-spacing: .04em; text-transform: uppercase; }
+.cafe-day { font-size: 11px; color: var(--muted); }
+.cafe-clock, .cafe-xp { display: block; height: 4px; background: #d9d6cf; }
+.cafe-clock i, .cafe-xp i { display: block; height: 100%; background: var(--ink); transition: width .2s linear; }
+.cafe-xp i { background: var(--rose); }
+.cafe-stats { display: flex; gap: 12px; font-size: 13px; white-space: nowrap; }
+.cafe-stats b { font-weight: 700; }
+.cafe-actions { display: flex; gap: 6px; pointer-events: auto; flex-wrap: wrap; justify-content: flex-end; }
+.cafe-actions button { background: var(--card); }
+.cafe-footer { position: absolute; left: 50%; bottom: 60px; transform: translateX(-50%); width: min(620px, calc(100% - 24px)); display: flex; justify-content: center; align-items: center; gap: 8px; pointer-events: none; }
+.cafe-footer p { margin: 0; padding: 6px 12px; background: var(--card); border: 1.5px solid var(--ink); font-size: 12px; text-align: center; }
+.cafe-footer button { pointer-events: auto; min-height: 30px; padding: 4px 10px; font-size: 12px; }
+
+.cafe-status { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 24px; text-align: center; background: var(--paper); }
+.cafe-status p { margin: 0; max-width: 420px; }
+.cafe-steam { font-size: 44px; filter: grayscale(1); animation: cafe-float 1.6s ease-in-out infinite; }
+@keyframes cafe-float { 50% { transform: translateY(-6px); } }
+
+/* SDK menus, re-dressed for the café. */
+.cafe-game .rf-frame-scrim { background: #16161655; padding-bottom: 58px; }
+.cafe-game .rf-frame-menu { background: var(--paper); border: 1.5px solid var(--ink); box-shadow: 5px 5px 0 var(--ink); max-width: 560px; }
+.cafe-game .rf-frame-menu-heading { border-bottom: 1.5px solid var(--ink); background: #fff; }
+.cafe-game .rf-frame-menu-heading h2 { font-size: 15px; letter-spacing: .03em; }
+.cafe-game .rf-frame-menu-heading button { box-shadow: none; border: 0; background: transparent; min-height: 30px; }
+.cafe-game .rf-frame-menu-body > button { margin: 4px 8px 4px 0; }
+.cafe-perk { padding: 8px 10px; background: #fff; border-left: 4px solid var(--rose); }
+.cafe-steps { margin: 0 0 14px; padding-left: 20px; display: grid; gap: 6px; }
+.cafe-note { font-size: 11px; color: var(--muted); }
+.cafe-sim { padding: 6px 10px; background: var(--butter); border: 1px dashed var(--ink); font-size: 12px; }
+.cafe-tabs { display: flex; gap: 6px; margin-bottom: 10px; }
+.cafe-tabs button { flex: 1; box-shadow: none; }
+.cafe-tabs button[aria-selected="true"] { background: var(--ink); color: var(--paper); }
+.cafe-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid #cfccc4; }
+.cafe-row small { display: block; margin-top: 2px; color: var(--muted); font-size: 11px; }
+.cafe-row em { font-style: normal; font-size: 11px; padding: 3px 8px; background: var(--sage); border: 1px solid var(--ink); white-space: nowrap; }
+.cafe-row button { white-space: nowrap; }
+.cafe-odds { width: 100%; border-collapse: collapse; margin: 6px 0 10px; font-size: 11px; text-align: left; }
+.cafe-odds th, .cafe-odds td { padding: 5px 4px; border-bottom: 1px solid #cfccc4; vertical-align: top; }
+.cafe-odds th { border-bottom: 1.5px solid var(--ink); }
+.cafe-buttons { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 12px; }
+.cafe-check { display: flex; gap: 8px; align-items: center; margin: 12px 0; }
+.cafe-summary { display: grid; gap: 2px; margin-bottom: 12px; }
+.cafe-summary p { display: flex; justify-content: space-between; margin: 0; padding: 5px 0; border-bottom: 1px dashed #bdb9b0; }
+.cafe-reveal { text-align: center; padding: 6px 0 4px; }
+.cafe-reveal h3 { margin: 10px 0 4px; font-size: 20px; letter-spacing: .04em; }
+.cafe-capsule { width: 84px; height: 84px; margin: 0 auto; border: 2px solid var(--ink); border-radius: 50%; background: linear-gradient(180deg, #fff 50%, var(--c, #cfccc4) 50%); position: relative; box-shadow: 4px 4px 0 var(--ink); animation: cafe-pop .7s cubic-bezier(.2, 1.6, .4, 1) both; }
+.cafe-capsule span { position: absolute; left: -2px; right: -2px; top: calc(50% - 1px); height: 2px; background: var(--ink); }
+.cafe-reveal-1 { --c: #b7ada3; } .cafe-reveal-2 { --c: #b9bfc6; } .cafe-reveal-3 { --c: #9fabc2; } .cafe-reveal-4 { --c: #e2d49e; }
+.cafe-reveal-4 .cafe-capsule { box-shadow: 4px 4px 0 var(--ink), 0 0 0 8px #e2d7ad88; }
+@keyframes cafe-pop { from { transform: scale(.3) rotate(-30deg); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .cafe-capsule, .cafe-steam { animation: none; } .cafe-clock i, .cafe-xp i { transition: none; } }
+
+/* Phone-sized frames (the 3:2 frame is ~240px tall at 360px wide). */
+@media (max-width: 640px) {
+  .cafe-game { font-size: 11px; }
+  .cafe-hud { top: 6px; left: 6px; right: 6px; gap: 6px; }
+  .cafe-card { min-width: 0; padding: 5px 7px; gap: 2px; box-shadow: 2px 2px 0 var(--ink); }
+  .cafe-title, .cafe-xp, .cafe-wide { display: none; }
+  .cafe-day { font-size: 9px; }
+  .cafe-stats { gap: 7px; font-size: 10px; }
+  .cafe-game button { min-height: 28px; padding: 3px 7px; box-shadow: 1px 1px 0 var(--ink); }
+  .cafe-actions { gap: 4px; }
+  .cafe-footer { bottom: 40px; }
+  .cafe-footer p { font-size: 9px; padding: 3px 6px; }
+  .cafe-footer button { min-height: 24px; font-size: 9px; padding: 2px 6px; }
+  .cafe-game .rf-frame-scrim { padding: 4px 4px 38px; }
+  .cafe-game .rf-frame-menu-heading h2 { font-size: 12px; }
+  .cafe-odds { font-size: 9px; }
+  .cafe-capsule { width: 52px; height: 52px; }
+  .cafe-reveal h3 { font-size: 15px; }
+}
+.cafe-card { grid-template-columns: auto 1fr; column-gap: 10px; }
+.cafe-card > :not(.cafe-portrait) { grid-column: 2; }
+.cafe-portrait { grid-column: 1; grid-row: 1 / span 5; align-self: center; width: 54px; height: 54px; image-rendering: pixelated; background: var(--rose); border: 1.5px solid var(--ink); }
+@media (max-width: 640px) { .cafe-portrait { width: 30px; height: 30px; grid-row: 1 / span 3; } .cafe-card { column-gap: 6px; } }
