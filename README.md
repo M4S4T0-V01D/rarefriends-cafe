@@ -113,6 +113,10 @@ npm run test:browser   # SDK mock-wallet browser runs:
 
 The mock wallet exists only in tests. `dev` and public builds always use the real ownership gate.
 
+**Real-wallet playtest:** the builder has playtested extensively with a real wallet on Robinhood mainnet: owned Friends
+hired as staff and levelling up, closing and reloading to pick the shop back up, and the day card (the one above
+is from that play).
+
 ## How the host extends the SDK
 
 The runtime page is the SDK's own **`GameHost`**: wallet connection, owned-Friend picker, fresh
@@ -134,7 +138,6 @@ Under the plain SDK CLI (`npx friendsdk dev` / `test`), the game runs without th
 - Guest Friends are procedural art in the Rare Friends style, not specific tokens. The roster needs the RPC to return the wallet's transfer history; guest applicants work regardless.
 - Audio is synthesized in the browser and starts on your first tap. On iPhones before iOS 17, silent mode may keep it quiet.
 - Wallet support is the SDK's (injected / EIP-6963; no WalletConnect).
-- The browser tests use the SDK's mocked wallet. A real-wallet playtest on Robinhood mainnet is still needed; the build environment can't reach mainnet.
 
 ## Credits
 
