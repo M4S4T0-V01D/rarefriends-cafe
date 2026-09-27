@@ -97,13 +97,14 @@ each push to `main`.
 
 ```sh
 npm run typecheck      # tsc strict (game + host)
-npm test               # 27 engine tests: plan and routing, street walk-ins, service loop, day cycle, placement rules,
+npm test               # 28 engine tests: plan and routing, street walk-ins, service loop, day cycle, placement rules,
                        # expansions, generation tiers, worker XP, roles, fatigue and breaks, saves and migration,
                        # capsule collectibles, music unlocks, X post text, economy table
 npm run check          # friendsdk check
 npm run test:browser   # SDK mock-wallet browser runs:
                        #  • 960 px: shop pick, keyboard service, build (pointer + keyboard), floor + music tabs, staff,
-                       #    capsules ×5 buy → open all → collection → place, sound toggle; 360 px touch + build bar
+                       #    capsules ×5 buy → open all → collection → place, sound toggle
+                       #  • 360 px touch: audio audible after a touch start, service, build bar
                        #  • custom host: two-Friend wallet → #3412 as chef with canonical art, a full day to closing,
                        #    day card + Post to X (prefilled post + picture copied), save and reload → "Welcome back"
 ```
