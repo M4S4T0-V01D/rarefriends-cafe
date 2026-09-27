@@ -20,6 +20,7 @@
     "games/**/*.ts",
     "games/**/*.tsx",
     "host/**/*.tsx",
+    "site/**/*.ts",
     "types.d.ts"
   ]
 }

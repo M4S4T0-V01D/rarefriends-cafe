@@ -86,6 +86,7 @@ cd rarefriends-cafe
 npm ci
 npm run dev            # http://localhost:4173   ·   npm run dev:lan to play from a phone on the same Wi-Fi
 npm run build          # static site → games/rarefriends-cafe/.friendsdk/
+npm run build:preview  # the /preview/ page (with its Street Bossa record button) → .friendsdk/preview/
 ```
 
 On a phone, open the Pages link in a wallet app's in-app browser (for example MetaMask Mobile). Landscape gives the
@@ -107,6 +108,7 @@ npm run test:browser   # SDK mock-wallet browser runs:
                        #  • 360 px touch: audio audible after a touch start, service, build bar
                        #  • custom host: two-Friend wallet → #3412 as chef with canonical art, a full day to closing,
                        #    day card + Post to X (prefilled post + picture copied), save and reload → "Welcome back"
+                       #  • preview page: the record button plays Street Bossa audibly on click and tap, and stops
 ```
 
 The mock wallet exists only in tests. `dev` and public builds always use the real ownership gate.
