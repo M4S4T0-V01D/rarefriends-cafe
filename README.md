@@ -129,7 +129,7 @@ Under the plain SDK CLI (`npx friendsdk dev` / `test`), the game runs without th
 - Saves live in this browser on this device, keyed by wallet address. They are client-side, so a determined player could edit their own simulated Beans.
 - Capsule RF balances and kept recipes live in the SDK's session ledger and reset on reload. Collectibles are saved.
 - Guest Friends are procedural art in the Rare Friends style, not specific tokens. The roster needs the RPC to return the wallet's transfer history; guest applicants work regardless.
-- Audio is synthesized in the browser and starts on your first tap. Phones on silent mode may stay quiet.
+- Audio is synthesized in the browser and starts on your first tap. On iPhones before iOS 17, silent mode may keep it quiet.
 - Wallet support is the SDK's (injected / EIP-6963; no WalletConnect).
 - The browser tests use the SDK's mocked wallet. A real-wallet playtest on Robinhood mainnet is still needed; the build environment can't reach mainnet.
 

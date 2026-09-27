@@ -43,7 +43,11 @@ export class CafeAudio {
       const Context = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
       if (!Context) return;
       const ctx = this.ctx = new Context();
-      this.master = ctx.createGain(); this.master.connect(ctx.destination);
+      // Master → gentle compressor → make-up gain, so the soft jazz stays audible on laptop and phone speakers.
+      const glue = ctx.createDynamicsCompressor(), output = ctx.createGain();
+      glue.threshold.value = -18; glue.knee.value = 10; glue.ratio.value = 4; glue.attack.value = 0.004; glue.release.value = 0.25;
+      output.gain.value = 1.3; glue.connect(output).connect(ctx.destination);
+      this.master = ctx.createGain(); this.master.connect(glue);
       const warmth = ctx.createBiquadFilter(); warmth.type = "lowpass"; warmth.frequency.value = 5200; warmth.connect(this.master);
       this.musicBus = ctx.createGain(); this.musicBus.connect(warmth);
       this.sfxBus = ctx.createGain(); this.sfxBus.connect(this.master);
@@ -52,7 +56,12 @@ export class CafeAudio {
       for (let index = 0; index < data.length; index++) data[index] = Math.random() * 2 - 1;
       this.applyLevels();
     }
-    void this.ctx.resume();
+    // iOS: play through the ringer switch like media, and prime output with a silent buffer inside the gesture.
+    try { const session = (navigator as unknown as { audioSession?: { type: string } }).audioSession; if (session) session.type = "playback"; } catch { /* unsupported */ }
+    if (this.ctx.state !== "running") {
+      const primer = this.ctx.createBufferSource(); primer.buffer = this.ctx.createBuffer(1, 1, this.ctx.sampleRate); primer.connect(this.ctx.destination); primer.start();
+      void this.ctx.resume().catch(() => { /* retried on the next gesture */ });
+    }
     this.syncMusic();
   }
   setMuted(muted: boolean) { this.muted = muted; this.applyLevels(); this.syncMusic(); }
@@ -66,8 +75,8 @@ export class CafeAudio {
     if (!this.ctx) return;
     const now = this.ctx.currentTime;
     this.master.gain.setTargetAtTime(this.muted ? 0 : this.volume, now, 0.05);
-    this.musicBus.gain.setTargetAtTime(this.musicOn ? 0.28 : 0, now, 0.2);
-    this.sfxBus.gain.setTargetAtTime(this.sfxOn ? 0.5 : 0, now, 0.02);
+    this.musicBus.gain.setTargetAtTime(this.musicOn ? 1.2 : 0, now, 0.2);
+    this.sfxBus.gain.setTargetAtTime(this.sfxOn ? 1.1 : 0, now, 0.02);
   }
   private syncMusic() {
     const playing = Boolean(this.ctx && this.musicOn && !this.muted);
@@ -125,6 +134,8 @@ export class CafeAudio {
     const ctx = this.ctx;
     if (!ctx) return;
     const track = TRACKS.find(item => item.id === this.track) ?? TRACKS[0], eighth = 60 / track.bpm / 2;
+    // After a throttled or backgrounded tab, pick up from now instead of flooding the missed notes.
+    if (this.nextTime < ctx.currentTime) this.nextTime = ctx.currentTime + 0.05;
     while (this.nextTime < ctx.currentTime + 0.3) {
       const odd = this.step % 2 === 1, length = track.swing ? eighth * (odd ? 2 / 3 : 4 / 3) : eighth;
       this.play(track, this.step, this.nextTime, eighth);

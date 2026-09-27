@@ -123,6 +123,7 @@ furniture that no longer fits is refunded.
 
 All music and sound effects are synthesized with WebAudio in the sandbox; there are no audio files.
 - **Tracks:** *Café au Lait* (warm swing), *Rainy Window* (slow minor), *Sunday Stroll* (bright swing), *Street Bossa* (bossa nova), *Neon Nights* (Chrome Jukebox) and *Midnight Moon* (Moon Telescope). Each has electric-piano comping, a walking bass, brushed drums and vibraphone phrases.
+- **Mix:** a gentle compressor keeps the mix loud enough for laptop and phone speakers without clipping. Audio starts on any tap, click or key; on iPhone it plays as media, so the ringer switch doesn't mute it (iOS 17+).
 - **Sound effects:** a station-specific ready sound (espresso steam, bubbling tank, oven ding, grill sizzle, steamer) with a bell; a door bell for walk-ins; guest chirps and coins when they pay; grumbles when they leave; staff sighs when tired and trills when rested; melodies for level-ups and closing; thunks, cranks and pops for building and capsules. UI cues come from the FriendSDK sound kit.
 
 ## Art and credits

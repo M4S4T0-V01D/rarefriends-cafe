@@ -11,6 +11,24 @@ const game = "./games/rarefriends-cafe";
 const shot = (page, name) => page.locator(".rf-game-frame").screenshot({ path: `./artifacts/${name}.png` });
 const attr = async (frame, name) => await frame.locator(".cafe-game").getAttribute(`data-${name}`);
 const number = async (frame, name) => Number(await attr(frame, name));
+/** The sandboxed game frame (a Playwright Frame, for evaluate). */
+const gameFrame = page => page.frames().find(frame => frame !== page.mainFrame() && frame.url() !== "about:blank") ?? page.frames()[1];
+/** Tap every AudioContext the game creates and keep the loudest RMS it outputs. */
+const watchAudio = page => gameFrame(page).evaluate(() => {
+  const Native = window.AudioContext, contexts = window.__audioProbe = [];
+  window.AudioContext = class extends Native {
+    constructor(...args) { super(...args); const analyser = this.createAnalyser(); analyser.fftSize = 2048; contexts.push({ context: this, analyser, loudest: 0 }); }
+  };
+  const connect = AudioNode.prototype.connect;
+  AudioNode.prototype.connect = function (target, ...rest) {
+    const entry = target instanceof AudioDestinationNode && contexts.find(item => item.context === target.context);
+    if (entry) connect.call(this, entry.analyser);
+    return connect.call(this, target, ...rest);
+  };
+  setInterval(() => { for (const entry of contexts) { const data = new Float32Array(2048); entry.analyser.getFloatTimeDomainData(data);
+    entry.loudest = Math.max(entry.loudest, Math.sqrt(data.reduce((sum, value) => sum + value * value, 0) / data.length)); } }, 40);
+});
+const loudestAudio = async page => await gameFrame(page).evaluate(() => (window.__audioProbe ?? []).map(entry => ({ state: entry.context.state, loudest: entry.loudest })));
 
 await testGame(game, {
   screenshot: "./artifacts/desktop-final.png",
@@ -103,13 +121,18 @@ await testGame(game, {
   width: 360, height: 700, screenshot: "./artifacts/phone-final.png", timeout: 60_000,
   check: async ({ page, game: frame }) => {
     await shot(page, "phone-intro");
-    await frame.getByRole("button", { name: /^Open / }).click();
+    await watchAudio(page);
+    await frame.getByRole("button", { name: /^Open / }).tap();
     const deadline = Date.now() + 20_000;
     while (Date.now() < deadline && (await number(frame, "customers")) < 1) await page.waitForTimeout(300);
     await page.waitForTimeout(3500);
     const canvas = frame.locator("canvas[tabindex]"), box = await canvas.boundingBox();
     for (const [x, y] of [[0.5, 0.42], [0.66, 0.55], [0.5, 0.62], [0.66, 0.74]]) await page.touchscreen.tap(box.x + box.width * x, box.y + box.height * y);
     await page.waitForTimeout(1200);
+    // A touch start must leave the music and sound effects actually playing at an audible level.
+    const audio = await loudestAudio(page);
+    assert.ok(audio.length >= 1 && audio.every(entry => entry.state === "running"), `audio contexts: ${JSON.stringify(audio)}`);
+    assert.ok(Math.max(...audio.map(entry => entry.loudest)) > 0.05, `audio too quiet: ${JSON.stringify(audio)}`);
     await shot(page, "phone-service");
     await frame.getByRole("button", { name: "Build", exact: true }).click();
     await shot(page, "phone-build");

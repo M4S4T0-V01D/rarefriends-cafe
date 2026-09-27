@@ -254,6 +254,16 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
     setBuildMessage(problem ?? done); if (!problem) { if (build.mode === "sell") audio.current?.sell(); else audio.current?.place(); }
     setBuild({ ...build, cursor: tile }); setHud(readHud(state)); refresh();
   }
+  // Browsers only start audio inside a user activation (on phones that is pointerup/click, not pointerdown),
+  // so any tap, click or key in the game frame wakes it.
+  const wake = useRef(() => {});
+  wake.current = wakeAudio;
+  useEffect(() => {
+    const listener = () => wake.current();
+    const events = ["pointerup", "click", "keydown", "touchend"] as const;
+    for (const name of events) window.addEventListener(name, listener, { capture: true, passive: true });
+    return () => { for (const name of events) window.removeEventListener(name, listener, { capture: true }); };
+  }, []);
   /** Start audio from a user gesture and apply the saved preferences. */
   function wakeAudio() {
     const player = audio.current, state = cafe.current;
