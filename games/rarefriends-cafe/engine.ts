@@ -3,7 +3,7 @@
  * Beans, levels, staff and furniture are in-shop progress; the SDK runtime owns RF.
  */
 import {
-  AMBIENCE_LEVELS, BASE_WALK_IN, BLEND_BONUSES, CATALOG, DAY_LENGTH, EAT_TIME, EXPAND_COSTS, EXPAND_LEVELS, FATIGUE, FLOORS, FOOD_PATIENCE,
+  AMBIENCE_LEVELS, BASE_WALK_IN, BLEND_BONUSES, CATALOG, DAY_LENGTH, DUPLICATE_BEANS, EXCLUSIVES, EAT_TIME, EXPAND_COSTS, EXPAND_LEVELS, FATIGUE, FLOORS, FOOD_PATIENCE,
   LEVEL_XP, MACHINE_COSTS, MAX_LEVEL, MAX_STAFF_SLOTS, ORDER_PATIENCE, PASSERBY_INTERVAL, PROMOTER_PULL, SELL_REFUND, SHOPS, START_STAFF_SLOTS,
   STAFF_SLOT_COSTS, STAFF_SLOT_LEVELS, WALLPAPERS, breakSeconds, catalogItem, dishById, machineFactor, shopById, tableLimit, tierOf, workerLevel,
   type DishId, type ItemKind, type ShopId,
@@ -50,13 +50,16 @@ export type Phase = "intro" | "open" | "summary";
 export type CafeState = {
   phase: Phase; shop: ShopId; started: boolean; day: number; clock: number; beans: number; xp: number; level: number; rating: number;
   size: number; machine: number; unlocked: Set<DishId>; blends: number[]; familyId: number; guestCount: number; regulars: number[];
-  items: Item[]; wallpaper: string; floor: string; finishes: Set<string>;
+  items: Item[]; wallpaper: string; floor: string; finishes: Set<string>; collection: Set<string>; prefs: Prefs;
   staffSlots: number; staff: StaffMember[]; ownedFriends: number[]; generations: Record<number, number>; applicants: number[];
   customers: Customer[]; passersby: Passerby[]; orders: Order[]; workers: Worker[]; events: CafeEvent[];
   spawn: number; nextId: number; blocked: Set<number>; manual: { dx: number; dy: number } | null;
   today: DayStats; totalServed: number; rng: () => number;
 };
 export type OwnedInput = number | { id: number; generation: number | null };
+/** Audio preferences, saved with the wallet's shop. */
+export type Prefs = { track: string; music: boolean; sfx: boolean; volume: number };
+export const DEFAULT_PREFS: Prefs = { track: "latte", music: true, sfx: true, volume: 0.6 };
 
 const perk = (state: CafeState, family: number) => state.familyId === family;
 const emptyDay = (): DayStats => ({ served: 0, lost: 0, beans: 0, tips: 0, vips: 0, best: 0, walkIns: 0 });
@@ -73,6 +76,7 @@ export function createCafe(options: {
     phase: "intro", shop: options.shop ?? "cafe", started: false, day: 1, clock: 0, beans: 30, xp: 0, level: 1, rating: 3.5,
     size: START_SIZE, machine: 0, unlocked: new Set(), blends: [0, 0, 0, 0], familyId: options.familyId, guestCount, regulars: options.regulars ?? [],
     items: DEFAULT_ITEMS.map(item => ({ ...item })), wallpaper: "plain", floor: "checker", finishes: new Set(["plain", "checker"]),
+    collection: new Set(), prefs: { ...DEFAULT_PREFS },
     staffSlots: START_STAFF_SLOTS, staff: [], ownedFriends: [], generations: {},
     applicants: Array.from({ length: Math.min(6, guestCount) }, (_, index) => (index * 5 + 3) % guestCount),
     customers: [], passersby: [], orders: [], workers: [], events: [], spawn: 0.5, nextId: 100, blocked: new Set(), manual: null,
@@ -305,6 +309,21 @@ export function sendToBreak(state: CafeState, workerId: number): string {
   return `Break time: ${Math.round(worker.restTotal)} s in the break room.`;
 }
 
+// ---------- RF exclusives (from capsules) ----------
+/**
+ * A capsule of `tier` (0 House Secret … 3 Golden Recipe) also grants a collectible: a random exclusive of that tier
+ * not yet collected, or Beans for a duplicate. Collectibles carry no RF value; the capsule's RF redemption is unchanged.
+ */
+export function collectFromCapsule(state: CafeState, tier: number): { exclusive: ItemKind | null; beans: number } {
+  const pool = EXCLUSIVES.filter(item => item.tier === tier && !state.collection.has(item.kind));
+  if (!pool.length) { const beans = DUPLICATE_BEANS[tier] ?? 0; state.beans += beans; return { exclusive: null, beans }; }
+  const pick = pool[Math.floor(state.rng() * pool.length)];
+  state.collection.add(pick.kind);
+  return { exclusive: pick.kind, beans: 0 };
+}
+/** Tracks unlocked by collected exclusives. */
+export const hasCollected = (state: CafeState, id: string) => state.collection.has(id);
+
 // ---------- Build mode ----------
 export const tableCount = (state: CafeState) => tables(state).length;
 const occupiedTable = (state: CafeState, id: number) => state.customers.some(customer => customer.table === id);
@@ -338,6 +357,8 @@ function afterLayoutChange(state: CafeState) {
 /** Place a new item bought with Beans. */
 export function placeItem(state: CafeState, kind: ItemKind, tile: Tile, dir: 0 | 1 = 0): string | null {
   const entry = catalogItem(kind);
+  if (entry.tier !== undefined && !state.collection.has(kind)) return `${entry.name} comes from Rare Recipe Capsules.`;
+  if (entry.tier !== undefined && state.items.some(item => item.kind === kind)) return `Your ${entry.name} is already placed. Move it instead.`;
   if (kind === "table" && tableCount(state) >= tableLimit(state.level)) return `Level ${state.level} allows ${tableLimit(state.level)} tables. Level up for more.`;
   if (state.beans < entry.cost) return "Not enough Beans.";
   const candidate = { kind, x: tile.x, y: tile.y, dir };
@@ -406,6 +427,7 @@ export type CafeSave = {
   v: number; shop: ShopId; day: number; beans: number; xp: number; level: number; rating: number; machine: number; size: number;
   unlocked: string[]; items: { kind: ItemKind; x: number; y: number; dir: 0 | 1 }[]; wallpaper: string; floor: string; finishes: string[];
   staffSlots: number; staff: { slot: number; owned?: number; guest?: number; role: StaffRole; xp: number }[]; totalServed: number;
+  collection?: string[]; prefs?: Prefs;
 };
 /** Long-term progress only. A day in progress resumes from its start; a closed day resumes at the next one. */
 export function serializeCafe(state: CafeState): CafeSave | null {
@@ -415,7 +437,7 @@ export function serializeCafe(state: CafeState): CafeSave | null {
     rating: Math.round(state.rating * 100) / 100, machine: state.machine, size: state.size, unlocked: [...state.unlocked],
     items: state.items.map(({ kind, x, y, dir }) => ({ kind, x, y, dir })), wallpaper: state.wallpaper, floor: state.floor, finishes: [...state.finishes],
     staffSlots: state.staffSlots, staff: state.staff.map(member => ({ slot: member.slot, role: member.role, xp: member.xp, ...member.who })),
-    totalServed: state.totalServed,
+    totalServed: state.totalServed, collection: [...state.collection], prefs: { ...state.prefs },
   };
 }
 const int = (value: unknown, min: number, max: number) => typeof value === "number" && Number.isInteger(value) && value >= min && value <= max;
@@ -437,13 +459,19 @@ export function restoreCafe(state: CafeState, input: unknown): boolean {
   const finishIds = new Set([...WALLPAPERS, ...FLOORS].map(item => item.id));
   if (!save.finishes.every(id => typeof id === "string" && finishIds.has(id)) || !save.finishes.includes(save.wallpaper!) || !save.finishes.includes(save.floor!)
     || !WALLPAPERS.some(item => item.id === save.wallpaper) || !FLOORS.some(item => item.id === save.floor)) return false;
-  const kinds = new Set(CATALOG.map(item => item.kind));
+  const kinds = new Set(CATALOG.map(item => item.kind)), exclusiveIds = new Set(EXCLUSIVES.map(item => item.kind as string));
+  const collection = Array.isArray(save.collection) ? save.collection.filter(id => typeof id === "string" && exclusiveIds.has(id)) : [];
+  const prefs = save.prefs && typeof save.prefs === "object" ? save.prefs : DEFAULT_PREFS;
   if (save.items.length > 300 || !save.items.every(item => item && kinds.has(item.kind) && int(item.x, 0, MAX_SIZE) && int(item.y, 0, MAX_SIZE) && (item.dir === 0 || item.dir === 1))) return false;
   Object.assign(state, {
     shop: shop.id, started: true, day: save.day, beans: save.beans, xp: save.xp, level: save.level, rating: save.rating, machine: save.machine, size,
     unlocked: new Set(save.unlocked), wallpaper: save.wallpaper, floor: save.floor, finishes: new Set(save.finishes),
-    staffSlots: save.staffSlots, totalServed: save.totalServed, staff: [],
-    items: save.items.map((item, index) => ({ id: index + 1, kind: item.kind, x: item.x, y: item.y, dir: item.dir })),
+    staffSlots: save.staffSlots, totalServed: save.totalServed, staff: [], collection: new Set(collection),
+    prefs: { track: typeof prefs.track === "string" ? prefs.track : DEFAULT_PREFS.track, music: prefs.music !== false, sfx: prefs.sfx !== false,
+      volume: typeof prefs.volume === "number" && prefs.volume >= 0 && prefs.volume <= 1 ? prefs.volume : DEFAULT_PREFS.volume },
+    // Exclusives can only be placed once each, and only if collected.
+    items: save.items.filter((item, index, all) => !exclusiveIds.has(item.kind) || (collection.includes(item.kind) && all.findIndex(other => other.kind === item.kind) === index))
+      .map((item, index) => ({ id: index + 1, kind: item.kind, x: item.x, y: item.y, dir: item.dir })),
   });
   state.nextId = Math.max(state.nextId, state.items.length + 100);
   refitItems(state);

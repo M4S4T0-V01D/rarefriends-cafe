@@ -114,8 +114,10 @@ export const EXPAND_COSTS = [400, 900, 1600] as const;
 export const EXPAND_LEVELS = [3, 5, 7] as const;
 
 // ---------- Build mode ----------
-export type ItemKind = "table" | "plant" | "lamp" | "shelf" | "record" | "rug" | "piano";
-export type CatalogItem = Readonly<{ kind: ItemKind; name: string; cost: number; ambience: number; blocks: boolean; text: string }>;
+export type ExclusiveId = "luckycat" | "gumball" | "crane" | "jukebox" | "fountain" | "telescope" | "starlamp" | "statue";
+export type ItemKind = "table" | "plant" | "lamp" | "shelf" | "record" | "rug" | "piano" | ExclusiveId;
+/** `tier` marks an RF exclusive: collected from Rare Recipe Capsules (0 House Secret … 3 Golden Recipe), then placed for free. */
+export type CatalogItem = Readonly<{ kind: ItemKind; name: string; cost: number; ambience: number; blocks: boolean; text: string; tier?: number }>;
 export const CATALOG: readonly CatalogItem[] = [
   { kind: "table", name: "Table & chair", cost: 60, ambience: 0, blocks: true, text: "Seats one guest. Tap R / Rotate to face the chair." },
   { kind: "plant", name: "Potted monstera", cost: 35, ambience: 1, blocks: true, text: "+1 ambience" },
@@ -124,7 +126,19 @@ export const CATALOG: readonly CatalogItem[] = [
   { kind: "shelf", name: "Bookshelf", cost: 90, ambience: 2, blocks: true, text: "+2 ambience" },
   { kind: "record", name: "Record player", cost: 150, ambience: 3, blocks: true, text: "+3 ambience" },
   { kind: "piano", name: "Upright piano", cost: 260, ambience: 4, blocks: true, text: "+4 ambience" },
+  // RF exclusives: only from Rare Recipe Capsules. Each can be placed once, for free.
+  { kind: "luckycat", name: "Lucky Cat", cost: 0, ambience: 3, blocks: true, text: "RF exclusive · waves in guests", tier: 0 },
+  { kind: "gumball", name: "Gumball Machine", cost: 0, ambience: 3, blocks: true, text: "RF exclusive · faded pastel gumballs", tier: 0 },
+  { kind: "crane", name: "Paper Crane Stand", cost: 0, ambience: 3, blocks: true, text: "RF exclusive · a flock of paper cranes", tier: 0 },
+  { kind: "jukebox", name: "Chrome Jukebox", cost: 0, ambience: 4, blocks: true, text: "RF exclusive · unlocks the track Neon Nights", tier: 1 },
+  { kind: "fountain", name: "Silver Fountain", cost: 0, ambience: 4, blocks: true, text: "RF exclusive · a trickling silver fountain", tier: 1 },
+  { kind: "telescope", name: "Moon Telescope", cost: 0, ambience: 5, blocks: true, text: "RF exclusive · unlocks the track Midnight Moon", tier: 2 },
+  { kind: "starlamp", name: "Star Lamp", cost: 0, ambience: 5, blocks: true, text: "RF exclusive · soft starlight", tier: 2 },
+  { kind: "statue", name: "Golden Friend Statue", cost: 0, ambience: 8, blocks: true, text: "RF exclusive · your manager, in gold", tier: 3 },
 ];
+export const EXCLUSIVES = CATALOG.filter(item => item.tier !== undefined);
+/** Beans given for a duplicate exclusive, by capsule tier. */
+export const DUPLICATE_BEANS = [40, 80, 160, 400] as const;
 export const catalogItem = (kind: ItemKind) => CATALOG.find(item => item.kind === kind)!;
 export const START_TABLES = 3;
 /** Most tables allowed at a shop level (more room after expanding helps fit them). */

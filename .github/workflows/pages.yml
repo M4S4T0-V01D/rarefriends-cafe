@@ -26,6 +26,8 @@ jobs:
       - run: npm run test:browser
       - run: npm run build
       - run: touch games/rarefriends-cafe/.friendsdk/.nojekyll
+      # Preview page for sharing: /preview/ with the screenshots from docs/.
+      - run: mkdir -p games/rarefriends-cafe/.friendsdk/preview/img && cp site/preview/index.html games/rarefriends-cafe/.friendsdk/preview/ && cp docs/*.png games/rarefriends-cafe/.friendsdk/preview/img/
       - uses: actions/upload-pages-artifact@v3
         with:
           path: games/rarefriends-cafe/.friendsdk

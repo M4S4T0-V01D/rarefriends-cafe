@@ -298,7 +298,7 @@ function drawRug(ctx: CanvasRenderingContext2D, tile: Tile, alpha = 0.7) {
   ctx.setLineDash([3, 3]); poly(ctx, tileQuad(tile.x, tile.y, 0.16), "rgba(0,0,0,0)", "rgba(22,22,22,.4)"); ctx.setLineDash([]);
   ctx.globalAlpha = 1;
 }
-function drawItem(ctx: CanvasRenderingContext2D, kind: ItemKind, tile: Tile, now: number, reducedMotion: boolean) {
+export function drawItem(ctx: CanvasRenderingContext2D, kind: ItemKind, tile: Tile, now: number, reducedMotion: boolean, statueRows: readonly string[] | null = null) {
   shadow(ctx, tile.x, tile.y, 16);
   const base = project(tile.x, tile.y);
   if (kind === "plant") {
@@ -325,6 +325,69 @@ function drawItem(ctx: CanvasRenderingContext2D, kind: ItemKind, tile: Tile, now
     ctx.fillStyle = C.rose; ctx.beginPath(); ctx.ellipse(top.x, top.y, 4, 1.8, 0, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = "rgba(247,245,240,.5)"; ctx.beginPath(); ctx.ellipse(top.x, top.y, 9, 3.8, 0, spin, spin + 1.4); ctx.stroke();
     if (!reducedMotion) { const t = (now / 1400) % 1; ctx.globalAlpha = 1 - t; ctx.fillStyle = INK; ctx.font = "12px ui-monospace, monospace"; ctx.textAlign = "center"; ctx.fillText("♪", top.x + 12 + t * 8, top.y - 12 - t * 26); ctx.globalAlpha = 1; }
+  } else if (kind === "luckycat") {
+    box(ctx, tile.x, tile.y, 0.45, 0.45, 14, "#c9a44a", "#9c7d34", "#b28f3f");
+    const top = project(tile.x, tile.y, 14), wave = reducedMotion ? 0 : Math.sin(now / 250) * 4;
+    ctx.fillStyle = C.light; ctx.strokeStyle = INK; ctx.lineWidth = 1.4;
+    ctx.beginPath(); ctx.ellipse(top.x, top.y - 14, 12, 14, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.arc(top.x, top.y - 32, 10, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(top.x - 9, top.y - 38); ctx.lineTo(top.x - 6, top.y - 46); ctx.lineTo(top.x - 2, top.y - 40); ctx.moveTo(top.x + 9, top.y - 38); ctx.lineTo(top.x + 6, top.y - 46); ctx.lineTo(top.x + 2, top.y - 40); ctx.stroke();
+    ctx.fillStyle = INK; ctx.fillRect(top.x - 5, top.y - 34, 2, 2); ctx.fillRect(top.x + 3, top.y - 34, 2, 2);
+    ctx.fillStyle = C.light; ctx.beginPath(); ctx.ellipse(top.x + 12, top.y - 34 + wave, 4, 7, 0.3, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "#c98f8f"; ctx.fillRect(top.x - 6, top.y - 22, 12, 3); ctx.fillStyle = C.butter; ctx.beginPath(); ctx.arc(top.x, top.y - 16, 3, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  } else if (kind === "gumball") {
+    box(ctx, tile.x, tile.y, 0.4, 0.4, 30, "#c98f8f", "#9e6d6d", "#b27e7e");
+    const top = project(tile.x, tile.y, 30);
+    ctx.fillStyle = "rgba(225,232,238,.8)"; ctx.strokeStyle = INK; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.arc(top.x, top.y - 16, 16, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    [C.rose, C.sage, C.butter, C.blue, C.lavender, C.amber, C.rose, C.sage].forEach((color, index) => { ctx.fillStyle = color; ctx.beginPath(); ctx.arc(top.x - 9 + (index % 4) * 6, top.y - 10 - Math.floor(index / 4) * 7, 3.2, 0, Math.PI * 2); ctx.fill(); });
+    ctx.fillStyle = "#c98f8f"; ctx.beginPath(); ctx.arc(top.x, top.y - 33, 4, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  } else if (kind === "crane") {
+    ctx.fillStyle = C.dark; ctx.fillRect(base.x - 1.5, base.y - 80, 3, 80); ctx.fillRect(base.x - 22, base.y - 80, 44, 3);
+    for (const [dx, drop, color] of [[-18, 20, C.rose], [-6, 32, C.light], [6, 24, C.butter], [18, 36, C.blue]] as const) {
+      const sway = reducedMotion ? 0 : Math.sin(now / 600 + dx) * 2, y = base.y - 80 + drop;
+      ctx.strokeStyle = INK; line(ctx, { x: base.x + dx, y: base.y - 78 }, { x: base.x + dx + sway, y: y - 6 });
+      ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(base.x + dx + sway - 7, y); ctx.lineTo(base.x + dx + sway, y - 6); ctx.lineTo(base.x + dx + sway + 7, y); ctx.lineTo(base.x + dx + sway, y + 3); ctx.closePath(); ctx.fill(); ctx.stroke();
+    }
+  } else if (kind === "jukebox") {
+    box(ctx, tile.x, tile.y, 0.6, 0.45, 48, "#c9ccd0", "#9aa0a6", "#b3b8bd");
+    const top = project(tile.x, tile.y, 48), glow = reducedMotion ? 0.6 : 0.5 + Math.sin(now / 300) * 0.3;
+    ctx.fillStyle = `rgba(216,182,180,${glow})`; ctx.strokeStyle = INK; ctx.beginPath(); ctx.arc(top.x, top.y - 2, 14, Math.PI, 0); ctx.fill(); ctx.stroke();
+    const face = project(tile.x - 0.05, tile.y + 0.23, 30); ctx.fillStyle = C.dark; ctx.fillRect(face.x - 10, face.y - 8, 20, 12);
+    ctx.fillStyle = C.butter; for (let i = 0; i < 4; i++) ctx.fillRect(face.x - 8 + i * 5, face.y - 5, 3, 6);
+    if (!reducedMotion) { const t = (now / 1100) % 1; ctx.globalAlpha = 1 - t; ctx.fillStyle = INK; ctx.font = "12px ui-monospace, monospace"; ctx.textAlign = "center"; ctx.fillText("♫", top.x - 14 - t * 6, top.y - 20 - t * 24); ctx.globalAlpha = 1; }
+  } else if (kind === "fountain") {
+    box(ctx, tile.x, tile.y, 0.7, 0.7, 12, "#d6dade", "#a9afb5", "#bfc4c9");
+    const top = project(tile.x, tile.y, 12);
+    ctx.fillStyle = "#afbccb"; ctx.beginPath(); ctx.ellipse(top.x, top.y, 18, 8, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#c9ccd0"; ctx.fillRect(top.x - 3, top.y - 26, 6, 26); ctx.strokeStyle = INK; ctx.strokeRect(top.x - 3, top.y - 26, 6, 26);
+    ctx.strokeStyle = "rgba(247,245,240,.9)"; ctx.lineWidth = 2;
+    for (const side of [-1, 1]) { const t = reducedMotion ? 0 : (now / 500) % 1; ctx.beginPath(); ctx.moveTo(top.x, top.y - 26); ctx.quadraticCurveTo(top.x + side * 12, top.y - 34, top.x + side * (14 + t * 2), top.y - 4); ctx.stroke(); }
+    ctx.lineWidth = 1;
+  } else if (kind === "telescope") {
+    ctx.strokeStyle = INK; ctx.lineWidth = 2;
+    for (const dx of [-10, 0, 10]) line(ctx, { x: base.x + dx, y: base.y }, { x: base.x, y: base.y - 40 });
+    ctx.lineWidth = 1;
+    ctx.save(); ctx.translate(base.x, base.y - 44); ctx.rotate(-0.5);
+    ctx.fillStyle = "#9fabc2"; ctx.fillRect(-22, -6, 44, 12); ctx.strokeStyle = INK; ctx.strokeRect(-22, -6, 44, 12);
+    ctx.fillStyle = C.butter; ctx.fillRect(18, -8, 8, 16); ctx.strokeRect(18, -8, 8, 16); ctx.restore();
+    const twinkle = reducedMotion ? 1 : 0.5 + Math.abs(Math.sin(now / 400)) * 0.5;
+    ctx.globalAlpha = twinkle; ctx.fillStyle = C.butter; ctx.font = "12px ui-monospace, monospace"; ctx.textAlign = "center"; ctx.fillText("✦", base.x + 26, base.y - 70); ctx.globalAlpha = 1;
+  } else if (kind === "starlamp") {
+    ctx.fillStyle = C.dark; ctx.fillRect(base.x - 1.5, base.y - 60, 3, 60);
+    const glow = ctx.createRadialGradient(base.x, base.y - 66, 2, base.x, base.y - 66, 55);
+    glow.addColorStop(0, "rgba(233,227,196,.55)"); glow.addColorStop(1, "rgba(233,227,196,0)"); ctx.fillStyle = glow; ctx.fillRect(base.x - 55, base.y - 121, 110, 110);
+    const spin = reducedMotion ? 0 : now / 2000;
+    ctx.save(); ctx.translate(base.x, base.y - 68); ctx.rotate(spin); ctx.fillStyle = C.butter; ctx.strokeStyle = INK; ctx.beginPath();
+    for (let i = 0; i < 10; i++) { const r = i % 2 ? 6 : 14, a = i * Math.PI / 5 - Math.PI / 2; ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r); }
+    ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
+  } else if (kind === "statue") {
+    box(ctx, tile.x, tile.y, 0.6, 0.6, 24, "#e2d49e", "#b8a15a", "#cbb66f");
+    if (statueRows) {
+      const art = spriteCanvas(statueRows, 3, "#b8962e"), top = project(tile.x, tile.y, 24);
+      ctx.drawImage(art, Math.round(top.x - art.width / 2), Math.round(top.y - art.height + 6));
+    }
+    const shine = reducedMotion ? 0.8 : 0.4 + Math.abs(Math.sin(now / 700)) * 0.6, top = project(tile.x, tile.y, 80);
+    ctx.globalAlpha = shine; ctx.fillStyle = "#fff"; ctx.font = "12px ui-monospace, monospace"; ctx.textAlign = "center"; ctx.fillText("✦", top.x + 18, top.y); ctx.globalAlpha = 1;
   } else if (kind === "piano") {
     box(ctx, tile.x, tile.y, 0.85, 0.45, 50, "#2e2d2b", "#1f1e1d", "#292826");
     box(ctx, tile.x + 0.05, tile.y + 0.28, 0.75, 0.2, 4, C.light, "#cfccc5", "#e1ded7", 26);
@@ -620,6 +683,7 @@ export function renderScene(ctx: CanvasRenderingContext2D, scene: Scene, pixelSc
   add(layout.size - 1 + layout.door.y + 0.7, 3, () => drawDoor(ctx, layout, shop.accent));
   for (const y of [layout.laneStart + 1, Math.floor(layout.size / 2) + 1, layout.laneEnd - 1]) add(layout.lane + 0.45 + y, 1, () => drawStreetLamp(ctx, { x: layout.lane + 0.45, y }));
   const tableNumbers = new Map(tables(state).map((item, index) => [item.id, index + 1]));
+  const statueRows = friendRows(scene.friend, "down", false, 0);
   const accents = [C.rose, C.sage, C.butter, C.lavender];
   for (const item of state.items) {
     if (item.kind === "rug") continue;
@@ -628,7 +692,7 @@ export function renderScene(ctx: CanvasRenderingContext2D, scene: Scene, pixelSc
       const seat = seatOf(item);
       add(seat.x + seat.y, 0, () => { ctx.globalAlpha = faded; drawChair(ctx, seat, item.dir); ctx.globalAlpha = 1; });
       add(item.x + item.y, 0, () => { ctx.globalAlpha = faded; drawTable(ctx, item, tableNumbers.get(item.id)!, accents[item.id % 4]); ctx.globalAlpha = 1; });
-    } else add(item.x + item.y, 0, () => { ctx.globalAlpha = faded; drawItem(ctx, item.kind, item, now, reducedMotion); ctx.globalAlpha = 1; });
+    } else add(item.x + item.y, 0, () => { ctx.globalAlpha = faded; drawItem(ctx, item.kind, item, now, reducedMotion, statueRows); ctx.globalAlpha = 1; });
   }
   if (build?.ghost) {
     const ghost = build.ghost;
@@ -638,7 +702,7 @@ export function renderScene(ctx: CanvasRenderingContext2D, scene: Scene, pixelSc
       const seat = seatOf(ghost);
       add(seat.x + seat.y + 0.02, 9, () => { ctx.globalAlpha = 0.65; drawChair(ctx, seat, ghost.dir); ctx.globalAlpha = 1; });
       add(ghost.x + ghost.y + 0.02, 9, () => { tint(); ctx.globalAlpha = 0.65; drawTable(ctx, { ...ghost, id: 0 }, 0, C.butter); ctx.globalAlpha = 1; });
-    } else add(ghost.x + ghost.y + 0.02, 9, () => { tint(); ctx.globalAlpha = 0.65; drawItem(ctx, ghost.kind, ghost, now, true); ctx.globalAlpha = 1; });
+    } else add(ghost.x + ghost.y + 0.02, 9, () => { tint(); ctx.globalAlpha = 0.65; drawItem(ctx, ghost.kind, ghost, now, true, statueRows); ctx.globalAlpha = 1; });
   }
   for (const passer of state.passersby) add(passer.walker.x + passer.walker.y, 1, () => drawPasserby(ctx, scene, passer));
   for (const customer of state.customers) add(customer.walker.x + customer.walker.y, 1, () => drawCustomer(ctx, scene, customer));

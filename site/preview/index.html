@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RareFriends Cafe</title>
+<meta name="description" content="Your Rare Friend opens a shop on a quiet greyscale street. Your other Friends staff it. A FriendSDK game for the Rare Friends Vibeathon.">
+<meta property="og:title" content="RareFriends Cafe">
+<meta property="og:description" content="Your Rare Friend opens a shop on a quiet greyscale street. Your other Friends staff it, and every day ends with a picture worth posting.">
+<meta property="og:image" content="https://m4s4t0-v01d.github.io/rarefriends-cafe/preview/img/day-card.png">
+<meta property="og:url" content="https://m4s4t0-v01d.github.io/rarefriends-cafe/preview/">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="RareFriends Cafe">
+<meta name="twitter:description" content="A greyscale isometric shop sim run by the Rare Friends you own. @RareFriendsNFT #RareFriends #RareFriendsCafe">
+<meta name="twitter:image" content="https://m4s4t0-v01d.github.io/rarefriends-cafe/preview/img/day-card.png">
+<meta name="theme-color" content="#efede7">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%23efede7'/%3E%3Cpath d='M3 5h8v5a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3zM11 6h1.5a1.5 1.5 0 0 1 0 3H11' fill='none' stroke='%23161616' stroke-width='1.4'/%3E%3C/svg%3E">
+<style>
+:root {
+  color-scheme: light;
+  --ink: #161616; --paper: #efede7; --card: #f7f5f0; --muted: #6d6b67; --line: #cfccc4;
+  --rose: #d8b6b4; --sage: #b4c3ab; --butter: #e2d7ad; --blue: #afbccb; --lavender: #c6bed4;
+  --mono: ui-monospace, "SFMono-Regular", "JetBrains Mono", Menlo, Consolas, monospace;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.6 var(--mono); overflow-x: hidden;
+  background-image: radial-gradient(rgba(22,22,22,.06) 1px, transparent 1.2px); background-size: 12px 12px; }
+body::after { content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 50; opacity: .07;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+body::before { content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 49; background: radial-gradient(ellipse at center, transparent 55%, rgba(22,22,22,.18)); }
+a { color: inherit; }
+img { max-width: 100%; height: auto; display: block; }
+.wrap { width: min(1120px, 100% - 32px); margin: 0 auto; }
+.btn { display: inline-flex; align-items: center; gap: 10px; padding: 14px 22px; border: 2px solid var(--ink); background: var(--card); color: var(--ink);
+  font: 700 15px var(--mono); text-decoration: none; box-shadow: 4px 4px 0 var(--ink); transition: transform .12s, box-shadow .12s; }
+.btn:hover { transform: translate(-1px, -1px); box-shadow: 5px 5px 0 var(--ink); }
+.btn:active { transform: translate(3px, 3px); box-shadow: 1px 1px 0 var(--ink); }
+.btn:focus-visible { outline: 3px solid var(--ink); outline-offset: 4px; }
+.btn.primary { background: var(--ink); color: var(--paper); font-size: 17px; padding: 16px 28px; }
+.tag { display: inline-block; padding: 3px 10px; border: 1.5px solid var(--ink); background: var(--butter); font-size: 12px; letter-spacing: .06em; text-transform: uppercase; }
+
+/* Top bar */
+.bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 0; }
+.logo { display: flex; align-items: center; gap: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; text-decoration: none; }
+.logo i { width: 34px; height: 34px; border: 2px solid var(--ink); background: var(--rose); display: grid; place-items: center; font-style: normal; box-shadow: 2px 2px 0 var(--ink); }
+.bar nav { display: flex; gap: 18px; font-size: 13px; }
+.bar nav a { text-decoration: none; border-bottom: 1.5px solid transparent; }
+.bar nav a:hover { border-color: var(--ink); }
+
+/* Hero */
+.hero { display: grid; grid-template-columns: 1fr 1.15fr; gap: 48px; align-items: center; padding: 28px 0 40px; }
+.hero h1 { font-size: clamp(40px, 6.4vw, 76px); line-height: .98; margin: 18px 0 18px; letter-spacing: -.02em; }
+.hero h1 span { display: inline-block; background: linear-gradient(transparent 62%, var(--rose) 62%); }
+.hero p.lead { font-size: 17px; max-width: 520px; margin: 0 0 26px; }
+.hero .cta { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+.hero small { display: block; margin-top: 18px; color: var(--muted); font-size: 12px; max-width: 480px; }
+.photo { position: relative; background: #fff; border: 2px solid var(--ink); padding: 12px 12px 44px; box-shadow: 8px 8px 0 var(--ink); transform: rotate(1.2deg); }
+.photo img { border: 1.5px solid var(--ink); }
+.photo figcaption { position: absolute; left: 14px; bottom: 12px; font-weight: 700; font-size: 13px; letter-spacing: .06em; }
+.photo::before, .photo::after { content: ""; position: absolute; width: 90px; height: 26px; background: rgba(226,215,173,.85); border: 1px solid rgba(22,22,22,.25); top: -13px; }
+.photo::before { left: 24px; transform: rotate(-6deg); } .photo::after { right: 24px; transform: rotate(5deg); background: rgba(216,182,180,.85); }
+
+/* Street parade */
+.street { position: relative; height: 96px; border-block: 2px solid var(--ink); background: #d6d3cc; overflow: hidden; }
+.street::after { content: ""; position: absolute; left: 0; right: 0; bottom: 18px; border-top: 2px dashed rgba(247,245,240,.9); }
+.street canvas { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; }
+.street span { position: absolute; right: 16px; top: 10px; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; background: var(--card); border: 1.5px solid var(--ink); padding: 2px 8px; z-index: 2; }
+
+/* Sections */
+section { padding: 64px 0; }
+h2 { font-size: clamp(26px, 3.6vw, 38px); margin: 10px 0 12px; letter-spacing: -.01em; }
+.sub { color: var(--muted); max-width: 640px; margin: 0 0 30px; }
+.features { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+.feature { background: var(--card); border: 2px solid var(--ink); padding: 20px; box-shadow: 4px 4px 0 var(--ink); position: relative; }
+.feature::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 7px; background: var(--accent, var(--rose)); border-right: 2px solid var(--ink); }
+.feature h3 { margin: 0 0 8px 8px; font-size: 16px; }
+.feature p { margin: 0 0 0 8px; font-size: 13.5px; color: #3a3936; }
+.feature b.icon { display: inline-grid; place-items: center; width: 30px; height: 30px; margin: 0 0 10px 8px; border: 1.5px solid var(--ink); background: #fff; font-size: 15px; }
+
+.gallery { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; }
+.shot { margin: 0; background: #fff; border: 2px solid var(--ink); padding: 8px 8px 12px; box-shadow: 4px 4px 0 var(--ink); transition: transform .2s; }
+.shot:nth-child(3n+1) { transform: rotate(-.6deg); } .shot:nth-child(3n+2) { transform: rotate(.5deg); } .shot:nth-child(3n) { transform: rotate(-.3deg); }
+.shot:hover { transform: rotate(0) translateY(-3px); }
+.shot a { display: block; border: 1.5px solid var(--ink); }
+.shot figcaption { font-size: 12.5px; margin-top: 9px; }
+.shot figcaption b { display: block; font-size: 13.5px; }
+
+.day { display: grid; grid-template-columns: 1.4fr 1fr; gap: 40px; align-items: center; }
+.steps { counter-reset: step; list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+.steps li { counter-increment: step; display: grid; grid-template-columns: 38px 1fr; gap: 12px; align-items: start; font-size: 14px; }
+.steps li::before { content: counter(step); display: grid; place-items: center; width: 38px; height: 38px; border: 2px solid var(--ink); background: var(--butter); font-weight: 800; box-shadow: 2px 2px 0 var(--ink); }
+
+.capsules { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+.capsule { background: var(--card); border: 2px solid var(--ink); padding: 18px 16px; text-align: center; box-shadow: 4px 4px 0 var(--ink); }
+.capsule i { display: block; width: 58px; height: 58px; margin: 0 auto 12px; border-radius: 50%; border: 2px solid var(--ink); background: linear-gradient(180deg, #fff 50%, var(--c) 50%); box-shadow: 3px 3px 0 var(--ink); position: relative; }
+.capsule i::after { content: ""; position: absolute; left: -2px; right: -2px; top: calc(50% - 1px); height: 2px; background: var(--ink); }
+.capsule h3 { margin: 0 0 4px; font-size: 15px; } .capsule p { margin: 0; font-size: 12.5px; color: var(--muted); }
+.capsule strong { display: block; margin: 8px 0 6px; font-size: 20px; }
+
+.play { text-align: center; background: var(--ink); color: var(--paper); border-block: 2px solid var(--ink); }
+.play h2 { color: var(--paper); }
+.play .btn { background: var(--paper); color: var(--ink); box-shadow: 5px 5px 0 var(--rose); font-size: 18px; padding: 18px 34px; }
+.play .btn:hover { box-shadow: 6px 6px 0 var(--rose); }
+.play p { color: #cfccc4; max-width: 640px; margin: 0 auto 28px; }
+.play small { display: block; margin-top: 22px; color: #a9a6a0; font-size: 12px; }
+.links { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 26px; }
+.links a { color: var(--paper); font-size: 13px; border-bottom: 1.5px solid #6d6b67; text-decoration: none; }
+.links a:hover { border-color: var(--paper); }
+
+footer { padding: 34px 0 48px; font-size: 12.5px; color: var(--muted); }
+footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px; }
+.tags { font-weight: 700; color: var(--ink); }
+
+@media (max-width: 900px) {
+  .hero, .day { grid-template-columns: 1fr; gap: 34px; }
+  .features, .gallery { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .capsules { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .bar nav { display: none; }
+}
+@media (max-width: 560px) {
+  body { font-size: 14px; }
+  .features, .gallery, .capsules { grid-template-columns: 1fr; }
+  .photo { transform: none; box-shadow: 5px 5px 0 var(--ink); }
+  section { padding: 44px 0; }
+  .btn.primary { width: 100%; justify-content: center; }
+}
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .shot, .btn { transition: none; } }
+</style>
+</head>
+<body>
+<header class="wrap bar">
+  <a class="logo" href="#top"><i>☕</i> RareFriends Cafe</a>
+  <nav aria-label="Sections"><a href="#features">Features</a><a href="#gallery">Screenshots</a><a href="#capsules">Capsules</a><a href="#play">Play</a></nav>
+  <a class="btn" href="../">▶ Play</a>
+</header>
+
+<main id="top">
+  <div class="wrap hero">
+    <div>
+      <span class="tag">Rare Friends Vibeathon · FriendSDK v0.1.2</span>
+      <h1>Your Friend opens a <span>shop.</span></h1>
+      <p class="lead">A greyscale, faded-colour isometric shop sim on a quiet street. The Rare Friend you own runs the counter, your other Friends work the floor, the kitchen and the sidewalk, and every day ends with a report card worth posting.</p>
+      <div class="cta">
+        <a class="btn primary" href="../">▶ Play RareFriends Cafe</a>
+        <a class="btn" href="https://github.com/M4S4T0-V01D/rarefriends-cafe">Source on GitHub</a>
+      </div>
+      <small>Plays in the browser. You need a wallet on Robinhood mainnet holding a hardwired Rare Friends Generations NFT. Every RF purchase in the game is simulated; nothing is signed or spent.</small>
+    </div>
+    <figure class="photo">
+      <img src="img/cafe.png" width="960" height="640" alt="A greyscale isometric shop with a kitchen, break room and tables, facing a street where Rare Friends walk by">
+      <figcaption>TIDE &amp; SHELL · DAY 1</figcaption>
+    </figure>
+  </div>
+
+  <div class="street" aria-hidden="true"><span>Friends walking by</span><canvas id="parade"></canvas></div>
+
+  <section id="features">
+    <div class="wrap">
+      <span class="tag" style="background:var(--sage)">What's inside</span>
+      <h2>A little street, fully alive.</h2>
+      <p class="sub">Everything here is built around the Friends in your wallet: their on-chain sprites, families and generations.</p>
+      <div class="features">
+        <article class="feature" style="--accent:var(--rose)"><b class="icon">★</b><h3>Your Friend runs it</h3><p>Your selected Generations NFT is the manager, drawn from its canonical on-chain sprite. Its family sets a perk: Hoverers float faster, Colossi calm guests, and so on.</p></article>
+        <article class="feature" style="--accent:var(--butter)"><b class="icon">♙</b><h3>Your Friends staff it</h3><p>Every other Friend you own can be a waiter, chef or promoter. Gen 1 is the top tier and Gen 6 the lowest; they level up as they work and need breaks when tired.</p></article>
+        <article class="feature" style="--accent:var(--blue)"><b class="icon">⇆</b><h3>The street is alive</h3><p>Friends stroll past and some walk in. Promoters on the sidewalk, décor and a good rating bring in more. Guests leave back onto the street.</p></article>
+        <article class="feature" style="--accent:var(--sage)"><b class="icon">▦</b><h3>Make it yours</h3><p>Café, seafood, pastry, burgers or noodles. Place tables and décor on a tile grid, choose wallpaper and floors, and expand 2 × 2 at a time.</p></article>
+        <article class="feature" style="--accent:var(--lavender)"><b class="icon">♫</b><h3>Smooth jazz, cute sounds</h3><p>Six procedural jazz tracks, a coffee-ready chime, a door bell, and Friends who chirp when happy and sigh when tired.</p></article>
+        <article class="feature" style="--accent:var(--rose)"><b class="icon">⧉</b><h3>Saves, shares</h3><p>Your shop saves per wallet. Each day draws a report card you can post to X with @RareFriendsNFT #RareFriends #RareFriendsCafe.</p></article>
+      </div>
+    </div>
+  </section>
+
+  <section id="gallery" style="padding-top:20px">
+    <div class="wrap">
+      <span class="tag" style="background:var(--blue)">Screenshots</span>
+      <h2>A look around the shop.</h2>
+      <p class="sub">Captured from the game in an automated test with the SDK's mock wallet. Tap any picture to see it full size.</p>
+      <div class="gallery">
+        <figure class="shot"><a href="img/shop-picker.png"><img src="img/shop-picker.png" width="960" height="640" loading="lazy" alt="Shop picker with five shop types"></a><figcaption><b>Choose your shop</b>Five shops, each with its own menu and kitchen station.</figcaption></figure>
+        <figure class="shot"><a href="img/owned-chef.png"><img src="img/owned-chef.png" width="960" height="640" loading="lazy" alt="An owned Friend cooking in the kitchen room"></a><figcaption><b>Your Friend in the kitchen</b>Owned staff keep their canonical art and token number.</figcaption></figure>
+        <figure class="shot"><a href="img/staff.png"><img src="img/staff.png" width="960" height="640" loading="lazy" alt="Staff panel with generation tier, level and energy"></a><figcaption><b>Staff tiers and levels</b>Generation tier, worker level, XP and energy.</figcaption></figure>
+        <figure class="shot"><a href="img/build.png"><img src="img/build.png" width="960" height="640" loading="lazy" alt="Build mode with the tile grid"></a><figcaption><b>Build mode</b>Place, rotate, move and sell on the tile grid.</figcaption></figure>
+        <figure class="shot"><a href="img/music.png"><img src="img/music.png" width="960" height="640" loading="lazy" alt="Music track picker"></a><figcaption><b>Jazz track picker</b>Two tracks are unlocked by capsule exclusives.</figcaption></figure>
+        <figure class="shot"><a href="img/capsule-machine.png"><img src="img/capsule-machine.png" width="960" height="640" loading="lazy" alt="Rare Capsule Machine"></a><figcaption><b>Rare Capsule Machine</b>Buy ×1 or ×5 and turn the crank.</figcaption></figure>
+        <figure class="shot"><a href="img/capsules-opened.png"><img src="img/capsules-opened.png" width="960" height="640" loading="lazy" alt="Five capsules opened"></a><figcaption><b>Keep or redeem</b>Recipes boost the shop or return RF.</figcaption></figure>
+        <figure class="shot"><a href="img/collection.png"><img src="img/collection.png" width="960" height="640" loading="lazy" alt="Collection of RF exclusives"></a><figcaption><b>RF-exclusive collection</b>Eight collectibles, up to a golden statue of your Friend.</figcaption></figure>
+        <figure class="shot"><a href="img/welcome-back.png"><img src="img/welcome-back.png" width="960" height="640" loading="lazy" alt="Welcome back screen after reloading"></a><figcaption><b>Saved per wallet</b>Reconnect and your shop is waiting.</figcaption></figure>
+      </div>
+    </div>
+  </section>
+
+  <section id="day" style="padding-top:20px">
+    <div class="wrap day">
+      <figure class="photo" style="transform:rotate(-.8deg)">
+        <img src="img/day-card.png" width="1200" height="675" loading="lazy" alt="Day report card with a shop photo, stats, manager portrait and tags">
+        <figcaption>END OF DAY · READY TO POST</figcaption>
+      </figure>
+      <div>
+        <span class="tag">A day at the shop</span>
+        <h2>150 seconds of service.</h2>
+        <ol class="steps">
+          <li><span><b>Open up.</b> Friends walk the street; some step in and sit down.</span></li>
+          <li><span><b>Serve.</b> Tap a guest to take the order, tap the counter when the bell rings, and your Friend delivers.</span></li>
+          <li><span><b>Look after your staff.</b> Tap a tired worker to send them to the break room for 15–30 seconds.</span></li>
+          <li><span><b>Grow.</b> Spend tips on dishes, staff slots, décor and expansions, then post your day card.</span></li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <section id="capsules" style="padding-top:20px">
+    <div class="wrap">
+      <span class="tag" style="background:var(--rose)">$RAREFRIENDS</span>
+      <h2>The Rare Capsule Machine.</h2>
+      <p class="sub">One capsule costs 1 RF (simulated) and returns 0.88 RF in expected value. Each holds a secret recipe to keep for a bonus or redeem for its RF value, plus an RF-exclusive collectible for your shop.</p>
+      <div class="capsules">
+        <div class="capsule" style="--c:#b7ada3"><i></i><h3>House Secret</h3><strong>60%</strong><p>0.5 RF · +3% tips<br>Lucky Cat, Gumball Machine, Paper Cranes</p></div>
+        <div class="capsule" style="--c:#b9bfc6"><i></i><h3>Silver Recipe</h3><strong>28%</strong><p>1 RF · silver special<br>Chrome Jukebox, Silver Fountain</p></div>
+        <div class="capsule" style="--c:#9fabc2"><i></i><h3>Moonlight Recipe</h3><strong>10%</strong><p>2 RF · moonlight special<br>Moon Telescope, Star Lamp</p></div>
+        <div class="capsule" style="--c:#e2d49e"><i></i><h3>Golden Recipe</h3><strong>2%</strong><p>5 RF · Genesis VIP guests<br>Golden Friend Statue</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="play" class="play">
+    <div class="wrap">
+      <h2>Open your shop.</h2>
+      <p>Connect a wallet, pick your Friend, choose a shop, and open the doors. It works on desktop and in a phone wallet's browser; landscape is best.</p>
+      <a class="btn" href="../">▶ Play RareFriends Cafe</a>
+      <small>Requires a browser wallet on Robinhood mainnet (chain 4663) holding a hardwired Rare Friends Generations NFT (generation 1 or higher). RF purchases and rewards are simulated.</small>
+      <div class="links">
+        <a href="https://github.com/M4S4T0-V01D/rarefriends-cafe">Source code</a>
+        <a href="https://github.com/M4S4T0-V01D/rarefriends-cafe/blob/main/games/rarefriends-cafe/README.md">Full rules</a>
+        <a href="https://github.com/spokesz/rarefriends-vibeathon">Rare Friends Vibeathon</a>
+        <a href="https://github.com/spokesz/friendsdk">FriendSDK</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Built by <b>M4S4T0</b> (<a href="https://github.com/M4S4T0-V01D">@M4S4T0-V01D</a>) with FriendSDK v0.1.2. Rare Friends artwork is used under the FriendSDK NOTICE.</span>
+    <span class="tags">@RareFriendsNFT #RareFriends #RareFriendsCafe</span>
+  </div>
+</footer>
+
+<script>
+// A parade of Rare Friends (canonical sample sprites and the game's guest Friends) strolling along the street.
+(() => {
+  const SPRITES = [["................|................|...........####.|...........####.|...........##.#.|...........####.|...###########..|...###########..|...###########..|...###########..|....#.......#...|....#.......#...|................|................|.....######.....|................","................|................|...........####.|...........####.|...........##.#.|...........####.|...###########..|...###########..|...###########..|...###########..|....#.......#...|....#.......#...|................|................|.....######.....|................","................|................|................|...........####.|...........####.|...........##.#.|...........####.|...###########..|...###########..|...###########..|...###########..|....#.......#...|....#.......#...|................|....########....|................","................|................|...........####.|...........####.|...........##.#.|...........####.|...###########..|...###########..|...###########..|...###########..|....#.......#...|....#.......#...|................|................|....########....|................"],["................|......##........|......####......|.....#######....|....######.#....|....######.#....|....########....|.......##.......|.......##.......|......####......|.....######.....|.....######.....|.....######.....|.......##.......|.......##.......|................","................|......##........|......####......|.....#######....|....######.#....|....######.#....|....########....|.......##.......|.......##.......|......####......|.....######.....|.....######.....|.....######.....|.....##.##......|.....##.##......|................","................|......##........|......####......|.....#######....|....######.#....|....######.#....|....########....|.......##.......|.......##.......|......####......|.....######.....|.....######.....|.....######.....|.......##.......|.......##.......|................","................|......##........|......####......|.....#######....|....######.#....|....######.#....|....########....|.......##.......|.......##.......|......####......|.....######.....|.....######.....|.....######.....|.....##.##......|........##......|................"],["................|......####......|....########....|....########....|....##.##.##....|....#..##..#....|....########....|....########....|.......#.#......|.......##.......|.....######.....|.......##.......|.....######.....|.......##.......|......#..#......|......#..#......","................|......####......|....########....|....########....|....##.##.##....|....#..##..#....|....########....|....########....|.......#.#......|.......##.......|.....######.....|.......##.......|.....######.....|.......##.......|......#..#......|.....#....#....."],["................|................|................|......####......|...##########...|...##########...|..####.##.####..|..###.####.###..|..##.######.##..|..####.##.####..|..############..|...#.######.#...|....########....|......####......|.....#....#.....|.....#....#.....","................|................|................|......####......|...##########...|...##########...|..####.##.####..|..###.####.###..|..##.######.##..|..####.##.####..|..############..|...#.######.#...|....########....|......####......|.....#....#.....|....#......#...."],["................|................|.....######.....|....########....|...##########...|.#.###.##.###.#.|..############..|...##########...|....########....|.....######.....|................|................|.......##.......|................|........#.......|................","................|................|.....######.....|....########....|...##########...|.#.###.##.###.#.|..############..|...##########...|....########....|.....######.....|................|................|.......##.......|................|.......#........|................"],["................|................|.............#..|............###.|.............#..|......####......|.....######.....|.#..########....|###.##.##.##....|.#..########....|....########....|.....######.....|...#..####......|..###.#..#......|...#..#..#......|................","................|................|.............#..|............###.|.............#..|......####......|.....######.....|.#..########....|###.##.##.##....|.#..########....|....########....|.....######.....|...#..####......|..###.#..#......|...#.#....#.....|................"],["................|................|......####......|....########....|...##.####.##...|...###....###...|...##......##...|..###......###..|...##......##...|...###....###...|...##########...|....########....|......####......|.....#....#.....|.....#....#.....|................","................|................|......####......|....########....|...##.####.##...|...###....###...|...##......##...|..###......###..|...##......##...|...###....###...|...##########...|....########....|......####......|.....#....#.....|....#......#....|................"],["................|................|................|...######.......|...######.......|..########......|..##.##.##......|..########.##...|..############..|...############.|...########.#.#.|..........####..|....#..#...##...|....#..#...#.#..|...#...#........|................","................|................|................|...######.......|...######.......|..########......|..##.##.##......|..########.##...|..############..|...############.|...########.#.#.|..........####..|....#..#...##...|....#..#...#.#..|....#...#.......|................"],["................|................|.....######.....|....########....|...##########...|.#.###.##.###.#.|..############..|...##########...|....########....|.....######.....|................|................|.......##.......|................|........#.......|................","................|................|.....######.....|....########....|...##########...|.#.###.##.###.#.|..############..|...##########...|....########....|.....######.....|................|................|.......##.......|................|.......#........|................"]].map(frames => frames.map(frame => frame.split("|")));
+  const canvas = document.getElementById("parade"), ctx = canvas.getContext("2d");
+  const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const cache = new Map();
+  function art(rows, scale) {
+    const id = scale + rows.join("");
+    if (cache.has(id)) return cache.get(id);
+    const c = document.createElement("canvas"); c.width = c.height = 18 * scale;
+    const g = c.getContext("2d");
+    g.fillStyle = "#fff"; rows.forEach((row, y) => [...row].forEach((p, x) => { if (p === "#") g.fillRect(x * scale, y * scale, scale * 3, scale * 3); }));
+    g.fillStyle = "#161616"; rows.forEach((row, y) => [...row].forEach((p, x) => { if (p === "#") g.fillRect((x + 1) * scale, (y + 1) * scale, scale, scale); }));
+    cache.set(id, c); return c;
+  }
+  let walkers = [], width = 0, height = 0, last = 0;
+  function resize() {
+    const ratio = Math.min(devicePixelRatio || 1, 2);
+    width = canvas.clientWidth; height = canvas.clientHeight;
+    canvas.width = width * ratio; canvas.height = height * ratio; ctx.setTransform(ratio, 0, 0, ratio, 0, 0); ctx.imageSmoothingEnabled = false;
+    const count = Math.max(4, Math.round(width / 150));
+    walkers = Array.from({ length: count }, (_, i) => ({ sprite: i % SPRITES.length, x: (i + Math.random() * .6) * width / count, speed: 28 + Math.random() * 22, phase: Math.random() * 10 }));
+  }
+  function frame(now) {
+    const dt = last ? Math.min(.05, (now - last) / 1000) : 0; last = now;
+    ctx.clearRect(0, 0, width, height);
+    for (const w of walkers) {
+      if (!still) { w.x += w.speed * dt; if (w.x > width + 60) { w.x = -60; w.sprite = Math.floor(Math.random() * SPRITES.length); } }
+      const frames = SPRITES[w.sprite], f = still ? 0 : Math.floor(now / 160 + w.phase) % frames.length;
+      const image = art(frames[f], 3);
+      ctx.fillStyle = "rgba(22,22,22,.16)"; ctx.beginPath(); ctx.ellipse(w.x + 27, height - 22, 16, 5, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.drawImage(image, Math.round(w.x), height - 22 - image.height + 6);
+    }
+    if (!still) requestAnimationFrame(frame);
+  }
+  addEventListener("resize", () => { resize(); if (still) frame(0); });
+  resize(); requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {
   actOnCounter, actOnCustomer, ambience, applyFinish, assignStaff, availableDishes, buy, chooseShop, cookTime, createCafe, kitchenSlots,
   manager, memberOf, mostTired, moveItem, openCafe, placeItem, plan, restoreCafe, sellItem, sendToBreak, serializeCafe, setBlends,
-  setOwnedFriends, setStaffRole, staffAt, staffPower, tableCount, unlockDish, update, walkInChance,
+  setOwnedFriends, setStaffRole, staffAt, staffPower, tableCount, unlockDish, update, walkInChance, collectFromCapsule,
 } from "../games/rarefriends-cafe/engine.ts";
 import { DAY_LENGTH, SHOPS, dishById, tableLimit, tierOf, workerLevel } from "../games/rarefriends-cafe/data.ts";
 import { DEFAULT_ITEMS, MAX_SIZE, START_SIZE, layoutProblem, placementProblem, planFor, route, seatOf } from "../games/rarefriends-cafe/layout.ts";
@@ -304,4 +304,43 @@ test("end-of-day post text tags Rare Friends and fits in one post", async () => 
   assert.ok(text.includes("@RareFriendsNFT") && text.includes("#RareFriends") && text.includes("#RareFriendsCafe"));
   assert.ok(text.endsWith(SHARE_TAGS));
   assert.ok(postLength(text) <= 280, `post is ${postLength(text)} characters`);
+});
+
+test("capsules grant RF-exclusive collectibles by tier; duplicates become Beans; each exclusive places once", async () => {
+  const { EXCLUSIVES, DUPLICATE_BEANS } = await import("../games/rarefriends-cafe/data.ts");
+  const state = cafe();
+  assert.match(placeItem(state, "statue", { x: 8, y: 8 }), /comes from Rare Recipe Capsules/);
+  const golden = collectFromCapsule(state, 3);
+  assert.equal(golden.exclusive, "statue");
+  const beans = state.beans, again = collectFromCapsule(state, 3);
+  assert.deepEqual(again, { exclusive: null, beans: DUPLICATE_BEANS[3] });
+  assert.equal(state.beans, beans + DUPLICATE_BEANS[3]);
+  assert.equal(placeItem(state, "statue", { x: 8, y: 8 }), null, "exclusives are free to place");
+  assert.match(placeItem(state, "statue", { x: 8, y: 9 }), /already placed/);
+  for (let i = 0; i < 10; i++) collectFromCapsule(state, 0);
+  assert.equal(EXCLUSIVES.filter(item => item.tier === 0).every(item => state.collection.has(item.kind)), true);
+});
+
+test("collection and music preferences are saved; tracks unlock with exclusives", async () => {
+  const { TRACKS } = await import("../games/rarefriends-cafe/audio.ts");
+  assert.equal(TRACKS.find(track => track.id === "neon").unlock, "jukebox");
+  const state = cafe(); openCafe(state);
+  state.collection.add("jukebox"); state.prefs = { track: "neon", music: false, sfx: true, volume: 0.3 };
+  const fresh = cafe();
+  assert.equal(restoreCafe(fresh, JSON.parse(JSON.stringify(serializeCafe(state)))), true);
+  assert.ok(fresh.collection.has("jukebox"));
+  assert.deepEqual(fresh.prefs, { track: "neon", music: false, sfx: true, volume: 0.3 });
+  const tampered = { ...serializeCafe(state), collection: ["jukebox", "casino"], items: [...serializeCafe(state).items, { kind: "statue", x: 8, y: 8, dir: 0 }] };
+  const other = cafe();
+  assert.equal(restoreCafe(other, tampered), true);
+  assert.deepEqual([...other.collection], ["jukebox"], "unknown collectibles are dropped");
+  assert.ok(!other.items.some(item => item.kind === "statue"), "uncollected exclusives can't be restored");
+});
+
+test("X posts link to rarefriends.com", async () => {
+  const { shareText } = await import("../games/rarefriends-cafe/card.ts");
+  const state = cafe(); openCafe(state); run(state, 5);
+  const text = shareText(state, 7730n, 5);
+  assert.ok(text.includes("https://rarefriends.com/"));
+  assert.ok(!text.includes("github.io"));
 });

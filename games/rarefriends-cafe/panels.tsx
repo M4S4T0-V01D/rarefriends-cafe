@@ -5,9 +5,11 @@ import {
   CATALOG, FAMILY_NAMES, FLOORS, MAX_STAFF_SLOTS, SHOPS, STAFF_ROLES, WALLPAPERS, WORKER_LEVEL_XP, catalogItem, tableLimit, tierOf, workerLevel,
   type DishShape, type Finish, type ItemKind, type ShopId,
 } from "./data.ts";
+import { TRACKS, type TrackId } from "./audio.ts";
+import type { Prefs } from "./engine.ts";
 import { generationOf, purchaseCost, purchaseLevel, staffAt, staffPower, tableCount, type CafeState, type StaffRole, type StaffWho } from "./engine.ts";
 import type { GuestArt } from "./guests.ts";
-import { drawShape, INK } from "./render.ts";
+import { drawItem, drawShape, INK } from "./render.ts";
 
 /** A small canvas showing a 16 × 16 one-bit Friend frame in the canonical black-with-white-halo style. */
 export function SpriteChip({ rows, size = 36, label }: { rows: readonly string[] | null; size?: number; label: string }) {
@@ -107,9 +109,45 @@ function xpFraction(xp: number) {
   return to === undefined ? 1 : (xp - from) / (to - from);
 }
 
-export type BuildTool = { tab: "items" | "walls" | "floors"; mode: "place" | "move" | "sell"; kind: ItemKind; dir: 0 | 1 };
-export function BuildBar({ state, tool, onTool, onFinish, onDone, message }: {
+/** A small canvas preview of a furniture item (locked items show as a silhouette). */
+export function ItemPreview({ kind, locked = false, statue, size = 64 }: { kind: ItemKind; locked?: boolean; statue: readonly string[] | null; size?: number }) {
+  const node = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const ctx = node.current?.getContext("2d");
+    if (!ctx) return;
+    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, 96, 110);
+    ctx.translate(48 - 480, 100 - 168);
+    if (locked) ctx.filter = "brightness(0) opacity(.22)";
+    drawItem(ctx, kind, { x: 0, y: 0 }, 0, true, statue);
+    ctx.filter = "none";
+  }, [kind, locked, statue]);
+  return <canvas ref={node} className="cafe-preview" width={96} height={110} style={{ width: size, height: size * 110 / 96 }} aria-hidden="true" />;
+}
+
+/** Music track, music/effects toggles and volume. Tracks from RF exclusives unlock when collected. */
+export function MusicControls({ prefs, collected, onChange }: { prefs: Prefs; collected: ReadonlySet<string>; onChange: (prefs: Prefs) => void }) {
+  return <div className="cafe-music">
+    <div className="cafe-music-tracks" role="radiogroup" aria-label="Music track">
+      {TRACKS.map(track => {
+        const locked = Boolean(track.unlock && !collected.has(track.unlock));
+        return <button type="button" role="radio" key={track.id} aria-checked={prefs.track === track.id} disabled={locked}
+          onClick={() => onChange({ ...prefs, track: track.id as TrackId, music: true })}>
+          <span>{locked ? "🔒 " : "♫ "}{track.name}<small>{locked ? `Unlock: ${catalogItem(track.unlock as ItemKind).name} (capsule exclusive)` : track.mood}</small></span>
+        </button>;
+      })}
+    </div>
+    <div className="cafe-music-levels">
+      <label className="cafe-check"><input type="checkbox" checked={prefs.music} onChange={event => onChange({ ...prefs, music: event.target.checked })} /> Music</label>
+      <label className="cafe-check"><input type="checkbox" checked={prefs.sfx} onChange={event => onChange({ ...prefs, sfx: event.target.checked })} /> Sound effects</label>
+      <label className="cafe-check">Volume <input type="range" min={0} max={100} value={Math.round(prefs.volume * 100)} onChange={event => onChange({ ...prefs, volume: Number(event.target.value) / 100 })} /></label>
+    </div>
+  </div>;
+}
+
+export type BuildTool = { tab: "items" | "walls" | "floors" | "music"; mode: "place" | "move" | "sell"; kind: ItemKind; dir: 0 | 1 };
+export function BuildBar({ state, tool, onTool, onFinish, onDone, message, onPrefs }: {
   state: CafeState; tool: BuildTool; onTool: (tool: BuildTool) => void; onFinish: (surface: "wallpaper" | "floor", id: string) => void; onDone: () => void; message: string;
+  onPrefs: (prefs: Prefs) => void;
 }) {
   const finishes = (surface: "wallpaper" | "floor", list: readonly Finish[]) => list.map(finish => {
     const owned = state.finishes.has(finish.id), active = state[surface] === finish.id;
@@ -121,7 +159,7 @@ export function BuildBar({ state, tool, onTool, onFinish, onDone, message }: {
   return <div className="cafe-build" role="toolbar" aria-label="Build mode">
     <div className="cafe-build-head">
       <div className="cafe-tabs" role="tablist" aria-label="Build categories">
-        {(["items", "walls", "floors"] as const).map(tab => <button type="button" role="tab" key={tab} aria-selected={tool.tab === tab} onClick={() => onTool({ ...tool, tab })}>{tab === "items" ? "Furniture" : tab === "walls" ? "Wallpaper" : "Floor"}</button>)}
+        {(["items", "walls", "floors", "music"] as const).map(tab => <button type="button" role="tab" key={tab} aria-selected={tool.tab === tab} onClick={() => onTool({ ...tool, tab })}>{tab === "items" ? "Furniture" : tab === "walls" ? "Wallpaper" : tab === "floors" ? "Floor" : "Music"}</button>)}
       </div>
       <span className="cafe-build-status" role="status">{message || `☕ ${state.beans} · tables ${tableCount(state)}/${tableLimit(state.level)}`}</span>
       <button type="button" className="rf-frame-primary" onClick={onDone}>Done</button>
@@ -131,9 +169,11 @@ export function BuildBar({ state, tool, onTool, onFinish, onDone, message }: {
         {(["move", "sell"] as const).map(mode => <button type="button" key={mode} aria-pressed={tool.mode === mode} onClick={() => onTool({ ...tool, mode })}>
           <span>{mode === "move" ? "✥ Move" : "✕ Sell"}<small>{mode === "move" ? "tap item, then tile" : "50% refund"}</small></span></button>)}
         <button type="button" onClick={() => onTool({ ...tool, dir: tool.dir ? 0 : 1 })} aria-label={`Rotate chair (R), now facing ${tool.dir ? "left" : "right"}`}><span>⟲ Rotate<small>R</small></span></button>
-        {CATALOG.map(item => <button type="button" key={item.kind} aria-pressed={tool.mode === "place" && tool.kind === item.kind} disabled={state.beans < item.cost}
-          onClick={() => onTool({ ...tool, mode: "place", kind: item.kind })}><span>{item.name}<small>☕ {item.cost}{item.ambience ? ` · +${item.ambience}` : ""}</small></span></button>)}
-      </> : tool.tab === "walls" ? finishes("wallpaper", WALLPAPERS) : finishes("floor", FLOORS)}
+        {CATALOG.filter(item => item.tier === undefined || (state.collection.has(item.kind) && !state.items.some(placed => placed.kind === item.kind))).map(item =>
+          <button type="button" key={item.kind} aria-pressed={tool.mode === "place" && tool.kind === item.kind} disabled={state.beans < item.cost} className={item.tier !== undefined ? "cafe-exclusive" : undefined}
+            onClick={() => onTool({ ...tool, mode: "place", kind: item.kind })}><span>{item.name}<small>{item.tier !== undefined ? "RF exclusive · free" : `☕ ${item.cost}`}{item.ambience ? ` · +${item.ambience}` : ""}</small></span></button>)}
+      </> : tool.tab === "walls" ? finishes("wallpaper", WALLPAPERS) : tool.tab === "floors" ? finishes("floor", FLOORS)
+        : <MusicControls prefs={state.prefs} collected={state.collection} onChange={onPrefs} />}
     </div>
   </div>;
 }

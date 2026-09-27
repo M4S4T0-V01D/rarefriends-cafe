@@ -50,6 +50,11 @@ await testGame(game, {
     await frame.getByText("Faded rose rug placed.").waitFor();
     await frame.getByRole("tab", { name: "Floor" }).click();
     await shot(page, "desktop-build");
+    // Music: pick a jazz track in build mode; capsule-exclusive tracks start locked.
+    await frame.getByRole("tab", { name: "Music" }).click();
+    await frame.getByRole("radio", { name: /Street Bossa/ }).click();
+    assert.equal(await frame.getByRole("radio", { name: /Neon Nights/ }).isDisabled(), true);
+    await shot(page, "desktop-music");
     await frame.getByRole("button", { name: "Done", exact: true }).click();
     assert.equal(await attr(frame, "build"), "off");
 
@@ -67,20 +72,27 @@ await testGame(game, {
 
     // Rare Recipe Capsule: buy (runtime confirmation), open (runtime confirmation), keep.
     await frame.getByRole("button", { name: /^Capsules/ }).click();
-    await frame.getByRole("button", { name: /^Buy capsule/ }).click();
+    await frame.getByRole("button", { name: /^Buy 5/ }).click();
     await page.getByRole("button", { name: "Confirm preview", exact: true }).click();
-    await frame.getByText(/1 capsule\b/).first().waitFor();
-    await frame.getByRole("button", { name: "Open a capsule", exact: true }).click();
+    await frame.getByText(/5 capsules ready/).first().waitFor();
+    await shot(page, "desktop-capsule-machine");
+    await frame.getByRole("button", { name: "Open all (5)", exact: true }).click();
     await page.getByRole("button", { name: "Confirm preview", exact: true }).click();
-    await frame.getByRole("heading", { name: "House Secret" }).waitFor();
+    await frame.getByRole("heading", { name: "5 capsules opened" }).waitFor();
+    await frame.getByText(/New RF exclusive:/).first().waitFor();
     await shot(page, "desktop-capsule");
-    await frame.getByRole("button", { name: "Keep recipe", exact: true }).click();
-    await frame.getByText("Kept recipes · 1").waitFor();
-    await frame.getByRole("button", { name: "Close Rare Recipe Capsules" }).click();
+    await frame.getByRole("button", { name: "Keep the rest", exact: true }).click();
+    await frame.getByRole("tab", { name: "Kept · 5" }).waitFor();
+    await frame.getByRole("tab", { name: /^Collection · [1-3]\/8$/ }).click();
+    await shot(page, "desktop-collection");
+    await frame.getByRole("button", { name: "Place", exact: true }).first().click();
+    assert.equal(await attr(frame, "build"), "on", "Place opens build mode with the exclusive selected");
+    await frame.getByRole("button", { name: "Done", exact: true }).click();
 
     await frame.getByRole("button", { name: "Settings", exact: true }).click();
-    await frame.getByRole("button", { name: "Sound off", exact: true }).click();
-    await frame.getByRole("button", { name: "Sound on", exact: true }).waitFor();
+    await frame.getByRole("button", { name: "Sound on", exact: true }).click();
+    await frame.getByRole("button", { name: "Sound off", exact: true }).waitFor();
+    await frame.getByRole("checkbox", { name: "Music" }).waitFor();
     await frame.getByRole("button", { name: "Close Settings" }).click();
     await page.waitForTimeout(2500);
   },

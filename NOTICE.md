@@ -11,5 +11,6 @@ RareFriends Cafe source code is licensed under the Apache License, Version 2.0.
   [NOTICE.md](https://github.com/spokesz/friendsdk/blob/v0.1.2/NOTICE.md), which permits use in games,
   public previews and commercial projects with source attribution.
 - **Sound** — FriendSDK procedural sound kit; provenance in the SDK's `assets/sound-provenance.json`.
+- **Music and café sound effects** — original procedural WebAudio code in `games/rarefriends-cafe/audio.ts` (no recordings or samples).
 - Café scenery, dish icons and procedural guest Friends are original canvas code in this repository.
 - React, React DOM, viem and esbuild retain their licenses in their installed packages.

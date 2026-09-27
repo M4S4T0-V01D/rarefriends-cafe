@@ -2,7 +2,8 @@
 import { FAMILY_NAMES, shopById } from "./data.ts";
 import type { CafeState } from "./engine.ts";
 
-export const PLAY_URL = "https://m4s4t0-v01d.github.io/rarefriends-cafe/";
+/** The link in every X post. */
+export const SHARE_URL = "https://rarefriends.com/";
 export const SHARE_TAGS = "@RareFriendsNFT #RareFriends #RareFriendsCafe";
 const stars = (rating: number) => "★★★★★".slice(0, Math.round(rating)) + "☆☆☆☆☆".slice(0, 5 - Math.round(rating));
 
@@ -12,7 +13,7 @@ export function shareText(state: CafeState, friendId: bigint, familyId: number):
   const lines = [
     `Day ${state.day} at ${shop.name} ☕ served ${day.served} guest${day.served === 1 ? "" : "s"}, earned ${day.beans} Beans, ${stars(state.rating)} ${state.rating.toFixed(1)}.`,
     `My Rare Friend #${friendId} (${FAMILY_NAMES[familyId] ?? "Friend"}) runs the shop!`,
-    `Play: ${PLAY_URL}`,
+    SHARE_URL,
     SHARE_TAGS,
   ];
   return lines.join("\n");
