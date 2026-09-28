@@ -30,7 +30,7 @@ const artworkCall = call => {
   else throw new Error(`Unexpected artwork read ${functionName}`);
   return encodeFunctionResult({ abi: FAMILIES_REGISTRY_ABI, functionName, result });
 };
-const log = tokenId => ({ address: COLLECTION, blockNumber: "0x10", blockHash: padHex("0x10", { size: 32 }), data: "0x", logIndex: `0x${tokenId.toString(16)}`,
+const log = tokenId => ({ address: COLLECTION, blockNumber: `0x${(GENERATION_SPRITE_MANIFEST.transferStartBlock + 1n).toString(16)}`, blockHash: padHex("0x10", { size: 32 }), data: "0x", logIndex: `0x${tokenId.toString(16)}`,
   transactionHash: padHex(`0x${tokenId.toString(16)}`, { size: 32 }), transactionIndex: "0x0", removed: false,
   topics: encodeEventTopics({ abi: ABI, eventName: "Transfer", args: { from: zeroAddress, to: OWNER, tokenId } }) });
 

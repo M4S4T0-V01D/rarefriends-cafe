@@ -1,6 +1,6 @@
 # RareFriends Cafe — game component
 
-FriendSDK **v0.1.2** game. A black-and-white, greyscale and faded-colour 2.5D isometric shop on a street. Your
+FriendSDK **v0.1.3** game. A black-and-white, greyscale and faded-colour 2.5D isometric shop on a street. Your
 verified Rare Friend manages it, your other owned Friends staff it, and Friends walking by become customers.
 
 The SDK runtime handles wallet connection, owned-Friend selection, the fresh ownership and generation check, and the
@@ -208,4 +208,4 @@ All music and sound effects are synthesized with WebAudio in the sandbox; there 
 
 - Scenery, the four buildings, street, furniture (drawn in four facings), RF exclusives, 23 dish icon shapes, wallpapers and floors are canvas code in this directory. There are no image files.
 - The manager and your owned staff use their **canonical Generations sprites** (the SDK's `createFriendReader`). Regulars #7730 and #3412 use canonical frames from FriendSDK v0.1.2 `examples/fishing/sample-sprites.ts`.
-- Guest Friends are original procedural 16 × 16 one-bit masks, one archetype per family. Rare Friends artwork is used under FriendSDK [NOTICE.md](https://github.com/spokesz/friendsdk/blob/v0.1.2/NOTICE.md).
+- Guest Friends are original procedural 16 × 16 one-bit masks, one archetype per family. Rare Friends artwork is used under FriendSDK [NOTICE.md](https://github.com/spokesz/friendsdk/blob/v0.1.3/NOTICE.md).
