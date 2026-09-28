@@ -14,15 +14,24 @@
 .cafe-game .rf-frame-primary:hover:not(:disabled) { background: #333; }
 
 .cafe-hud { position: absolute; top: 12px; left: 12px; right: 12px; display: flex; align-items: flex-start; gap: 10px; pointer-events: none; }
-.cafe-card { display: grid; gap: 4px; min-width: 212px; padding: 9px 12px; background: var(--card); border: 1.5px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); margin-right: auto; }
-.cafe-title { font-size: 15px; letter-spacing: .04em; text-transform: uppercase; }
+.cafe-card { display: grid; gap: 4px; min-width: 212px; padding: 9px 12px; background: var(--card); border: 1.5px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); }
+/* Beans and RF sit in their own boxes beside the player card, so they are easy to spot. */
+.cafe-wallet { display: flex; gap: 8px; margin-right: auto; pointer-events: auto; }
+.cafe-coin { display: grid; justify-items: center; align-content: center; min-width: 78px; padding: 6px 10px; background: var(--card); border: 1.5px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); }
+.cafe-game button.cafe-coin { min-height: 0; }
+.cafe-coin b { font-size: 18px; line-height: 1.1; white-space: nowrap; }
+.cafe-coin small { font-size: 9px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+.cafe-coin-beans { border-left: 6px solid #b89b73; }
+.cafe-coin-rf { border-left: 6px solid #b8962e; }
+@media (max-width: 640px) { .cafe-wallet { gap: 4px; } .cafe-coin { min-width: 0; padding: 3px 6px; box-shadow: 2px 2px 0 var(--ink); } .cafe-coin b { font-size: 11px; } .cafe-coin small { font-size: 7px; } }
+.cafe-title { font-size: 15px; letter-spacing: .04em; text-transform: uppercase; white-space: nowrap; }
 .cafe-day { font-size: 11px; color: var(--muted); }
 .cafe-clock, .cafe-xp { display: block; height: 4px; background: #d9d6cf; }
 .cafe-clock i, .cafe-xp i { display: block; height: 100%; background: var(--ink); transition: width .2s linear; }
 .cafe-xp i { background: var(--rose); }
 .cafe-stats { display: flex; gap: 12px; font-size: 13px; white-space: nowrap; }
 .cafe-stats b { font-weight: 700; }
-.cafe-actions { display: flex; gap: 6px; pointer-events: auto; flex-wrap: wrap; justify-content: flex-end; }
+.cafe-actions { display: flex; gap: 6px; pointer-events: auto; flex-wrap: nowrap; justify-content: flex-end; }
 .cafe-actions button { background: var(--card); }
 .cafe-footer { position: absolute; left: 50%; bottom: 60px; transform: translateX(-50%); width: min(620px, calc(100% - 24px)); display: flex; justify-content: center; align-items: center; gap: 8px; pointer-events: none; }
 .cafe-footer p { margin: 0; padding: 6px 12px; background: var(--card); border: 1.5px solid var(--ink); font-size: 12px; text-align: center; }
@@ -89,7 +98,7 @@
 }
 .cafe-card { grid-template-columns: auto 1fr; column-gap: 10px; }
 .cafe-card > :not(.cafe-portrait) { grid-column: 2; }
-.cafe-portrait { grid-column: 1; grid-row: 1 / span 5; align-self: center; width: 54px; height: 54px; image-rendering: pixelated; background: var(--rose); border: 1.5px solid var(--ink); }
+.cafe-portrait { grid-column: 1; grid-row: 1 / span 5; align-self: center; width: 58px; height: 58px; image-rendering: pixelated; background: var(--rose); border: 1.5px solid var(--ink); border-radius: 6px; }
 @media (max-width: 640px) { .cafe-portrait { width: 30px; height: 30px; grid-row: 1 / span 3; } .cafe-card { column-gap: 6px; } }
 
 /* Shop picker */
@@ -204,8 +213,36 @@
 .cafe-music-tracks { max-height: 230px; overflow-y: auto; }
 .cafe-build-row .cafe-music-tracks { max-height: none; overflow: visible; }
 .cafe-subhead { margin: 10px 0 2px; font-size: 13px; }
-.cafe-stats { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin: 4px 0 2px; }
-.cafe-stats small { flex-basis: 100%; color: var(--muted); font-size: 10px; }
-.cafe-stats button { box-shadow: none; padding: 2px 7px; font-size: 11px; }
-.cafe-stats b { font-weight: normal; letter-spacing: 1px; }
+.cafe-attrs { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin: 4px 0 2px; }
+.cafe-attrs small { flex-basis: 100%; color: var(--muted); font-size: 10px; }
+.cafe-attrs button { box-shadow: none; padding: 2px 7px; font-size: 11px; }
+.cafe-attrs b { font-weight: normal; letter-spacing: 1px; }
 .cafe-buildings button[aria-checked="true"] small { color: inherit; opacity: .8; }
+.cafe-boosts { display: flex; flex-wrap: wrap; gap: 3px; margin: 3px 0; }
+.cafe-boosts b { font-size: 9px; font-weight: normal; padding: 1px 5px; background: #f6efd6; border: 1px solid #b8962e; }
+.cafe-theme { display: flex; align-items: center; gap: 6px; margin: 6px 0; }
+.cafe-theme button { min-height: 28px; padding: 3px 10px; box-shadow: none; }
+.cafe-theme button[aria-checked="true"] { background: var(--ink); color: var(--paper); }
+.cafe-news article { margin-bottom: 14px; }
+.cafe-news h3 { margin: 0 0 4px; font-size: 14px; }
+.cafe-news h3 small { display: block; font-weight: normal; color: var(--muted); font-size: 11px; }
+.cafe-news ul { margin: 0; padding-left: 18px; }
+.cafe-news li { margin: 2px 0; }
+
+/* Dark mode: the UI goes night-time charcoal; the shop scene dims a touch, like the lights are low. */
+.cafe-game[data-theme="dark"] { --ink: #eceae4; --paper: #1d1d1c; --card: #262625ee; --line: #eceae4; --muted: #a7a49d; --rose: #8f6f6d; --sage: #6f7d68; --butter: #8a7f55; --blue: #6b7888; color-scheme: dark; }
+.cafe-game[data-theme="dark"] .cafe-world canvas { filter: brightness(.8) contrast(1.06) saturate(.92); }
+.cafe-game[data-theme="dark"] button:hover:not(:disabled) { background: #333331; }
+.cafe-game[data-theme="dark"] .rf-frame-menu { background: #232322; color: var(--ink); border-color: #5a5955; }
+.cafe-game[data-theme="dark"] .rf-frame-menu-heading, .cafe-game[data-theme="dark"] .rf-frame-menu-footer { border-color: #5a5955; }
+.cafe-game[data-theme="dark"] .rf-frame-menu button, .cafe-game[data-theme="dark"] .rf-frame-menu-heading button { background: var(--paper); color: var(--ink); border-color: var(--ink); }
+.cafe-game[data-theme="dark"] .rf-frame-primary { background: var(--ink) !important; color: #1d1d1c !important; }
+.cafe-game[data-theme="dark"] .cafe-row { border-color: #3d3c39; }
+.cafe-game[data-theme="dark"] .cafe-shops button[aria-checked="true"], .cafe-game[data-theme="dark"] .cafe-buildings button[aria-checked="true"] { background: #2e2e2c; }
+.cafe-game[data-theme="dark"] .cafe-clock, .cafe-game[data-theme="dark"] .cafe-xp { background: #3d3c39; }
+.cafe-game[data-theme="dark"] .cafe-build-row button.cafe-exclusive, .cafe-game[data-theme="dark"] .cafe-boosts b { background: #3a3424; border-color: #8a7433; }
+.cafe-game[data-theme="dark"] input[type="range"] { accent-color: var(--ink); }
+.cafe-game[data-theme="dark"] .rf-frame-menu-heading, .cafe-game[data-theme="dark"] .cafe-perk, .cafe-game[data-theme="dark"] .cafe-share,
+.cafe-game[data-theme="dark"] .cafe-collection > div, .cafe-game[data-theme="dark"] .cafe-result { background: #2a2a28; }
+.cafe-game[data-theme="dark"] .cafe-shops button[aria-checked="true"]:hover:not(:disabled) { background: #333331; }
+.cafe-game[data-theme="dark"] .cafe-collection .cafe-preview { background: #efede7; border-radius: 4px; }

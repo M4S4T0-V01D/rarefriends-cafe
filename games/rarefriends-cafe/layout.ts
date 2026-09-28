@@ -7,12 +7,12 @@
  *   dining room   every other interior tile: the player's grid
  *   x ≥ w         outside: the sidewalk and street, where Friends walk by and some come in through the front door
  */
-import { catalogItem, isRug, type ItemKind } from "./data.ts";
+import { catalogItem, isRug, isTable, type ItemKind } from "./data.ts";
 
 export type Tile = Readonly<{ x: number; y: number }>;
 /** Tile footprint in world pixels; the camera scales the whole plan to fit the view. */
 export const TILE_W = 66, TILE_H = 33, ORIGIN_X = 480, ORIGIN_Y = 168;
-export const START_SIZE = 10, MAX_SIZE = 16;
+export const START_SIZE = 10, MAX_SIZE = 20;
 /** Largest building extent on either axis (the long diner at full size). */
 export const MAX_EXTENT = MAX_SIZE + 4;
 /** Street lanes: the sidewalk at w and w + 1, the road beyond. */
@@ -103,9 +103,10 @@ export function planFor(size: number, options: { building?: BuildingId; capsule?
     capsule: { x: machine.x, y: machine.y }, capsuleSpot: { x: machine.x + FACING[machine.dir].x, y: machine.y + FACING[machine.dir].y }, capsuleDir: machine.dir,
     breakDoor, kitchenDoor, stoves, counter, walls, kitchenFloor, breakFloor, clear,
     kitchenArea: new Set([...stoves, ...chefRow, ...counter].map(key)), dining,
-    chefSpots: chefRow.filter((_, index) => index % 2 === 0),
+    // Chefs spread out along the stoves: every other tile first, then the gaps.
+    chefSpots: [...chefRow.filter((_, index) => index % 2 === 0), ...chefRow.filter((_, index) => index % 2 === 1)],
     restSpots: breakRows.flatMap(y => [{ x: 1, y }, { x: 0, y }]).filter(tile => !(tile.x === 0 && tile.y === d - 3)),
-    promoterSpots: [2, -2, 4, -4].map(offset => ({ x: w, y: door.y + offset })),
+    promoterSpots: [2, -2, 4, -4, 6, -6, 3, -3, 5, -5].map(offset => ({ x: w, y: door.y + offset })).filter(tile => tile.y >= -2 && tile.y <= d + 1),
     lane: w + 1, laneStart: -3, laneEnd: d + 2,
   });
   cache.set(id, plan);
@@ -115,6 +116,14 @@ export function planFor(size: number, options: { building?: BuildingId; capsule?
 /** A placed item. Tables seat a guest on the tile behind them, facing the table: dir 0 puts the chair at y − 1, dir 1 at x − 1, and so on. */
 export type Item = { id: number; kind: ItemKind; x: number; y: number; dir: Dir };
 export const seatOf = (item: Pick<Item, "x" | "y" | "dir">): Tile => ({ x: item.x - FACING[item.dir].x, y: item.y - FACING[item.dir].y });
+/** A table's chairs; each chair's `dir` points from the chair to the table (the way its guest faces). Other items have none. */
+export type Seat = Readonly<{ x: number; y: number; dir: Dir }>;
+export function seatsOf(item: Pick<Item, "kind" | "x" | "y" | "dir">): Seat[] {
+  const seats = catalogItem(item.kind).seats ?? 0;
+  const sides: Dir[] = seats >= 4 ? [0, 1, 2, 3] : seats === 2 ? [item.dir, ((item.dir + 2) % 4) as Dir] : seats === 1 ? [item.dir] : [];
+  return sides.map(dir => ({ x: item.x - FACING[dir].x, y: item.y - FACING[dir].y, dir }));
+}
+const onSeat = (item: Pick<Item, "kind" | "x" | "y" | "dir">, tile: Tile) => seatsOf(item).some(seat => same(seat, tile));
 export const DEFAULT_ITEMS: readonly Item[] = [
   { id: 1, kind: "table", x: 5, y: 3, dir: 0 }, { id: 2, kind: "table", x: 7, y: 5, dir: 0 }, { id: 3, kind: "table", x: 5, y: 7, dir: 0 },
 ];
@@ -152,6 +161,7 @@ function passable(a: Tile, b: Tile, plan: Plan, blocked: Set<number>) {
 }
 
 const STEPS = [[1, 0], [-1, 0], [0, 1], [0, -1]] as const;
+const AROUND = [...STEPS, [1, 1], [1, -1], [-1, 1], [-1, -1]] as const;
 
 /** Breadth-first route to the nearest goal tile. Returns tiles after `from`, or null when unreachable. */
 export function route(from: Tile, goals: readonly Tile[], blocked: Set<number>, plan: Plan): Tile[] | null {
@@ -188,9 +198,10 @@ function reachable(from: Tile, blocked: Set<number>, plan: Plan): Set<number> {
 }
 
 /** Walkable dining tiles next to a table, where a worker stands to take orders or serve. */
-export function serviceTiles(table: Tile, blocked: Set<number>, plan: Plan): Tile[] {
-  return STEPS.map(([dx, dy]) => ({ x: table.x + dx, y: table.y + dy }))
-    .filter(tile => inDining(tile, plan) && !blocked.has(key(tile)));
+/** Where a worker stands to serve a table: any open tile around it, diagonals included, but not on its chairs. */
+export function serviceTiles(table: Pick<Item, "kind" | "x" | "y" | "dir">, blocked: Set<number>, plan: Plan): Tile[] {
+  return AROUND.map(([dx, dy]) => ({ x: table.x + dx, y: table.y + dy }))
+    .filter(tile => inDining(tile, plan) && !blocked.has(key(tile)) && !onSeat(table, tile));
 }
 
 /** Can guests reach every chair from the street, and staff reach every table, the counter, capsules and the break room? */
@@ -199,8 +210,8 @@ export function layoutProblem(items: readonly Item[], plan: Plan): string | null
   if (!open.has(key(plan.pickup)) || !open.has(key(plan.capsuleSpot))) return "That would wall off the counter or capsule machine.";
   if (!open.has(key(plan.breakDoor))) return "Staff need a path to the break room.";
   if (!open.has(key(plan.kitchenDoor))) return "Chefs need a way out of the kitchen.";
-  for (const item of items) if (item.kind === "table") {
-    if (!open.has(key(seatOf(item)))) return "Guests couldn't reach that chair.";
+  for (const item of items) if (isTable(item.kind)) {
+    if (seatsOf(item).some(seat => !open.has(key(seat)))) return "Guests couldn't reach that chair.";
     if (!serviceTiles(item, blocked, plan).some(tile => open.has(key(tile)))) return "Staff couldn't reach that table.";
   }
   return null;
@@ -211,7 +222,7 @@ export function capsuleProblem(items: readonly Item[], plan: Plan, machine: Plac
   const next = planFor(plan.size, { building: plan.building, capsule: machine }), spots = [next.capsule, next.capsuleSpot];
   if (spots.some(tile => !inDining(tile, next) || [next.door, next.pickup, ...next.clear].some(reserved => same(reserved, tile))))
     return "The machine and the tile you use it from must be in the dining room, clear of the door and counter.";
-  if (items.some(item => !isRug(item.kind) && spots.some(tile => same(item, tile) || (item.kind === "table" && same(seatOf(item), tile))))) return "Something is already there.";
+  if (items.some(item => !isRug(item.kind) && spots.some(tile => same(item, tile) || onSeat(item, tile)))) return "Something is already there.";
   return layoutProblem(items, next);
 }
 
@@ -221,12 +232,10 @@ export function placementProblem(items: readonly Item[], candidate: Omit<Item, "
   if (isReserved(candidate, plan)) return inDining(candidate, plan) ? "That tile is kept clear for the door, counter, capsules or break room." : "Place things in the dining room.";
   if (isRug(candidate.kind)) return others.some(item => isRug(item.kind) && same(item, candidate)) ? "There's already a rug here." : null;
   const taken = new Set<number>();
-  for (const item of others) if (!isRug(item.kind)) { taken.add(key(item)); if (item.kind === "table") taken.add(key(seatOf(item))); }
+  for (const item of others) if (!isRug(item.kind)) { taken.add(key(item)); for (const seat of seatsOf(item)) taken.add(key(seat)); }
   if (taken.has(key(candidate))) return "Something is already there.";
-  if (candidate.kind === "table") {
-    const seat = seatOf(candidate);
-    if (isReserved(seat, plan) || taken.has(key(seat))) return "The chair needs a free tile behind the table. Try rotating.";
-  }
+  for (const seat of seatsOf(candidate))
+    if (isReserved(seat, plan) || taken.has(key(seat))) return seatsOf(candidate).length > 1 ? "Every chair needs a free tile around the table." : "The chair needs a free tile behind the table. Try rotating.";
   return layoutProblem([...others, { ...candidate, id: -1 }], plan);
 }
 

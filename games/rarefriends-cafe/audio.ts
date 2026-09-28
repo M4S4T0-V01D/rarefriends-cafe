@@ -42,6 +42,54 @@ export const TRACKS: readonly Track[] = [
     chords: ["Dbmaj9", "Bbm9", "Ebm7", "Abdom13", "Fm7", "Bbdom7b9", "Ebm9", "Abdom13"].map(chord) },
 ];
 
+// ---------- Melodies ----------
+/**
+ * Composed 4-bar melodies. Each bar lists notes as [eighth step, scale degree, length in eighths]; degrees are steps on
+ * the current chord's scale, so a melody follows any track's changes. 4/4 melodies use 8 steps a bar, waltzes 6.
+ */
+type Phrase = readonly (readonly (readonly [step: number, degree: number, length: number])[])[];
+const MELODIES: readonly Phrase[] = [
+  // Stroll: an easy rising-and-falling line.
+  [[[0, 4, 2], [2, 2, 2], [4, 4, 2], [6, 5, 2]], [[0, 4, 3], [4, 2, 1], [5, 1, 3]], [[0, 2, 2], [2, 3, 2], [4, 4, 2], [6, 2, 2]], [[0, 0, 6]]],
+  // Hop: bouncy, with a leap.
+  [[[0, 0, 1], [1, 2, 1], [2, 4, 2], [4, 7, 3]], [[1, 6, 1], [2, 4, 2], [4, 2, 4]], [[0, 3, 1], [1, 4, 1], [2, 5, 2], [4, 4, 2], [6, 2, 2]], [[0, 1, 3], [4, 0, 4]]],
+  // Sigh: long notes falling down the scale.
+  [[[0, 7, 3], [3, 6, 1], [4, 5, 4]], [[0, 4, 3], [3, 3, 1], [4, 2, 4]], [[0, 5, 3], [3, 4, 1], [4, 3, 2], [6, 2, 2]], [[0, 1, 8]]],
+  // Call and answer, with room to breathe.
+  [[[0, 4, 1], [1, 4, 1], [2, 5, 2], [6, 4, 2]], [], [[0, 2, 1], [1, 2, 1], [2, 3, 2], [6, 2, 2]], [[2, 0, 6]]],
+  // Climb: arpeggios up, then home.
+  [[[0, 0, 1], [1, 2, 1], [2, 4, 1], [3, 6, 1], [4, 7, 4]], [[0, 6, 2], [2, 4, 2], [4, 2, 4]], [[0, 0, 1], [1, 2, 1], [2, 4, 1], [3, 6, 1], [4, 8, 4]], [[0, 7, 2], [2, 6, 2], [4, 4, 4]]],
+  // Sway: syncopated, bossa-friendly.
+  [[[0, 4, 3], [3, 4, 3], [6, 5, 2]], [[0, 4, 2], [2, 2, 6]], [[0, 3, 3], [3, 3, 3], [6, 4, 2]], [[0, 2, 2], [2, 0, 6]]],
+  // Lullaby: gentle steps.
+  [[[0, 2, 2], [2, 4, 2], [4, 2, 2], [6, 1, 2]], [[0, 0, 4], [4, 1, 4]], [[0, 2, 2], [2, 4, 2], [4, 5, 2], [6, 4, 2]], [[0, 2, 8]]],
+  // Wink: quick turns with a low pickup.
+  [[[0, 4, 1], [1, 5, 1], [2, 4, 1], [3, 2, 1], [4, 0, 4]], [[2, 2, 2], [4, 4, 2], [6, 2, 2]], [[0, 5, 1], [1, 4, 1], [2, 2, 2], [4, 1, 2], [6, 0, 2]], [[0, -1, 2], [2, 0, 6]]],
+];
+const WALTZES: readonly Phrase[] = [
+  [[[0, 4, 2], [2, 2, 2], [4, 4, 2]], [[0, 7, 4], [4, 6, 2]], [[0, 5, 2], [2, 4, 2], [4, 2, 2]], [[0, 4, 6]]],
+  [[[0, 0, 2], [2, 2, 2], [4, 4, 2]], [[0, 5, 2], [2, 4, 2], [4, 2, 2]], [[0, 3, 3], [3, 2, 1], [4, 1, 2]], [[0, 0, 6]]],
+  [[[2, 7, 2], [4, 6, 2]], [[0, 5, 4], [4, 4, 2]], [[2, 4, 2], [4, 3, 2]], [[0, 2, 6]]],
+];
+/** Song form in 4-bar sections: A A B A, a vibraphone solo, then C B A. null is the solo. */
+const FORM = [0, 0, 1, 0, null, 2, 1, 0] as const;
+export const MELODY_COUNT = { common: MELODIES.length, waltz: WALTZES.length };
+/** Which melodies (by pool index) a track plays in its first `choruses` choruses. */
+export function melodiesFor(trackIndex: number, waltz: boolean, choruses = 2): number[] {
+  const size = waltz ? WALTZES.length : MELODIES.length;
+  return [...new Set(Array.from({ length: choruses }, (_, chorus) => FORM.flatMap(section => section === null ? [] : [(trackIndex * 3 + section * 5 + chorus * 2) % size])).flat())];
+}
+/** The scale a melody walks on over a chord: dorian for minor, mixolydian for dominant, locrian for half-diminished, else major. */
+function scaleFor(chord: Chord): readonly number[] {
+  const tones = chord.slice(1);
+  if (tones.includes(3) && tones.includes(6)) return [0, 1, 3, 5, 6, 8, 10];
+  if (tones.includes(3)) return [0, 2, 3, 5, 7, 9, 10];
+  if (tones.includes(10)) return [0, 2, 4, 5, 7, 9, 10];
+  return [0, 2, 4, 5, 7, 9, 11];
+}
+const degreeToSemitones = (scale: readonly number[], degree: number) =>
+  scale[((degree % scale.length) + scale.length) % scale.length] + 12 * Math.floor(degree / scale.length);
+
 const hz = (midi: number) => 440 * 2 ** ((midi - 69) / 12);
 const random = <T,>(items: readonly T[]) => items[Math.floor(Math.random() * items.length)];
 
@@ -131,6 +179,25 @@ export class CafeAudio {
     this.envelope(gain, t, 0.07, 0.004, length);
     tremolo.start(t); tremolo.stop(t + length + 0.1);
   }
+  /** A soft flute-like lead: triangle with a breathy attack and gentle vibrato. */
+  private flute(midi: number, t: number, length: number) {
+    const ctx = this.ctx!, osc = ctx.createOscillator(), vibrato = ctx.createOscillator(), depth = ctx.createGain(), gain = ctx.createGain();
+    osc.type = "triangle"; osc.frequency.value = hz(midi); vibrato.frequency.value = 5.2; depth.gain.value = hz(midi) * 0.006;
+    vibrato.connect(depth).connect(osc.frequency); osc.connect(gain).connect(this.musicBus);
+    gain.gain.setValueAtTime(0.0001, t); gain.gain.exponentialRampToValueAtTime(0.075, t + 0.05);
+    gain.gain.setValueAtTime(0.075, t + Math.max(0.06, length * 0.7)); gain.gain.exponentialRampToValueAtTime(0.0001, t + length + 0.08);
+    osc.start(t); vibrato.start(t); osc.stop(t + length + 0.12); vibrato.stop(t + length + 0.12);
+    this.hiss(t, 0.06, 2800, 0.012, this.musicBus, "bandpass", 1.5);
+  }
+  /** A music-box bell: sine with a bright partial and a quick ring. */
+  private bell(midi: number, t: number, length: number) {
+    const ctx = this.ctx!, gain = ctx.createGain();
+    for (const [ratio, level] of [[1, 1], [3, 0.22], [5.4, 0.06]]) {
+      const osc = ctx.createOscillator(), partial = ctx.createGain(); osc.frequency.value = hz(midi) * ratio; partial.gain.value = level;
+      osc.connect(partial).connect(gain); osc.start(t); osc.stop(t + length + 0.8);
+    }
+    gain.connect(this.musicBus); this.envelope(gain, t, 0.08, 0.003, length + 0.6);
+  }
   private hiss(t: number, length: number, frequency: number, level: number, bus: AudioNode, type: BiquadFilterType = "highpass", q = 0.7) {
     const ctx = this.ctx!, source = ctx.createBufferSource(), filter = ctx.createBiquadFilter(), gain = ctx.createGain();
     source.buffer = this.noise; source.loopStart = Math.random() * 0.5; filter.type = type; filter.frequency.value = frequency; filter.Q.value = q;
@@ -200,8 +267,26 @@ export class CafeAudio {
       const comp = inBar === 0 ? 0.9 : (inBar === 3 || inBar === 5) ? 0.45 : 0;
       if (Math.random() < comp) tones.forEach(interval => this.epiano(root + 24 + interval, t, eighth * (inBar === 0 ? 3 : 1.4), 0.8, this.musicBus));
     }
-    // An occasional vibraphone phrase over the changes.
-    if (bar % 2 === 1 && Math.random() < 0.32) {
+    // The tune: composed melodies in song form, voiced per style, with a vibraphone solo section in between.
+    const index = Math.max(0, TRACKS.indexOf(track)), pool = track.style === "waltz" ? WALTZES : MELODIES;
+    const section = FORM[Math.floor(bar / 4) % FORM.length], chorus = Math.floor(bar / (4 * FORM.length));
+    if (section !== null) {
+      // Each track draws its own three melodies; later choruses move on to others so nothing loops for long.
+      const phrase = pool[(index * 3 + section * 5 + chorus * 2) % pool.length];
+      const lift = Math.floor(bar / 4) % FORM.length === 1 && pool.length > 1 ? 12 : 0;
+      for (const [at, degree, length] of phrase[bar % 4] ?? []) if (at === inBar) {
+        const midi = root + 36 + lift + degreeToSemitones(scaleFor(current), degree), seconds = eighth * length;
+        if (track.style === "bossa") this.flute(midi, t, seconds);
+        else if (track.style === "waltz") this.bell(midi + 12, t, seconds);
+        else if (track.style === "lofi") this.epiano(midi, t, seconds * 1.2, 0.55, this.musicBus);
+        else this.vibes(midi, t, seconds * 1.1);
+        // A little grace note now and then, so repeats aren't identical.
+        if (Math.random() < 0.08 && length >= 2) this.vibes(midi + 2, t - eighth * 0.25, eighth * 0.3);
+      }
+      return;
+    }
+    // Solo section: improvised vibraphone phrases over the changes.
+    if (bar % 2 === 1 && Math.random() < 0.32 || Math.random() < 0.12) {
       const scale = [0, 2, 4, 7, 9].map(interval => root + 48 + interval).concat(tones.map(interval => root + 48 + interval));
       this.vibes(random(scale), t, eighth * (onBeat ? 2.5 : 1.2));
     }

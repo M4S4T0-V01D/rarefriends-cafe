@@ -8,11 +8,11 @@ import { expectedReward, maximumPrize, type GamePlay, type GameSnapshot } from "
 import { createFriendReader, type GenerationSprites } from "@rarefriends/friendsdk/sprites";
 import { createFriendSoundKit, type FriendSoundCue, type FriendSoundKit } from "@rarefriends/friendsdk/sounds";
 import {
-  UPGRADES, upgradeById, type UpgradeId, BLEND_BONUSES, DAY_LENGTH, EXCLUSIVES, FAMILY_NAMES, workerLevel, type ItemKind, FAMILY_PERKS, LEVEL_XP, MAX_LEVEL, catalogItem, shopById, tableLimit, type DishId, type ShopId,
+  FLOORS, WALLPAPERS, dishById, BOOSTS, MANAGER_SKILLS, UPGRADES, upgradeById, type BoostId, type UpgradeId, BLEND_BONUSES, DAY_LENGTH, EXCLUSIVES, FAMILY_NAMES, workerLevel, type ItemKind, FAMILY_PERKS, LEVEL_XP, MAX_LEVEL, catalogItem, shopById, tableLimit, type DishId, type ShopId,
 } from "./data.ts";
 import {
   actOnCounter, actOnCustomer, actOnTable, ambience, ambiencePoints, applyFinish, assignStaff, availableDishes, buy, carryCapacity, chooseShop,
-  CAPSULE_ID, raiseStat, setBuilding, buyUpgrade, capsuleProblemAt, moveCapsule, nextUpgrade, upgradeLevel, clearQueue, createCafe, dayProgress, interactNearby, isClosing, itemAt, kitchenSlots, manager, moveItem, openCafe, placeItem, purchaseCost,
+  CAPSULE_ID, addBoost, raiseSkill, skillLevel, skillPoints, raiseStat, setBuilding, buyUpgrade, capsuleProblemAt, moveCapsule, nextUpgrade, upgradeLevel, clearQueue, createCafe, dayProgress, interactNearby, isClosing, itemAt, kitchenSlots, manager, moveItem, openCafe, placeItem, purchaseCost,
   purchaseLevel, restoreCafe, sellItem, serializeCafe, setBlends, setManual, setOwnedFriends, setStaffRole, unlockDish, update, walkTo, type CafeState,
   memberOf, mostTired, plan, sendToBreak, collectFromCapsule, type Prefs,
 } from "./engine.ts";
@@ -24,6 +24,7 @@ import { VIEW, friendRows, hitTest, renderScene, tileAt, type BuildView, type Fl
 import { HOST_HELLO, HOST_STATE, SAVE_WRITE, SHARE_REQUEST, SHARE_RESULT, parseStaffRoster, type ShareAction, type ShareOutcome } from "./roster.ts";
 import { renderDayCard, shareText } from "./card.ts";
 import { CafeAudio, type TrackId } from "./audio.ts";
+import { CHANGELOG, VERSION } from "./changelog.ts";
 import "@rarefriends/friendsdk/frame.css";
 import "./style.css";
 
@@ -33,8 +34,10 @@ const DIRECTIONS: Record<string, { dx: number; dy: number }> = {
   w: { dx: 0, dy: -1 }, arrowup: { dx: 0, dy: -1 }, s: { dx: 0, dy: 1 }, arrowdown: { dx: 0, dy: 1 },
   a: { dx: -1, dy: 0 }, arrowleft: { dx: -1, dy: 0 }, d: { dx: 1, dy: 0 }, arrowright: { dx: 1, dy: 0 },
 };
-type Menu = "upgrades" | "capsules" | "settings" | "help" | null;
-type Tab = "menu" | "kitchen" | "staff";
+type Menu = "upgrades" | "capsules" | "settings" | "help" | "pause" | "news" | null;
+/** A Beans purchase waiting for the player's OK. */
+type Ask = { title: string; cost: number; detail?: string; run: () => void };
+type Tab = "menu" | "kitchen" | "staff" | "manager";
 const ROLE_NAMES = { waiter: "Waiter", chef: "Chef", promoter: "Promoter" } as const;
 type Hud = {
   phase: CafeState["phase"]; day: number; beans: number; rating: number; level: number; xp: number; progress: number;
@@ -46,9 +49,10 @@ const readHud = (cafe: CafeState): Hud => ({
   customers: cafe.customers.length, served: cafe.totalServed, carrying: manager(cafe).carrying.length,
 });
 const stars = (rating: number) => "★★★★★".slice(0, Math.round(rating)) + "☆☆☆☆☆".slice(0, 5 - Math.round(rating));
-type CapsuleResult = { play: bigint; outcomeId: number; exclusive: ItemKind | null; beans: number; redeemed: boolean };
+/** `boost` names the RF boost these capsules paid for (instead of a collectible). */
+type CapsuleResult = { play: bigint; outcomeId: number; exclusive: ItemKind | null; beans: number; redeemed: boolean; boost?: string };
 const CAPSULE_COLORS = ["#b7ada3", "#b9bfc6", "#9fabc2", "#e2d49e"];
-const DEFAULT_TOOL: BuildTool = { tab: "items", mode: "place", kind: "table", dir: 0 };
+const DEFAULT_TOOL: BuildTool = { tab: "items", shelf: "tables", mode: "place", kind: "table", dir: 0 };
 
 /** RareFriends Cafe. The SDK runtime supplies wallet connection, the verified owned Friend and the fixed (simulated) RF client. */
 export default function RareFriendsCafe({ friendId, client, paused }: GameComponentProps) {
@@ -63,9 +67,30 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
   const [status, setStatus] = useState("Setting up your shop and loading your Friend…"), [failed, setFailed] = useState(false), [revision, setRevision] = useState(0);
   const [hud, setHud] = useState<Hud | null>(null), [menu, setMenu] = useState<Menu>(null), [tab, setTab] = useState<Tab>("menu");
   const [toast, setToast] = useState(""), [muted, setMuted] = useState(false), [reducedMotion, setReducedMotion] = useState(false);
-  const audio = useRef<CafeAudio | null>(null), [capsuleTab, setCapsuleTab] = useState<"machine" | "collection" | "recipes">("machine"), [spinning, setSpinning] = useState(false);
+  const audio = useRef<CafeAudio | null>(null), [capsuleTab, setCapsuleTab] = useState<"machine" | "boosts" | "collection" | "recipes">("machine"), [spinning, setSpinning] = useState(false);
   const [snapshot, setSnapshot] = useState<GameSnapshot | null>(null), [busy, setBusy] = useState(false), [error, setError] = useState("");
   const [reveal, setReveal] = useState<CapsuleResult[] | null>(null), [, setTick] = useState(0);
+  const askButton = useRef<HTMLButtonElement>(null);
+  const [ask, setAsk] = useState<Ask | null>(null), [systemDark, setSystemDark] = useState(() => typeof matchMedia === "function" && matchMedia("(prefers-color-scheme: dark)").matches);
+  useEffect(() => {
+    if (typeof matchMedia !== "function") return;
+    const query = matchMedia("(prefers-color-scheme: dark)"), listen = () => setSystemDark(query.matches);
+    query.addEventListener("change", listen); return () => query.removeEventListener("change", listen);
+  }, []);
+  // The confirm dialog takes focus so Enter buys and Esc cancels; focus returns to the shop afterwards.
+  useEffect(() => {
+    if (!ask) return;
+    requestAnimationFrame(() => askButton.current?.focus());
+    // Ignore the very keypress that opened the dialog (React runs this effect while it is still dispatching).
+    const opened = performance.now();
+    const enter = (event: KeyboardEvent) => {
+      const active = document.activeElement;
+      if (event.key !== "Enter" || event.timeStamp <= opened || event.repeat || (active instanceof HTMLButtonElement && active !== askButton.current) || active instanceof HTMLInputElement) return;
+      event.preventDefault(); setAsk(null); ask.run();
+    };
+    window.addEventListener("keydown", enter);
+    return () => { window.removeEventListener("keydown", enter); focusCanvas(); };
+  }, [ask]);
   const [shopChoice, setShopChoice] = useState<ShopId>("cafe"), [picking, setPicking] = useState<number | null>(null);
   const [build, setBuild] = useState<(BuildTool & { selected: number | null; cursor: Tile | null }) | null>(null), [buildMessage, setBuildMessage] = useState("");
   const live = useRef({ paused, menu, reducedMotion, reveal, build }); live.current = { paused, menu, reducedMotion, reveal, build };
@@ -174,7 +199,7 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
           } else if (event.kind === "ready") audio.current?.ready(state.shop);
           else if (event.kind === "order") audio.current?.order(Math.round(event.x * 3 + event.y * 5));
           else if (event.kind === "arrive") audio.current?.doorbell();
-          else if (event.kind === "levelup") { setToast(`Level ${event.level}! New dishes, tables, staff slots or an expansion may be available.`); audio.current?.levelUp(); }
+          else if (event.kind === "levelup") { setToast(`Level ${event.level}! A manager skill point is ready (Upgrades → You), and new dishes, tables or upgrades may be open.`); audio.current?.levelUp(); }
           else if (event.kind === "tired") { setToast(`Slot ${event.slot + 1} is tired. Tap them (or press T) to send them to the break room.`); audio.current?.tired(event.slot); }
           else if (event.kind === "workerLevel") { setToast(`Staff slot ${event.slot + 1} reached worker level ${event.level}! A new attribute point is ready in Staff.`); audio.current?.workerLevel(); }
           else if (event.kind === "rested") { setToast(`Slot ${event.slot + 1} is rested and back at work.`); audio.current?.rested(event.slot); }
@@ -242,7 +267,17 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
     const state = cafe.current;
     if (!state || !build || build.tab !== "items") return;
     let problem: string | null = null, done = "";
-    if (build.mode === "place") { problem = placeItem(state, build.kind, tile, build.dir); done = `${catalogItem(build.kind).name} placed.`; }
+    if (build.mode === "place") {
+      const entry = catalogItem(build.kind), candidate = { kind: build.kind, x: tile.x, y: tile.y, dir: build.dir };
+      // Ask before spending: check the spot first so a refused placement doesn't prompt.
+      const blocked = placementProblem(state.items, candidate, plan(state));
+      if (!blocked && entry.cost > 0 && state.prefs.confirm && state.beans >= entry.cost) {
+        setBuild({ ...build, cursor: tile });
+        confirmBuy(`Place ${entry.name}`, entry.cost, () => { const again = placeItem(state, build.kind, tile, build.dir); setBuildMessage(again ?? `${entry.name} placed.`); if (!again) audio.current?.place(); setHud(readHud(state)); refresh(); });
+        return;
+      }
+      problem = placeItem(state, build.kind, tile, build.dir); done = `${entry.name} placed.`;
+    }
     else if (build.mode === "sell") {
       const item = itemAt(state, tile);
       problem = item ? sellItem(state, item.id) : "Nothing to sell there.";
@@ -339,6 +374,7 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
     else if (key === "c") { event.preventDefault(); say(actOnCounter(state)); cue("select"); }
     else if (key === "x") { event.preventDefault(); clearQueue(state); say("Task list cleared."); }
     else if (key === "b") { event.preventDefault(); enterBuild(); }
+    else if (key === "escape" || key === "p") { event.preventDefault(); openMenu("pause"); }
     else if (key === "t") { event.preventDefault(); const tired = mostTired(state); say(tired ? sendToBreak(state, tired.id) : "Nobody needs a break yet."); cue("select"); }
     else if (key === "e" || key === " " || key === "enter") {
       event.preventDefault();
@@ -362,7 +398,20 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
     if (state.phase === "intro" && !state.started) chooseShop(state, shopChoice);
     wakeAudio(); openCafe(state); daySnapshot.current = null; setShareStatus(""); setHud(readHud(state)); cue("action-ready"); focusCanvas();
   }
+  /** Run a Beans purchase, asking first unless the player turned confirmations off. */
+  function confirmBuy(title: string, cost: number, run: () => void, detail?: string) {
+    const state = cafe.current;
+    if (!state || paused) return;
+    if (!state.prefs.confirm || (cost <= 0 && !detail)) { run(); return; }
+    setAsk({ title, cost, detail, run });
+  }
   function purchase(item: "machine" | "slot" | "expand") {
+    const state = cafe.current, cost = state ? purchaseCost(state, item) : null;
+    if (!state || cost === null) return;
+    const title = item === "slot" ? `Unlock staff slot ${state.staffSlots + 1}` : item === "expand" ? `Expand to ${plan(state).w + 1} × ${plan(state).d + 1}` : "Upgrade the kitchen station";
+    confirmBuy(title, cost, () => purchaseNow(item));
+  }
+  function purchaseNow(item: "machine" | "slot" | "expand") {
     const state = cafe.current;
     if (!state || paused) return;
     const problem = buy(state, item);
@@ -370,6 +419,10 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
     setHud(readHud(state)); refresh();
   }
   function upgradeShop(id: UpgradeId) {
+    const state = cafe.current, next = state && nextUpgrade(state, id);
+    if (state && next) confirmBuy(`${upgradeById(id).name} level ${upgradeLevel(state, id) + 1}`, next.cost, () => upgradeShopNow(id));
+  }
+  function upgradeShopNow(id: UpgradeId) {
     const state = cafe.current;
     if (!state || paused) return;
     const problem = buyUpgrade(state, id);
@@ -377,6 +430,10 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
     setHud(readHud(state)); refresh();
   }
   function unlock(id: DishId) {
+    const state = cafe.current;
+    if (state) confirmBuy(`Add ${dishById(id).name} to the menu`, dishById(id).unlockCost, () => unlockNow(id));
+  }
+  function unlockNow(id: DishId) {
     const state = cafe.current;
     if (!state || paused) return;
     const problem = unlockDish(state, id);
@@ -445,6 +502,23 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
     }).finally(() => setSpinning(false));
   };
 
+  /** Pay for an RF boost with capsules: they open and settle through the SDK as usual, and give the boost instead of collectibles. */
+  const buyBoost = (id: BoostId) => {
+    const boost = BOOSTS.find(item => item.id === id)!;
+    wakeAudio(); audio.current?.crank(); setSpinning(true);
+    return act(async () => {
+      const version = epoch.current, state = cafe.current;
+      const plays = await client.play(BigInt(boost.capsules)), results: CapsuleResult[] = [];
+      for (const play of plays) {
+        const settled = await client.settle(play.id);
+        if (settled.outcomeId !== null) results.push({ play: settled.id, outcomeId: settled.outcomeId, exclusive: null, beans: 0, redeemed: false, boost: boost.name });
+      }
+      if (version !== epoch.current || !state || !results.length) return;
+      addBoost(state, id); audio.current?.levelUp(); cue("reveal-rare");
+      setReveal(results); setHud(readHud(state));
+    }).finally(() => setSpinning(false));
+  };
+
   const state = cafe.current;
   const shop = shopById(state && !state.started && state.phase === "intro" ? shopChoice : state?.shop ?? "cafe");
   const familyName = friend.current ? FAMILY_NAMES[friend.current.familyId] : "";
@@ -463,16 +537,23 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
     const node = portrait.current, ctx = node?.getContext("2d"), sprites = friend.current;
     if (!node || !ctx || !sprites) return;
     const rows = sprites.clips.idle[sprites.familyId === 6 ? "right" : "down"][0].rows;
-    ctx.clearRect(0, 0, 54, 54); ctx.fillStyle = "#fff";
-    rows.forEach((row, y) => [...row].forEach((pixel, x) => { if (pixel === "#") ctx.fillRect(x * 3, y * 3, 9, 9); }));
+    // Crop to the Friend's pixels and centre them at the largest whole-pixel scale that fits, with a white halo.
+    const filled = rows.flatMap((row, y) => [...row].flatMap((pixel, x) => pixel === "#" ? [{ x, y }] : []));
+    if (!filled.length) return;
+    const left = Math.min(...filled.map(p => p.x)), right = Math.max(...filled.map(p => p.x)), top = Math.min(...filled.map(p => p.y)), bottom = Math.max(...filled.map(p => p.y));
+    const size = node.width, scale = Math.max(1, Math.floor((size - 16) / Math.max(right - left + 3, bottom - top + 3)));
+    const ox = Math.round((size - (right - left + 1) * scale) / 2) - left * scale, oy = Math.round((size - (bottom - top + 1) * scale) / 2) - top * scale;
+    ctx.clearRect(0, 0, size, size); ctx.fillStyle = "#fff";
+    for (const p of filled) ctx.fillRect(ox + p.x * scale - scale, oy + p.y * scale - scale, scale * 3, scale * 3);
     ctx.fillStyle = "#161616";
-    rows.forEach((row, y) => [...row].forEach((pixel, x) => { if (pixel === "#") ctx.fillRect(x * 3 + 3, y * 3 + 3, 3, 3); }));
+    for (const p of filled) ctx.fillRect(ox + p.x * scale, oy + p.y * scale, scale, scale);
   }, [portraitReady, friendId]);
 
-  return <section className="cafe-game" aria-label={shop.name} aria-busy={busy}
+  const dark = state ? state.prefs.theme === "dark" || (state.prefs.theme === "auto" && systemDark) : systemDark;
+  return <section className="cafe-game" data-theme={dark ? "dark" : "light"} aria-label={shop.name} aria-busy={busy}
     data-phase={hud?.phase ?? "loading"} data-beans={hud?.beans ?? 0} data-served={hud?.served ?? 0} data-customers={hud?.customers ?? 0}
     data-build={build ? "on" : "off"} data-items={state?.items.length ?? 0} data-shop={state?.shop ?? ""} data-owned={state?.ownedFriends.length ?? 0} data-linked={linked.current ? "yes" : "no"}>
-    <div className="cafe-world" inert={menu !== null || reveal !== null || paused || undefined}>
+    <div className="cafe-world" inert={menu !== null || reveal !== null || ask !== null || paused || undefined}>
       <canvas ref={canvas} tabIndex={blocked ? -1 : 0}
         aria-label={build ? "Build mode. Tap a tile or use arrow keys and Enter to place, R to rotate, Delete to sell, Escape to finish."
           : "Shop floor. Tap a guest to take their order or serve them, tap the counter to pick up dishes, tap the floor to walk. Keys: WASD or arrows walk, E acts nearby, 1 to 0 act on a table, C picks up, X clears tasks, B builds."}
@@ -488,25 +569,34 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
       {hud && <>
         <div className="cafe-hud">
           <div className="cafe-card">
-            <canvas ref={portrait} className="cafe-portrait" width={54} height={54} role="img" aria-label={`Manager: your Friend #${friendId.toString()}, ${familyName}`} />
+            <canvas ref={portrait} className="cafe-portrait" width={116} height={116} role="img" aria-label={`Manager: your Friend #${friendId.toString()}, ${familyName}`} />
             <strong className="cafe-title">{shop.name}</strong>
             <span className="cafe-day">Day {hud.day} · {build ? "building" : hud.phase === "open" ? hud.closing ? "last orders" : clock : hud.phase === "summary" ? "closed" : "not open yet"}</span>
             <span className="cafe-clock" aria-hidden="true"><i style={{ width: `${hud.progress * 100}%` }} /></span>
-            <span className="cafe-stats"><b aria-label={`${hud.beans} Beans`}>☕ {hud.beans}</b><b aria-label={`Rating ${hud.rating.toFixed(1)} of 5`}>{stars(hud.rating)}</b><b>Lv {hud.level}</b></span>
+            <span className="cafe-stats"><b aria-label={`Rating ${hud.rating.toFixed(1)} of 5`}>{stars(hud.rating)}</b><b>Lv {hud.level}</b></span>
+            {state && Object.keys(state.boosts).length > 0 && <span className="cafe-boosts">{BOOSTS.filter(boost => state.boosts[boost.id]).map(boost =>
+              <b key={boost.id} title={boost.text}>✦ {boost.name} · {state.boosts[boost.id]}d</b>)}</span>}
             <span className="cafe-xp" aria-label={nextXp ? `${hud.xp} of ${nextXp} XP` : "Max level"}><i style={{ width: `${nextXp ? Math.min(100, (hud.xp - prevXp) / (nextXp - prevXp) * 100) : 100}%` }} /></span>
+          </div>
+          <div className="cafe-wallet">
+            <div className="cafe-coin cafe-coin-beans" aria-label={`${hud.beans} Beans`}><b>☕ {hud.beans.toLocaleString("en-US")}</b><small>Beans</small></div>
+            <button type="button" className="cafe-coin cafe-coin-rf" onClick={() => openMenu("capsules")} aria-label={`${snapshot ? rf(snapshot.rfBalance) : "RF"}${snapshot?.mode === "preview" ? " (simulated)" : ""}: open the capsule machine`}>
+              <b>{snapshot ? rf(snapshot.rfBalance) : "… RF"}</b><small>{snapshot?.mode === "preview" ? "simulated" : "on-chain"}</small></button>
           </div>
           {!build && <div className="cafe-actions">
             <button type="button" onClick={enterBuild}>Build</button>
             <button type="button" onClick={() => openMenu("upgrades")}>Upgrades</button>
-            <button type="button" onClick={() => openMenu("capsules")}>Capsules<span className="cafe-wide"> · RF</span></button>
+            <button type="button" onClick={() => openMenu("capsules")}>Capsules</button>
+            <button type="button" onClick={() => openMenu("pause")} aria-label="Pause" title="Pause (Esc)">⏸</button>
             <button type="button" onClick={() => openMenu("settings")} aria-label="Settings">⚙</button>
             <button type="button" aria-pressed={!muted} aria-label="Sound" title={muted ? "Sound off" : "Sound on"} onClick={toggleMute}>{muted ? "♪̸" : "♪"}</button>
           </div>}
         </div>
         {build && state && <BuildBar state={state} tool={build} message={buildMessage || toolLabel(build)} onDone={exitBuild} onPrefs={changePrefs}
           onTool={next => { setBuild({ ...build, ...next, selected: next.mode === "move" ? build.selected : null }); setBuildMessage(next.tab === "items" ? toolLabel(next) : ""); }}
-          onBuilding={id => { const problem = setBuilding(state, id); setBuildMessage(problem ?? `Moved into the ${buildingById(id).name.toLowerCase()}.`); if (!problem) cue("purchase"); setBuild({ ...build, selected: null, cursor: null }); setHud(readHud(state)); refresh(); }}
-          onFinish={(surface, id) => { const problem = applyFinish(state, surface, id); setBuildMessage(problem ?? `${surface === "wallpaper" ? "Wallpaper" : "Floor"} applied.`); if (!problem) cue("purchase"); setHud(readHud(state)); refresh(); }} />}
+          onBuilding={id => confirmBuy(`Move into the ${buildingById(id).name.toLowerCase()}`, 0, () => { const problem = setBuilding(state, id); setBuildMessage(problem ?? `Moved into the ${buildingById(id).name.toLowerCase()}.`); if (!problem) cue("purchase"); setBuild({ ...build, selected: null, cursor: null }); setHud(readHud(state)); refresh(); },
+            state.started && state.building !== id ? "Furniture that doesn't fit the new building is refunded in Beans." : undefined)}
+          onFinish={(surface, id) => { const finish = (surface === "wallpaper" ? WALLPAPERS : FLOORS).find(item => item.id === id)!; confirmBuy(`${finish.name} ${surface}`, state.finishes.has(id) ? 0 : finish.cost, () => { const problem = applyFinish(state, surface, id); setBuildMessage(problem ?? `${surface === "wallpaper" ? "Wallpaper" : "Floor"} applied.`); if (!problem) cue("purchase"); setHud(readHud(state)); refresh(); }); }} />}
         {hud.phase === "open" && !build && <div className="cafe-footer">
           <p role="status" aria-live="polite">{toast || (hud.queue ? `${hud.queue} task${hud.queue > 1 ? "s" : ""} queued${hud.carrying ? ` · carrying ${hud.carrying}` : ""}` : hud.carrying ? `Carrying ${hud.carrying} dish${hud.carrying > 1 ? "es" : ""}` : "Tap a guest to take an order · tap the counter when a dish is ready")}</p>
           {hud.queue > 0 && <button type="button" onClick={() => { if (cafe.current) { clearQueue(cafe.current); setHud(readHud(cafe.current)); } }}>Clear tasks</button>}
@@ -574,7 +664,7 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
 
     {menu === "upgrades" && state && <GameMenu title={`Upgrades · ☕ ${state.beans} Beans`} onClose={closeMenu}>
       <div className="cafe-tabs" role="tablist" aria-label="Upgrade categories">
-        {(["menu", "kitchen", "staff"] as const).map(name => <button type="button" role="tab" key={name} aria-selected={tab === name} onClick={() => { setTab(name); setError(""); setPicking(null); }}>{name === "menu" ? "Menu" : name === "kitchen" ? "Shop" : "Staff"}</button>)}
+        {(["menu", "kitchen", "staff", "manager"] as const).map(name => <button type="button" role="tab" key={name} aria-selected={tab === name} onClick={() => { setTab(name); setError(""); setPicking(null); }}>{name === "menu" ? "Menu" : name === "kitchen" ? "Shop" : name === "staff" ? "Staff" : `You${skillPoints(state) > 0 ? ` · ${skillPoints(state)}` : ""}`}</button>)}
       </div>
       {tab === "menu" ? shopById(state.shop).menu.map(dish => {
         const on = availableDishes(state).includes(dish.id), special = dish.blend !== undefined;
@@ -604,6 +694,15 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
           </div>;
         })}
         <button type="button" disabled={paused} onClick={enterBuild}>Open build mode</button>
+      </> : tab === "manager" ? <>
+        <p className="cafe-note">Your manager, Friend #{friendId.toString()}, earns a skill point every café level. {skillPoints(state) > 0 ? `${skillPoints(state)} point${skillPoints(state) > 1 ? "s" : ""} to spend.` : `Next point at level ${state.level + 1}.`}</p>
+        {MANAGER_SKILLS.map(skill => {
+          const points = skillLevel(state, skill.id);
+          return <div className="cafe-row" key={skill.id}>
+            <span><strong>{skill.name} <small className="cafe-pips" aria-label={`${points} of ${skill.max}`}>{"●".repeat(points)}{"○".repeat(skill.max - points)}</small></strong><small>{skill.text}</small></span>
+            {points >= skill.max ? <em>Maxed</em> : <button type="button" disabled={paused || skillPoints(state) <= 0} onClick={() => { const problem = raiseSkill(state, skill.id); setError(problem ?? ""); if (!problem) { cue("purchase"); say(`${skill.name} ${points + 1}/${skill.max}.`); } setHud(readHud(state)); refresh(); }}>+1 point</button>}
+          </div>;
+        })}
       </> : <StaffPanel state={state} candidates={candidates} picking={picking} paused={paused} onPick={setPicking} onUnlock={() => purchase("slot")}
         onAssign={(slot, who) => { const problem = assignStaff(state, slot, who, "waiter"); setError(problem ?? ""); if (!problem) { cue("select"); setPicking(null); } refresh(); }}
         onRole={(slot, role) => { setStaffRole(state, slot, role); cue("select"); refresh(); }}
@@ -622,8 +721,8 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
         </div>
         <p className="cafe-sim">{snapshot.mode === "preview" ? "Simulated RF preview. No real tokens or transactions." : "Live · Robinhood"} · Friend balance <strong>{rf(snapshot.rfBalance)}</strong> · {snapshot.consumables.toString()} capsule{snapshot.consumables === 1n ? "" : "s"} ready</p>
         <div className="cafe-tabs" role="tablist" aria-label="Capsule machine">
-          {(["machine", "collection", "recipes"] as const).map(name => <button type="button" role="tab" key={name} aria-selected={capsuleTab === name} onClick={() => setCapsuleTab(name)}>
-            {name === "machine" ? "Machine" : name === "collection" ? `Collection · ${state.collection.size}/${EXCLUSIVES.length}` : `Kept · ${blendCount.toString()}`}</button>)}
+          {(["machine", "boosts", "collection", "recipes"] as const).map(name => <button type="button" role="tab" key={name} aria-selected={capsuleTab === name} onClick={() => setCapsuleTab(name)}>
+            {name === "machine" ? "Machine" : name === "boosts" ? "Boosts" : name === "collection" ? `Collection · ${state.collection.size}/${EXCLUSIVES.length}` : `Kept · ${blendCount.toString()}`}</button>)}
         </div>
         {capsuleTab === "machine" ? <>
           <p>Each capsule costs <strong>{rf(definition.price)}</strong> and holds a <strong>secret recipe</strong> (keep it for a shop bonus, or redeem it for RF) plus an <strong>RF-exclusive collectible</strong> for your shop. Duplicates turn into Beans.</p>
@@ -638,6 +737,17 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
             <tbody>{definition.outcomes.map((item, index) => <tr key={item.name}><td>{item.name}</td><td>{item.chanceBps / 100}%</td><td>{rf(item.reward)}</td><td>{BLEND_BONUSES[index]?.text}</td>
               <td>{EXCLUSIVES.filter(exclusive => exclusive.tier === index).map(exclusive => exclusive.name).join(", ")}</td></tr>)}</tbody></table>
           <p className="cafe-note">Expected RF value {rf(expectedReward(definition))} per capsule. Every capsule reserves {rf(maxPrize)} of backing; kept recipes keep their RF value with no expiry. Collectibles carry no RF value.</p>
+        </> : capsuleTab === "boosts" ? <>
+          <p>Boosts are paid with capsules you bought with RF: they open and settle into recipes as usual (keep or redeem them), but give the boost <strong>instead of</strong> a collectible. Boosts count shop days, including one in progress.</p>
+          {BOOSTS.map(boost => {
+            const days = state.boosts[boost.id] ?? 0;
+            return <div className="cafe-row" key={boost.id}>
+              <span><strong>{boost.name}{days ? ` · ${days} day${days > 1 ? "s" : ""} left` : ""}</strong><small>{boost.text} {boost.days} day{boost.days > 1 ? "s" : ""}.</small></span>
+              <button type="button" disabled={busy || paused || pendingPlays.length > 0 || snapshot.consumables < BigInt(boost.capsules)} onClick={() => void buyBoost(boost.id)}>
+                {boost.capsules} capsules · {rf(definition.price * BigInt(boost.capsules))}</button>
+            </div>;
+          })}
+          {snapshot.consumables < 2n && <p className="cafe-note">You have {snapshot.consumables.toString()} capsule{snapshot.consumables === 1n ? "" : "s"}. Buy more on the Machine tab.</p>}
         </> : capsuleTab === "collection" ? <div className="cafe-collection">
           {EXCLUSIVES.map(item => {
             const owned = state.collection.has(item.kind), placed = state.items.some(placedItem => placedItem.kind === item.kind);
@@ -645,7 +755,7 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
               <ItemPreview kind={item.kind} locked={!owned} statue={friend.current ? friendRows(friend.current, "down", false, 0) : null} />
               <strong>{owned ? item.name : "???"}</strong><small>{definition.outcomes[item.tier!]?.name} · +{item.ambience} ambience</small>
               <small>{owned ? item.text.replace("RF exclusive · ", "") : "Not collected yet"}</small>
-              {owned && <button type="button" disabled={paused || placed} onClick={() => { setMenu(null); setBuild({ ...DEFAULT_TOOL, kind: item.kind, selected: null, cursor: null }); setBuildMessage(`Placing ${item.name}: tap a tile.`); focusCanvas(); }}>{placed ? "Placed" : "Place"}</button>}
+              {owned && <button type="button" disabled={paused || placed} onClick={() => { setMenu(null); setBuild({ ...DEFAULT_TOOL, shelf: "decor", kind: item.kind, selected: null, cursor: null }); setBuildMessage(`Placing ${item.name}: tap a tile.`); focusCanvas(); }}>{placed ? "Placed" : "Place"}</button>}
             </div>;
           })}
         </div> : <>
@@ -667,7 +777,7 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
           return <div className="cafe-result" key={index}>
             <div className={`cafe-reveal-${result.outcomeId}`}><div className="cafe-capsule" aria-hidden="true"><span /></div></div>
             <span><strong>{outcome.name}</strong><small>{outcome.chanceBps / 100}% · worth {rf(outcome.reward)} (simulated) · kept: {BLEND_BONUSES[result.outcomeId - 1]?.text}</small>
-              <small>{exclusive ? `New RF exclusive: ${exclusive.name} (+${exclusive.ambience} ambience)` : `Duplicate collectible: +☕ ${result.beans} Beans`}</small></span>
+              <small>{result.boost ? `Spent on ${result.boost}` : exclusive ? `New RF exclusive: ${exclusive.name} (+${exclusive.ambience} ambience)` : `Duplicate collectible: +☕ ${result.beans} Beans`}</small></span>
             <button type="button" disabled={busy || paused || result.redeemed} onClick={() => void act(() => client.redeem(result.outcomeId, 1n), () => {
               cue("reward"); setReveal(current => current?.map((item, other) => other === index ? { ...item, redeemed: true } : item) ?? null);
             })}>{result.redeemed ? "Redeemed" : `Redeem · ${rf(outcome.reward)}`}</button>
@@ -676,15 +786,55 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
       </div>
       <div className="cafe-buttons">
         <button type="button" className="rf-frame-primary" disabled={busy || paused} onClick={() => { setReveal(null); say("Kept recipes are boosting your shop. New exclusives are in Build → Furniture."); }}>Keep the rest</button>
-        {reveal.some(result => result.exclusive) && <button type="button" disabled={busy || paused} onClick={() => { const first = reveal.find(result => result.exclusive)!.exclusive!; setReveal(null); setMenu(null); setBuild({ ...DEFAULT_TOOL, kind: first, selected: null, cursor: null }); setBuildMessage(`Placing ${catalogItem(first).name}: tap a tile.`); focusCanvas(); }}>Place my new exclusive</button>}
+        {reveal.some(result => result.exclusive) && <button type="button" disabled={busy || paused} onClick={() => { const first = reveal.find(result => result.exclusive)!.exclusive!; setReveal(null); setMenu(null); setBuild({ ...DEFAULT_TOOL, shelf: "decor", kind: first, selected: null, cursor: null }); setBuildMessage(`Placing ${catalogItem(first).name}: tap a tile.`); focusCanvas(); }}>Place my new exclusive</button>}
       </div>
       {error && <p role="alert">{error}</p>}
+    </GameMenu>}
+
+    {menu === "pause" && <GameMenu title="Paused" onClose={closeMenu}>
+      <p>The shop is paused: guests, staff and the clock wait for you.{state && skillPoints(state) > 0 ? ` You have ${skillPoints(state)} manager skill point${skillPoints(state) > 1 ? "s" : ""} to spend.` : ""}</p>
+      <div className="cafe-buttons">
+        <button type="button" className="rf-frame-primary" onClick={closeMenu}>Resume</button>
+        <button type="button" onClick={() => { setTab("manager"); setMenu("upgrades"); }}>Upgrades</button>
+        <button type="button" onClick={() => setMenu("settings")}>Settings</button>
+        <button type="button" onClick={() => setMenu("help")}>Controls</button>
+        <button type="button" onClick={() => setMenu("news")}>What's new · v{VERSION}</button>
+      </div>
+      <p className="cafe-note">Esc or P pauses; Esc again resumes.</p>
+    </GameMenu>}
+
+    {menu === "news" && <GameMenu title={`What's new · v${VERSION}`} onClose={closeMenu}>
+      <div className="cafe-news">
+        {CHANGELOG.map(release => <article key={release.version}>
+          <h3>v{release.version} · {release.title}<small>{release.date}</small></h3>
+          <ul>{release.notes.map(note => <li key={note}>{note}</li>)}</ul>
+        </article>)}
+      </div>
+    </GameMenu>}
+
+    {ask && <GameMenu title="Confirm" onClose={() => setAsk(null)}>
+      <p><strong>{ask.title}</strong>{ask.cost > 0 ? <> for <strong>☕ {ask.cost}</strong> Beans?</> : "?"}</p>
+      {ask.detail && <p className="cafe-note">{ask.detail}</p>}
+      {state && ask.cost > 0 && <p className="cafe-note">You have ☕ {state.beans}; ☕ {state.beans - ask.cost} left after.</p>}
+      <div className="cafe-buttons">
+        <button type="button" className="rf-frame-primary" ref={askButton} onClick={() => { const run = ask.run; setAsk(null); run(); }}>{ask.cost > 0 ? `Buy · ☕ ${ask.cost}` : "OK"}</button>
+        <button type="button" onClick={() => setAsk(null)}>Cancel</button>
+      </div>
+      <label className="cafe-check"><input type="checkbox" checked={false} onChange={() => { if (state) changePrefs({ ...state.prefs, confirm: false }); const run = ask.run; setAsk(null); run(); }} /> Buy and stop asking (turn back on in Settings)</label>
     </GameMenu>}
 
     {menu === "settings" && <GameMenu title="Settings" onClose={closeMenu}>
       <button type="button" aria-pressed={!muted} onClick={toggleMute}>{muted ? "Sound off" : "Sound on"}</button>
       {cafe.current && <MusicControls prefs={cafe.current.prefs} collected={cafe.current.collection} onChange={changePrefs} />}
       <label className="cafe-check"><input type="checkbox" checked={reducedMotion} onChange={event => setReducedMotion(event.target.checked)} /> Reduce motion</label>
+      {cafe.current && <>
+        <label className="cafe-check"><input type="checkbox" checked={cafe.current.prefs.confirm} onChange={event => changePrefs({ ...cafe.current!.prefs, confirm: event.target.checked })} /> Ask before spending Beans</label>
+        <div className="cafe-theme" role="radiogroup" aria-label="Theme">Theme
+          {(["auto", "light", "dark"] as const).map(theme => <button type="button" role="radio" key={theme} aria-checked={cafe.current!.prefs.theme === theme}
+            onClick={() => changePrefs({ ...cafe.current!.prefs, theme })}>{theme === "auto" ? "Auto" : theme === "light" ? "Light" : "Dark"}</button>)}
+        </div>
+      </>}
+      <button type="button" onClick={() => setMenu("news")}>What's new · v{VERSION}</button>
       {familyPerk && <div className="cafe-perk cafe-row"><SpriteChip rows={friend.current ? friendRows(friend.current, "down", false, 0) : null} label="" /><span><strong>Manager #{friendId.toString()} · {familyName}</strong><small>{familyPerk.title}: {familyPerk.text}</small></span></div>}
       <p>Switch manager with the runtime's Friend controls; each Friend brings their own family perk. Your other owned Friends appear under Upgrades → Staff.</p>
       <p>{linked.current ? "Your shop (Beans, level, menu, furniture, staff) saves automatically for your connected wallet on this device." : "Progress saving is off: it needs the RareFriends Cafe host page and your wallet's Friends to load."} Capsule RF balances and outcomes are simulated by the SDK preview and reset on reload. Wallet connection and ownership checks are provided by FriendSDK.</p>
@@ -697,6 +847,7 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
         <li><strong>Tap the counter</strong>: pick up every ready dish; you deliver them automatically.</li>
         <li><strong>Tap the floor</strong>: walk. Tap the capsule machine for Rare Recipe Capsules.</li>
         <li><strong>WASD / arrows</strong>: walk · <strong>E / Space</strong>: act nearby · <strong>1–9, 0</strong>: act on that table · <strong>C</strong>: pick up · <strong>X</strong>: clear tasks.</li>
+        <li><strong>Esc / P</strong> or <strong>⏸</strong>: pause. Esc again resumes.</li>
         <li><strong>Tap a tired staff Friend</strong> (zzz bubble) or press <strong>T</strong> to send them to the break room for 15–30 s.</li>
         <li><strong>Build (B)</strong>: tap tiles to place tables and décor. <strong>Move</strong>: tap an item (or the capsule machine), then a tile. <strong>Sell</strong>: 50% back. <strong>R</strong> turns any item a quarter (Shift+R back), tables and chairs included; arrows + Enter work too; <strong>Esc</strong> finishes.</li>
       </ul>

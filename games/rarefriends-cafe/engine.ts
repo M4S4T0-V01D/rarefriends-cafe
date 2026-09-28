@@ -3,13 +3,13 @@
  * Beans, levels, staff and furniture are in-shop progress; the SDK runtime owns RF.
  */
 import {
-  AMBIENCE_LEVELS, BASE_WALK_IN, BLEND_BONUSES, CATALOG, DAY_LENGTH, DUPLICATE_BEANS, EXCLUSIVES, EAT_TIME, EXPAND_COSTS, EXPAND_LEVELS, FATIGUE, FLOORS, FOOD_PATIENCE,
+  isTable, AMBIENCE_LEVELS, BASE_WALK_IN, BLEND_BONUSES, CATALOG, DAY_LENGTH, DUPLICATE_BEANS, EXCLUSIVES, EAT_TIME, EXPAND_COSTS, EXPAND_LEVELS, FATIGUE, FLOORS, FOOD_PATIENCE,
   LEVEL_XP, MACHINE_COSTS, MAX_LEVEL, MAX_STAFF_SLOTS, ORDER_PATIENCE, PASSERBY_INTERVAL, PROMOTER_PULL, SELL_REFUND, SHOPS, START_STAFF_SLOTS,
-  MAX_STAT, STAFF_SLOT_COSTS, STAFF_SLOT_LEVELS, TIP_RATE, type StatId, UPGRADES, WALLPAPERS, breakSeconds, catalogItem, isRug, upgradeById, type UpgradeId, dishById, machineFactor, shopById, tableLimit, tierOf, workerLevel,
+  BOOSTS, MANAGER_SKILLS, MAX_STAT, STAFF_SLOT_COSTS, type BoostId, type SkillId, STAFF_SLOT_LEVELS, TIP_RATE, type StatId, UPGRADES, WALLPAPERS, breakSeconds, catalogItem, isRug, upgradeById, type UpgradeId, dishById, machineFactor, shopById, tableLimit, tierOf, workerLevel,
   type DishId, type ItemKind, type ShopId,
 } from "./data.ts";
 import {
-  DEFAULT_ITEMS, FACING, MAX_EXTENT, MAX_SIZE, START_SIZE, blockedTiles, capsuleProblem, defaultItems, inDining, inside, isBuilding, isDir, key, placementProblem, planFor, route, same, seatOf, serviceTiles,
+  DEFAULT_ITEMS, FACING, MAX_EXTENT, MAX_SIZE, START_SIZE, seatsOf, blockedTiles, capsuleProblem, defaultItems, fromKey, inDining, inside, isBuilding, isDir, key, placementProblem, planFor, route, same, seatOf, serviceTiles,
   type BuildingId, type Dir, type Item, type Placement, type Plan, type Tile,
 } from "./layout.ts";
 
@@ -18,8 +18,8 @@ export type Walker = { x: number; y: number; path: Tile[]; speed: number; facing
 export type CustomerState = "arriving" | "waiting" | "ordered" | "eating" | "leaving";
 export type Customer = {
   id: number; name: string; guest: number; regular: number | null; vip: boolean; walker: Walker;
-  /** Id of the table item the guest sits at. */
-  table: number;
+  /** Id of the table item the guest sits at, and which of its chairs. Guests arrive in parties that fill a table. */
+  table: number; seat: number;
   state: CustomerState; dish: DishId | null; patience: number; patienceMax: number; eat: number;
   claimed: number | null; mood: "happy" | "ok" | "angry" | null; paid: number;
 };
@@ -56,15 +56,17 @@ export type CafeState = {
   items: Item[]; wallpaper: string; floor: string; finishes: Set<string>; collection: Set<string>; prefs: Prefs;
   /** The capsule machine's spot once moved; null keeps the default corner by the window. */
   capsule: Placement | null; upgrades: Partial<Record<UpgradeId, number>>; building: BuildingId;
+  /** Manager skill points spent, and RF boosts with the shop days they have left. */
+  skills: Partial<Record<SkillId, number>>; boosts: Partial<Record<BoostId, number>>;
   staffSlots: number; staff: StaffMember[]; ownedFriends: number[]; generations: Record<number, number>; applicants: number[];
   customers: Customer[]; passersby: Passerby[]; orders: Order[]; workers: Worker[]; events: CafeEvent[];
   spawn: number; nextId: number; blocked: Set<number>; manual: { dx: number; dy: number } | null;
   today: DayStats; totalServed: number; rng: () => number;
 };
 export type OwnedInput = number | { id: number; generation: number | null };
-/** Audio preferences, saved with the wallet's shop. */
-export type Prefs = { track: string; music: boolean; sfx: boolean; volume: number };
-export const DEFAULT_PREFS: Prefs = { track: "latte", music: true, sfx: true, volume: 0.6 };
+/** Audio and interface preferences, saved with the wallet's shop. `confirm` asks before Beans purchases. */
+export type Prefs = { track: string; music: boolean; sfx: boolean; volume: number; confirm: boolean; theme: "auto" | "light" | "dark" };
+export const DEFAULT_PREFS: Prefs = { track: "latte", music: true, sfx: true, volume: 0.6, confirm: true, theme: "auto" };
 
 const perk = (state: CafeState, family: number) => state.familyId === family;
 const emptyDay = (): DayStats => ({ served: 0, lost: 0, beans: 0, tips: 0, vips: 0, best: 0, walkIns: 0 });
@@ -77,6 +79,23 @@ export const plan = (state: CafeState): Plan => planFor(state.size, { building: 
 /** Build-mode selection id for the capsule machine (items have positive ids). */
 export const CAPSULE_ID = -1;
 export const upgradeLevel = (state: CafeState, id: UpgradeId) => state.upgrades[id] ?? 0;
+export const skillLevel = (state: CafeState, id: SkillId) => state.skills[id] ?? 0;
+export const boostActive = (state: CafeState, id: BoostId) => (state.boosts[id] ?? 0) > 0;
+/** Unspent manager skill points: one per café level past the first. */
+export const skillPoints = (state: CafeState) => state.level - 1 - Object.values(state.skills).reduce((sum, points) => sum + (points ?? 0), 0);
+export function raiseSkill(state: CafeState, id: SkillId): string | null {
+  const skill = MANAGER_SKILLS.find(item => item.id === id);
+  if (!skill) return "Unknown skill.";
+  if (skillLevel(state, id) >= skill.max) return "That skill is maxed.";
+  if (skillPoints(state) <= 0) return "No skill points. You earn one each café level.";
+  state.skills[id] = skillLevel(state, id) + 1;
+  return null;
+}
+/** Start (or extend) an RF boost. Called once its capsules have been opened through the SDK. */
+export function addBoost(state: CafeState, id: BoostId) {
+  const boost = BOOSTS.find(item => item.id === id);
+  if (boost) state.boosts[id] = (state.boosts[id] ?? 0) + boost.days;
+}
 
 export function createCafe(options: {
   familyId: number; guestCount: number; regulars?: number[]; ownedFriends?: OwnedInput[]; shop?: ShopId; rng?: () => number;
@@ -86,7 +105,7 @@ export function createCafe(options: {
     phase: "intro", shop: options.shop ?? "cafe", started: false, day: 1, clock: 0, beans: 30, xp: 0, level: 1, rating: 3.5,
     size: START_SIZE, machine: 0, unlocked: new Set(), blends: [0, 0, 0, 0], familyId: options.familyId, guestCount, regulars: options.regulars ?? [],
     items: DEFAULT_ITEMS.map(item => ({ ...item })), wallpaper: "plain", floor: "checker", finishes: new Set(["plain", "checker"]),
-    collection: new Set(), prefs: { ...DEFAULT_PREFS }, capsule: null, upgrades: {}, building: "corner",
+    collection: new Set(), prefs: { ...DEFAULT_PREFS }, capsule: null, upgrades: {}, building: "corner", skills: {}, boosts: {},
     staffSlots: START_STAFF_SLOTS, staff: [], ownedFriends: [], generations: {},
     applicants: Array.from({ length: Math.min(6, guestCount) }, (_, index) => (index * 5 + 3) % guestCount),
     customers: [], passersby: [], orders: [], workers: [], events: [], spawn: 0.5, nextId: 100, blocked: new Set(), manual: null,
@@ -126,15 +145,15 @@ const isExhausted = (member: StaffMember | null) => Boolean(member && member.fat
 export function isWorking(state: CafeState, worker: Worker) {
   return worker.role === "manager" || (worker.duty === "work" && !isExhausted(memberOf(state, worker)));
 }
-const managerSpeed = (state: CafeState) => 3.3 * (perk(state, 5) ? 1.3 : 1) * (1 + 0.08 * upgradeLevel(state, "shoes"));
+const managerSpeed = (state: CafeState) => 3.3 * (perk(state, 5) ? 1.3 : 1) * (1 + 0.08 * upgradeLevel(state, "shoes")) * (1 + 0.08 * skillLevel(state, "quick"));
 function workerSpeed(state: CafeState, worker: Worker) {
   if (worker.role === "manager") return managerSpeed(state);
   const member = memberOf(state, worker);
-  const base = 2.5 * (member ? staffPower(state, member) * (1 + 0.06 * member.stats.speed) : 1) * (perk(state, 2) ? 1.25 : 1);
+  const base = 2.5 * (member ? staffPower(state, member) * (1 + 0.06 * member.stats.speed) : 1) * (perk(state, 2) ? 1.25 : 1) * (1 + 0.05 * skillLevel(state, "leader"));
   return worker.duty === "work" && isTired(member) ? base * 0.85 : base;
 }
 export function carryCapacity(state: CafeState, worker: Worker) {
-  if (worker.role === "manager") return (perk(state, 3) ? 3 : 2) + upgradeLevel(state, "tray");
+  if (worker.role === "manager") return (perk(state, 3) ? 3 : 2) + upgradeLevel(state, "tray") + skillLevel(state, "hands");
   const member = memberOf(state, worker);
   if (!member) return 1;
   const generation = generationOf(state, member.who);
@@ -149,12 +168,17 @@ const activeChefs = (state: CafeState) => chefs(state).filter(worker => {
 /** Where a chef stands to set a dish on the pass. */
 const chefPass = (layout: Plan): Tile => layout.chefPass;
 export const kitchenSlots = (state: CafeState) => 1 + activeChefs(state).length;
-export const tables = (state: CafeState) => state.items.filter(item => item.kind === "table");
+export const tables = (state: CafeState) => state.items.filter(item => isTable(item.kind));
+/** The chair a guest sits on. */
+const seatFor = (state: CafeState, customer: Customer) => { const table = byId(state.items, customer.table); return table ? seatsOf(table)[customer.seat] ?? null : null; };
+const partyOf = (state: CafeState, customer: Customer) => state.customers.filter(other => other.table === customer.table && other.state !== "leaving");
+/** A party orders together, once everyone has sat down. */
+const partySeated = (state: CafeState, customer: Customer) => partyOf(state, customer).every(other => other.state !== "arriving");
 function tire(state: CafeState, worker: Worker, amount: number) {
   const member = memberOf(state, worker);
-  if (!member) return;
+  if (!member || boostActive(state, "tireless")) return;
   const wasTired = isTired(member);
-  member.fatigue = Math.min(FATIGUE.exhausted, member.fatigue + amount * (1 - FATIGUE.levelRelief * (workerLevel(member.xp) - 1)) * (1 - 0.12 * upgradeLevel(state, "breakroom")) * (1 - 0.08 * member.stats.stamina));
+  member.fatigue = Math.min(FATIGUE.exhausted, member.fatigue + amount * (1 - FATIGUE.levelRelief * (workerLevel(member.xp) - 1)) * (1 - 0.12 * upgradeLevel(state, "breakroom")) * (1 - 0.08 * member.stats.stamina) * (1 - 0.05 * skillLevel(state, "leader")));
   if (!wasTired && isTired(member)) state.events.push({ kind: "tired", slot: member.slot });
 }
 function train(state: CafeState, worker: Worker, amount = 1) {
@@ -173,7 +197,7 @@ export function ambiencePoints(state: CafeState) {
 export const ambience = (state: CafeState) => AMBIENCE_LEVELS.filter(points => ambiencePoints(state) >= points).length;
 
 const patienceMultiplier = (state: CafeState) =>
-  (1 + 0.06 * ambience(state)) * (perk(state, 6) ? 1.25 : 1) * (state.blends[2] > 0 ? 1.1 : 1) * (1 + 0.08 * upgradeLevel(state, "chairs"));
+  (1 + 0.06 * ambience(state)) * (perk(state, 6) ? 1.25 : 1) * (state.blends[2] > 0 ? 1.1 : 1) * (1 + 0.08 * upgradeLevel(state, "chairs")) * (1 + 0.05 * skillLevel(state, "calm"));
 export function cookTime(state: CafeState, dish: DishId) {
   const chefFactor = activeChefs(state).reduce((factor, worker) => {
     const member = memberOf(state, worker)!;
@@ -196,7 +220,12 @@ export function walkInChance(state: CafeState) {
 export function availableDishes(state: CafeState): DishId[] {
   return shopById(state.shop).menu.filter(dish => dish.blend === undefined ? state.unlocked.has(dish.id) : state.blends[dish.blend] > 0).map(dish => dish.id);
 }
-export const customerAt = (state: CafeState, tableId: number) => state.customers.find(customer => customer.table === tableId);
+/** The guest at a table who needs something next (waiting to order, then a dish), else anyone there. */
+export const customerAt = (state: CafeState, tableId: number) => {
+  const party = state.customers.filter(customer => customer.table === tableId);
+  return party.find(customer => customer.state === "waiting") ?? party.find(customer => state.orders.some(order => order.customer === customer.id && order.state === "ready"))
+    ?? party.find(customer => customer.state === "ordered") ?? party[0];
+};
 
 /** Kept capsule recipes from the SDK snapshot's inventory drive shop bonuses. */
 export function setBlends(state: CafeState, counts: readonly number[]) {
@@ -238,7 +267,7 @@ export function setBuilding(state: CafeState, id: BuildingId): string | null {
 
 // ---------- Beans purchases ----------
 export type Purchase = "machine" | "slot" | "expand";
-const expansions = (state: CafeState) => (state.size - START_SIZE) / 2;
+export const expansions = (state: CafeState) => state.size - START_SIZE;
 export function purchaseCost(state: CafeState, item: Purchase): number | null {
   if (item === "machine") return MACHINE_COSTS[state.machine] ?? null;
   if (item === "expand") return state.size >= MAX_SIZE ? null : EXPAND_COSTS[expansions(state)] ?? null;
@@ -259,7 +288,8 @@ export function buy(state: CafeState, item: Purchase): string | null {
   if (item === "machine") state.machine++;
   else if (item === "slot") state.staffSlots++;
   else {
-    state.size += 2;
+    state.size += 1;
+    state.staffSlots = Math.min(MAX_STAFF_SLOTS, state.staffSlots + 1);
     if (state.capsule && capsuleProblem(state.items, plan(state), state.capsule)) state.capsule = null;
     refitItems(state); syncWorkers(state); afterLayoutChange(state);
   }
@@ -272,7 +302,7 @@ function refitItems(state: CafeState) {
     if (placementProblem(kept, item, plan(state))) state.beans += catalogItem(item.kind).cost;
     else kept.push(item);
   }
-  if (!kept.some(item => item.kind === "table")) {
+  if (!kept.some(item => isTable(item.kind))) {
     const spare = [...defaultItems(state.building), ...DEFAULT_ITEMS].find(table => !placementProblem(kept, table, plan(state)));
     if (spare) kept.push({ ...spare, id: state.nextId++ });
   }
@@ -324,7 +354,12 @@ function homeFor(state: CafeState, role: StaffRole, index: number): Tile {
   if (role === "chef") return layout.chefSpots[index % layout.chefSpots.length];
   if (role === "promoter") return layout.promoterSpots[index % layout.promoterSpots.length];
   const candidates = [{ x: layout.pickup.x + 1, y: layout.pickup.y + 1 }, { x: 4, y: 1 }, { x: 6, y: layout.d - 1 }, { x: layout.w - 2, y: layout.d - 1 }, { x: 8, y: 1 }, { x: 4, y: 4 }];
-  const free = candidates.filter(tile => inDining(tile, layout) && !state.blocked.has(key(tile)));
+  // Past the preferred posts, waiters wait on open tiles around the pass.
+  const around = [...layout.dining].map(fromKey).filter(tile => !candidates.some(other => same(other, tile)))
+    .sort((a, b) => Math.hypot(a.x - layout.pickup.x, a.y - layout.pickup.y) - Math.hypot(b.x - layout.pickup.x, b.y - layout.pickup.y));
+  const reserved = [layout.pickup, layout.door, layout.capsuleSpot, ...layout.clear];
+  const free = [...candidates, ...around].filter(tile => inDining(tile, layout) && !state.blocked.has(key(tile)) && !reserved.some(other => same(other, tile))
+    && !state.items.some(item => seatsOf(item).some(seat => same(seat, tile))));
   return free[index % Math.max(1, free.length)] ?? layout.pickup;
 }
 /** Every staff Friend is a worker on the map: waiters on the floor, chefs in the kitchen, promoters on the sidewalk. */
@@ -402,7 +437,7 @@ function occupiedByGuest(state: CafeState, tile: Tile) {
   return state.customers.some(customer => same(at(customer.walker), tile) || (customer.walker.path.at(-1) && same(customer.walker.path.at(-1)!, tile)));
 }
 export function itemAt(state: CafeState, tile: Tile): Item | undefined {
-  return state.items.find(item => !isRug(item.kind) && (same(item, tile) || (item.kind === "table" && same(seatOf(item), tile))))
+  return state.items.find(item => !isRug(item.kind) && (same(item, tile) || seatsOf(item).some(seat => same(seat, tile))))
     ?? state.items.find(item => isRug(item.kind) && same(item, tile));
 }
 function afterLayoutChange(state: CafeState) {
@@ -421,7 +456,8 @@ function afterLayoutChange(state: CafeState) {
   }
   for (const customer of state.customers) {
     const table = byId(state.items, customer.table);
-    if (customer.state === "arriving" && table) customer.walker.path = route(at(customer.walker), [seatOf(table)], state.blocked, layout) ?? [seatOf(table)];
+    const seat = seatFor(state, customer);
+    if (customer.state === "arriving" && table && seat) customer.walker.path = route(at(customer.walker), [seat], state.blocked, layout) ?? [seat];
     if (customer.state === "leaving") customer.walker.path = route(at(customer.walker), [{ x: layout.lane, y: layout.door.y }], state.blocked, layout) ?? [];
   }
 }
@@ -430,10 +466,10 @@ export function placeItem(state: CafeState, kind: ItemKind, tile: Tile, dir: Dir
   const entry = catalogItem(kind);
   if (entry.tier !== undefined && !state.collection.has(kind)) return `${entry.name} comes from Rare Recipe Capsules.`;
   if (entry.tier !== undefined && state.items.some(item => item.kind === kind)) return `Your ${entry.name} is already placed. Move it instead.`;
-  if (kind === "table" && tableCount(state) >= tableLimit(state.level)) return `Level ${state.level} allows ${tableLimit(state.level)} tables. Level up for more.`;
+  if (isTable(kind) && tableCount(state) >= tableLimit(state.level)) return `Level ${state.level} allows ${tableLimit(state.level)} tables. Level up for more.`;
   if (state.beans < entry.cost) return "Not enough Beans.";
   const candidate = { kind, x: tile.x, y: tile.y, dir };
-  if (occupiedByGuest(state, tile) || (kind === "table" && occupiedByGuest(state, seatOf(candidate)))) return "A guest is standing there.";
+  if (occupiedByGuest(state, tile) || seatsOf(candidate).some(seat => occupiedByGuest(state, seat))) return "A guest is standing there.";
   const problem = placementProblem(state.items, candidate, plan(state));
   if (problem) return problem;
   state.beans -= entry.cost;
@@ -445,9 +481,9 @@ export function placeItem(state: CafeState, kind: ItemKind, tile: Tile, dir: Dir
 export function moveItem(state: CafeState, id: number, tile: Tile, dir?: Dir): string | null {
   const item = byId(state.items, id);
   if (!item) return "That item is gone.";
-  if (item.kind === "table" && occupiedTable(state, id)) return "A guest is using that table.";
+  if (isTable(item.kind) && occupiedTable(state, id)) return "A guest is using that table.";
   const candidate = { kind: item.kind, x: tile.x, y: tile.y, dir: dir ?? item.dir };
-  if (occupiedByGuest(state, tile) || (item.kind === "table" && occupiedByGuest(state, seatOf(candidate)))) return "A guest is standing there.";
+  if (occupiedByGuest(state, tile) || seatsOf(candidate).some(seat => occupiedByGuest(state, seat))) return "A guest is standing there.";
   const problem = placementProblem(state.items, candidate, plan(state), id);
   if (problem) return problem;
   Object.assign(item, candidate);
@@ -472,8 +508,8 @@ export function moveCapsule(state: CafeState, tile: Tile, dir: Dir): string | nu
 export function sellItem(state: CafeState, id: number): string | null {
   const item = byId(state.items, id);
   if (!item) return "That item is gone.";
-  if (item.kind === "table" && occupiedTable(state, id)) return "A guest is using that table.";
-  if (item.kind === "table" && tableCount(state) <= 1) return "Keep at least one table.";
+  if (isTable(item.kind) && occupiedTable(state, id)) return "A guest is using that table.";
+  if (isTable(item.kind) && tableCount(state) <= 1) return "Keep at least one table.";
   state.items = state.items.filter(other => other !== item);
   state.beans += Math.floor(catalogItem(item.kind).cost * SELL_REFUND);
   afterLayoutChange(state);
@@ -513,6 +549,7 @@ export type CafeSave = {
   unlocked: string[]; items: { kind: ItemKind; x: number; y: number; dir: Dir }[]; wallpaper: string; floor: string; finishes: string[];
   staffSlots: number; staff: { slot: number; owned?: number; guest?: number; role: StaffRole; xp: number; stats?: Stats }[]; totalServed: number;
   collection?: string[]; prefs?: Prefs; capsule?: Placement | null; upgrades?: Partial<Record<UpgradeId, number>>; building?: BuildingId;
+  skills?: Partial<Record<SkillId, number>>; boosts?: Partial<Record<BoostId, number>>;
 };
 /** Long-term progress only. A day in progress resumes from its start; a closed day resumes at the next one. */
 export function serializeCafe(state: CafeState): CafeSave | null {
@@ -523,6 +560,7 @@ export function serializeCafe(state: CafeState): CafeSave | null {
     items: state.items.map(({ kind, x, y, dir }) => ({ kind, x, y, dir })), wallpaper: state.wallpaper, floor: state.floor, finishes: [...state.finishes],
     staffSlots: state.staffSlots, staff: state.staff.map(member => ({ slot: member.slot, role: member.role, xp: member.xp, stats: { ...member.stats }, ...member.who })),
     totalServed: state.totalServed, collection: [...state.collection], prefs: { ...state.prefs }, capsule: state.capsule, upgrades: { ...state.upgrades }, building: state.building,
+    skills: { ...state.skills }, boosts: { ...state.boosts },
   };
 }
 const int = (value: unknown, min: number, max: number) => typeof value === "number" && Number.isInteger(value) && value >= min && value <= max;
@@ -537,7 +575,7 @@ export function restoreCafe(state: CafeState, input: unknown): boolean {
   const size = save.v === 1 ? START_SIZE : save.size;
   if ((save.v !== 1 && save.v !== SAVE_VERSION) || !shop || !int(save.day, 1, 1e6) || !int(save.beans, 0, 1e9) || !int(save.xp, 0, 1e9)
     || !int(save.level, 1, MAX_LEVEL) || typeof save.rating !== "number" || !(save.rating >= 1 && save.rating <= 5) || !int(save.machine, 0, MACHINE_COSTS.length)
-    || !int(save.staffSlots, START_STAFF_SLOTS, MAX_STAFF_SLOTS) || !int(save.totalServed, 0, 1e9) || !int(size, START_SIZE, MAX_SIZE) || size! % 2 !== 0
+    || !int(save.staffSlots, START_STAFF_SLOTS, MAX_STAFF_SLOTS) || !int(save.totalServed, 0, 1e9) || !int(size, START_SIZE, MAX_SIZE)
     || !Array.isArray(save.unlocked) || !Array.isArray(save.items) || !Array.isArray(save.finishes) || !Array.isArray(save.staff)) return false;
   const menu = new Set<string>(shop.menu.map(dish => dish.id));
   if (!save.unlocked.every(id => typeof id === "string" && menu.has(id))) return false;
@@ -550,13 +588,18 @@ export function restoreCafe(state: CafeState, input: unknown): boolean {
   const upgrades = save.upgrades && typeof save.upgrades === "object" ? save.upgrades : {};
   if (!Object.entries(upgrades).every(([id, level]) => UPGRADES.some(item => item.id === id && int(level, 0, item.costs.length)))) return false;
   if (save.building !== undefined && !isBuilding(save.building)) return false;
+  const skills = save.skills && typeof save.skills === "object" ? save.skills : {}, boosts = save.boosts && typeof save.boosts === "object" ? save.boosts : {};
+  if (!Object.entries(skills).every(([id, points]) => MANAGER_SKILLS.some(item => item.id === id && int(points, 0, item.max)))
+    || Object.values(skills).reduce((sum, points) => sum + (points ?? 0), 0) > save.level! - 1
+    || !Object.entries(boosts).every(([id, days]) => BOOSTS.some(item => item.id === id) && int(days, 0, 1000))) return false;
   if (save.items.length > 300 || !save.items.every(item => item && kinds.has(item.kind) && int(item.x, 0, MAX_EXTENT) && int(item.y, 0, MAX_EXTENT) && isDir(item.dir))) return false;
   Object.assign(state, {
     shop: shop.id, started: true, day: save.day, beans: save.beans, xp: save.xp, level: save.level, rating: save.rating, machine: save.machine, size,
     unlocked: new Set(save.unlocked), wallpaper: save.wallpaper, floor: save.floor, finishes: new Set(save.finishes),
-    staffSlots: save.staffSlots, totalServed: save.totalServed, staff: [], collection: new Set(collection), upgrades: { ...upgrades }, capsule: null, building: save.building ?? "corner",
+    staffSlots: save.staffSlots, totalServed: save.totalServed, staff: [], collection: new Set(collection), upgrades: { ...upgrades }, capsule: null, building: save.building ?? "corner", skills: { ...skills }, boosts: { ...boosts },
     prefs: { track: typeof prefs.track === "string" ? prefs.track : DEFAULT_PREFS.track, music: prefs.music !== false, sfx: prefs.sfx !== false,
-      volume: typeof prefs.volume === "number" && prefs.volume >= 0 && prefs.volume <= 1 ? prefs.volume : DEFAULT_PREFS.volume },
+      volume: typeof prefs.volume === "number" && prefs.volume >= 0 && prefs.volume <= 1 ? prefs.volume : DEFAULT_PREFS.volume,
+      confirm: prefs.confirm !== false, theme: prefs.theme === "light" || prefs.theme === "dark" ? prefs.theme : "auto" },
     // Exclusives can only be placed once each, and only if collected.
     items: save.items.filter((item, index, all) => !exclusiveIds.has(item.kind) || (collection.includes(item.kind) && all.findIndex(other => other.kind === item.kind) === index))
       .map((item, index) => ({ id: index + 1, kind: item.kind, x: item.x, y: item.y, dir: item.dir })),
@@ -616,14 +659,22 @@ export function actOnCustomer(state: CafeState, id: number): string {
   if (customer.state === "eating") return `${name} is enjoying their ${dishById(customer.dish!).name}.`;
   if (customer.state === "leaving") return `${name} is heading home.`;
   if (customer.state === "waiting") {
-    if (customer.claimed !== null && customer.claimed !== boss.id) return "A staff Friend is already taking that order.";
+    if (!partySeated(state, customer)) return "Their friends are still finding their seats.";
+    const claimed = partyOf(state, customer).find(other => other.claimed !== null && other.claimed !== boss.id);
+    if (claimed) return "A staff Friend is already taking that table's order.";
     return enqueue(state, { kind: "take", customer: id }) ? "Taking the order." : "Already on your list.";
   }
   const order = state.orders.find(item => item.customer === id);
   if (!order) return "";
   if (order.state === "carried" && order.carrier === boss.id) return enqueue(state, { kind: "serve", customer: id }, true) ? "Serving." : "Already on your list.";
   if (order.state === "carried") return "A staff Friend is bringing that dish.";
-  if (order.state === "ready") { enqueue(state, { kind: "pickup" }); enqueue(state, { kind: "serve", customer: id }); return `Fetching ${dishById(order.dish).name}.`; }
+  if (order.state === "ready") {
+    // Fetch every ready dish for the table in one trip.
+    const ready = partyOf(state, customer).filter(other => state.orders.some(item => item.customer === other.id && item.state === "ready"));
+    enqueue(state, { kind: "pickup" });
+    for (const guest of ready) enqueue(state, { kind: "serve", customer: guest.id });
+    return ready.length > 1 ? `Fetching ${ready.length} dishes for the table.` : `Fetching ${dishById(order.dish).name}.`;
+  }
   return order.state === "plating" ? `The chef is bringing ${dishById(order.dish).name} to the pass.` : `${dishById(order.dish).name} is still cooking.`;
 }
 /** Tables are numbered in placement order, 1 upward. */
@@ -723,7 +774,8 @@ function nextJob(state: CafeState, worker: Worker): Job | null {
   if (worker.role !== "waiter" || !isWorking(state, worker)) return home;
   const mine = new Set(manager(state).queue.flatMap(job => job.kind === "take" ? [job.customer] : []));
   if (state.orders.some(order => order.state === "ready")) return { kind: "pickup" };
-  const waiting = state.customers.filter(customer => customer.state === "waiting" && customer.claimed === null && !mine.has(customer.id))
+  const busy = new Set(state.customers.filter(customer => customer.claimed !== null || mine.has(customer.id)).map(customer => customer.table));
+  const waiting = state.customers.filter(customer => customer.state === "waiting" && !busy.has(customer.table) && partySeated(state, customer))
     .sort((a, b) => a.patience - b.patience)[0];
   if (waiting) { waiting.claimed = worker.id; return { kind: "take", customer: waiting.id }; }
   return home;
@@ -751,14 +803,17 @@ function finish(state: CafeState, worker: Worker, job: Job) {
   const customer = byId(state.customers, job.customer);
   if (!customer) return;
   if (job.kind === "take" && customer.state === "waiting") {
+    // The whole table orders at once.
     const menu = availableDishes(state);
     const weights = menu.map(id => dishById(id).blend !== undefined ? 2 : 1);
-    let roll = state.rng() * weights.reduce((sum, weight) => sum + weight, 0), dish = menu[0];
-    for (let index = 0; index < menu.length; index++) { roll -= weights[index]; if (roll < 0) { dish = menu[index]; break; } }
-    customer.state = "ordered"; customer.dish = dish; customer.claimed = null;
-    customer.patienceMax = customer.patience = FOOD_PATIENCE * patienceMultiplier(state);
-    state.orders.push({ id: state.nextId++, customer: customer.id, dish, state: "queued", progress: 0, duration: cookTime(state, dish), carrier: null });
-    state.events.push({ kind: "order", x: customer.walker.x, y: customer.walker.y });
+    for (const guest of partyOf(state, customer).filter(other => other.state === "waiting")) {
+      let roll = state.rng() * weights.reduce((sum, weight) => sum + weight, 0), dish = menu[0];
+      for (let index = 0; index < menu.length; index++) { roll -= weights[index]; if (roll < 0) { dish = menu[index]; break; } }
+      guest.state = "ordered"; guest.dish = dish; guest.claimed = null;
+      guest.patienceMax = guest.patience = FOOD_PATIENCE * patienceMultiplier(state);
+      state.orders.push({ id: state.nextId++, customer: guest.id, dish, state: "queued", progress: 0, duration: cookTime(state, dish), carrier: null });
+      state.events.push({ kind: "order", x: guest.walker.x, y: guest.walker.y });
+    }
     train(state, worker); tire(state, worker, FATIGUE.perTask);
     return;
   }
@@ -769,10 +824,10 @@ function finish(state: CafeState, worker: Worker, job: Job) {
     state.orders = state.orders.filter(item => item !== order);
     const fraction = customer.patience / customer.patienceMax;
     const tipRate = TIP_RATE * fraction + 0.02 * ambience(state) + 0.03 * Math.min(5, state.blends[0]) + (perk(state, 1) ? 0.1 : 0) + 0.05 * upgradeLevel(state, "tipjar")
-      + 0.03 * (worker.role === "waiter" ? memberOf(state, worker)?.stats.skill ?? 0 : 0);
+      + 0.03 * (worker.role === "waiter" ? memberOf(state, worker)?.stats.skill ?? 0 : 0) + (worker.role === "manager" ? 0.04 * skillLevel(state, "charm") : 0);
     const base = Math.round(dishById(order.dish).price * (1 + 0.06 * upgradeLevel(state, "plating")));
     const double = perk(state, 4) && state.rng() < 0.12;
-    const amount = Math.round(base * (1 + tipRate)) * (customer.vip ? 3 : 1) * (double ? 2 : 1);
+    const amount = Math.round(base * (1 + tipRate) * (boostActive(state, "golden") ? 1.25 : 1)) * (customer.vip ? 3 : 1) * (double ? 2 : 1);
     customer.paid = amount; customer.state = "eating"; customer.eat = EAT_TIME * (1 - 0.2 * upgradeLevel(state, "dishwasher"));
     customer.mood = fraction > 0.5 ? "happy" : "ok";
     state.beans += amount;
@@ -827,18 +882,27 @@ function considerEntering(state: CafeState, passer: Passerby) {
   const taken = new Set(state.customers.map(customer => customer.table));
   const free = tables(state).filter(table => !taken.has(table.id));
   if (isClosing(state) || !free.length || state.rng() >= walkInChance(state)) return;
-  const table = free[Math.floor(state.rng() * free.length)], layout = plan(state), outside = { x: layout.lane, y: layout.door.y };
-  const path = route(outside, [seatOf(table)], state.blocked, layout);
-  if (!path?.length) return;
-  const vip = state.blends[3] > 0 && state.rng() < 0.18, regular = vip ? null : passer.regular;
-  const body = walker(outside, 2.2);
-  body.path = path;
-  state.passersby = state.passersby.filter(item => item !== passer);
-  state.customers.push({
-    id: state.nextId++, name: vip ? "Genesis VIP" : regular !== null ? `Regular #${regular}` : "", guest: passer.guest, regular, vip,
-    walker: body, table: table.id, state: "arriving", dish: null, patience: 0, patienceMax: 1, eat: 0, claimed: null, mood: null, paid: 0,
+  const table = free[Math.floor(state.rng() * free.length)], layout = plan(state), seats = seatsOf(table);
+  // A party: a pair usually fills a table for two; two to four friends take a table for four.
+  const size = seats.length >= 4 ? 2 + Math.floor(state.rng() * 3) : seats.length === 2 ? (state.rng() < 0.7 ? 2 : 1) : 1;
+  const party = seats.slice(0, size).map((seat, index) => {
+    const start = { x: layout.lane, y: layout.door.y + (index ? (index % 2 ? -1 : 1) * Math.ceil(index / 2) : 0) };
+    return { seat: index, start, path: route(start, [seat], state.blocked, layout) };
   });
-  state.today.walkIns++;
+  if (party.some(member => !member.path?.length)) return;
+  const vip = state.blends[3] > 0 && state.rng() < 0.18, regular = vip ? null : passer.regular;
+  state.passersby = state.passersby.filter(item => item !== passer);
+  for (const member of party) {
+    const body = walker(member.start, 2.2 - member.seat * 0.12);
+    body.path = member.path!;
+    const lead = member.seat === 0;
+    state.customers.push({
+      id: state.nextId++, name: lead && vip ? "Genesis VIP" : lead && regular !== null ? `Regular #${regular}` : "",
+      guest: lead ? passer.guest : Math.floor(state.rng() * state.guestCount), regular: lead ? regular : null, vip: lead && vip,
+      walker: body, table: table.id, seat: member.seat, state: "arriving", dish: null, patience: 0, patienceMax: 1, eat: 0, claimed: null, mood: null, paid: 0,
+    });
+  }
+  state.today.walkIns += party.length;
   const promoters = workingPromoters(state);
   if (promoters.length) train(state, promoters[Math.floor(state.rng() * promoters.length)]);
   state.events.push({ kind: "arrive", promoted: promoters.length > 0 });
@@ -850,7 +914,7 @@ export function update(state: CafeState, dt: number) {
   state.clock += dt;
   const layout = plan(state);
   state.spawn -= dt;
-  if (state.spawn <= 0) { spawnPasserby(state); state.spawn = PASSERBY_INTERVAL * (0.6 + state.rng() * 0.8); }
+  if (state.spawn <= 0) { spawnPasserby(state); state.spawn = PASSERBY_INTERVAL * (0.6 + state.rng() * 0.8) * (boostActive(state, "festival") ? 0.5 : 1); }
   for (const passer of [...state.passersby]) {
     step(passer.walker, dt);
     if (!passer.decided && Math.abs(passer.walker.y - layout.door.y) < 0.2) considerEntering(state, passer);
@@ -874,11 +938,13 @@ export function update(state: CafeState, dt: number) {
     const { walker: body } = customer;
     step(body, dt);
     if (customer.state === "arriving" && !body.path.length) {
-      customer.state = "waiting"; body.facing = DIR_FACING[state.items.find(item => item.id === customer.table)?.dir ?? 0];
+      customer.state = "waiting"; body.facing = DIR_FACING[seatFor(state, customer)?.dir ?? 0];
       customer.patienceMax = customer.patience = ORDER_PATIENCE * patienceMultiplier(state);
     } else if (customer.state === "waiting" || customer.state === "ordered") {
       customer.patience -= dt;
-      if (customer.patience <= 0) leave(state, customer, true);
+      // Perfect service (RF boost): nobody leaves unhappy. Guests wait on; after closing they head home content.
+      if (customer.patience <= 0 && boostActive(state, "perfect")) { customer.patience = 0.01; if (isClosing(state)) leave(state, customer, false); }
+      else if (customer.patience <= 0) leave(state, customer, true);
     } else if (customer.state === "eating" && (customer.eat -= dt) <= 0) leave(state, customer, false);
     else if (customer.state === "leaving" && !body.path.length) {
       // Back out on the sidewalk, they stroll off down the street.
@@ -936,11 +1002,13 @@ export function update(state: CafeState, dt: number) {
     const target = job.kind === "pickup" || job.kind === "plate" ? layout.pass : byId(state.items, customer?.table ?? -1) ?? body;
     const dx = target.x - body.x, dy = target.y - body.y;
     body.facing = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "right" : "left") : (dy > 0 ? "down" : "up");
-    worker.action = job.kind === "take" ? 0.45 : job.kind === "pickup" || job.kind === "plate" ? 0.3 : 0.35;
+    worker.action = (job.kind === "take" ? 0.45 : job.kind === "pickup" || job.kind === "plate" ? 0.3 : 0.35)
+      * (worker.role === "manager" ? 1 - 0.2 * skillLevel(state, "service") : 1);
   }
 
   if (isClosing(state) && !state.customers.length) {
     state.phase = "summary";
+    for (const id of Object.keys(state.boosts) as BoostId[]) if ((state.boosts[id] = (state.boosts[id] ?? 0) - 1) <= 0) delete state.boosts[id];
     for (const worker of state.workers) { worker.queue = []; worker.job = null; worker.carrying = []; }
     state.orders = [];
     state.events.push({ kind: "dayEnd" });

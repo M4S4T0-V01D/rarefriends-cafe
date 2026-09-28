@@ -57,14 +57,21 @@ await testGame(game, {
     await frame.getByRole("button", { name: "Build", exact: true }).click();
     assert.equal(await attr(frame, "build"), "on");
     const items = await number(frame, "items");
+    await frame.getByRole("tab", { name: "Décor" }).click();
     await frame.getByRole("button", { name: /^Potted monstera/ }).click();
     const box = await canvas.boundingBox(), spot = tilePoint(box, 9, 9);
     await page.mouse.click(spot.x, spot.y);
+    // Beans purchases ask first.
+    await frame.getByRole("heading", { name: "Confirm" }).waitFor();
+    await frame.getByRole("button", { name: "Buy · ☕ 35", exact: true }).click();
     await frame.getByText("Potted monstera placed.").waitFor();
     assert.equal(await number(frame, "items"), items + 1);
+    await frame.getByRole("tab", { name: "Rugs" }).click();
     await frame.getByRole("button", { name: /^Faded rose rug/ }).click();
     await canvas.focus();
     for (const key of ["ArrowUp", "ArrowUp", "Enter"]) await page.keyboard.press(key);
+    await frame.getByRole("heading", { name: "Confirm" }).waitFor();
+    await page.keyboard.press("Enter");
     await frame.getByText("Faded rose rug placed.").waitFor();
     await frame.getByRole("tab", { name: "Floor" }).click();
     await shot(page, "desktop-build");
@@ -106,6 +113,33 @@ await testGame(game, {
     await frame.getByRole("button", { name: "Place", exact: true }).first().click();
     assert.equal(await attr(frame, "build"), "on", "Place opens build mode with the exclusive selected");
     await frame.getByRole("button", { name: "Done", exact: true }).click();
+
+    // RF boost: two capsules (bought with simulated RF) pay for a day of perfect service instead of collectibles.
+    await frame.getByRole("button", { name: /^Capsules/ }).click();
+    await frame.getByRole("tab", { name: "Machine" }).click();
+    for (let i = 0; i < 2; i++) {
+      await frame.getByRole("button", { name: /^Buy 1/ }).click();
+      await page.getByRole("button", { name: "Confirm preview", exact: true }).click();
+      await frame.getByText(`${i + 1} capsule${i ? "s" : ""} ready`).first().waitFor();
+    }
+    await frame.getByRole("tab", { name: "Boosts" }).click();
+    await frame.locator(".cafe-row", { hasText: "Perfect service" }).getByRole("button").click();
+    await page.getByRole("button", { name: "Confirm preview", exact: true }).click();
+    await frame.getByRole("heading", { name: "2 capsules opened" }).waitFor();
+    await frame.getByText("Spent on Perfect service").first().waitFor();
+    await frame.getByRole("button", { name: "Keep the rest", exact: true }).click();
+    await frame.getByRole("button", { name: /^Close Rare Capsule Machine/ }).click();
+    await frame.getByText(/Perfect service · 1d/).waitFor();
+
+    // Pause: Esc pauses and Esc resumes.
+    await frame.locator("canvas[tabindex]").focus();
+    await page.keyboard.press("Escape");
+    await frame.getByRole("heading", { name: "Paused" }).waitFor();
+    const clock = await frame.locator(".cafe-day").innerText();
+    await page.waitForTimeout(1500);
+    assert.equal(await frame.locator(".cafe-day").innerText(), clock, "the clock stops while paused");
+    await page.keyboard.press("Escape");
+    await frame.getByRole("heading", { name: "Paused" }).waitFor({ state: "detached" });
 
     await frame.getByRole("button", { name: "Settings", exact: true }).click();
     await frame.getByRole("button", { name: "Sound on", exact: true }).click();

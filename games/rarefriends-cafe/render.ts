@@ -1,9 +1,9 @@
 /** Canvas renderer: greyscale isometric shop and street with faded accent colours, framed by a camera in the 960 × 640 view. */
 import type { GenerationSprites } from "@rarefriends/friendsdk/sprites";
-import { FLOORS, WALLPAPERS, dishById, isRug, shopById, workerLevel, type DishId, type DishShape, type ItemKind, type Shop } from "./data.ts";
+import { FLOORS, WALLPAPERS, catalogItem, dishById, isRug, isTable, shopById, workerLevel, type DishId, type DishShape, type ItemKind, type Shop } from "./data.ts";
 import { CAPSULE_ID, DIR_FACING, ambience, dayProgress, manager, memberOf, plan, tables, type CafeState, type Customer, type Facing, type Passerby, type StaffWho, type Worker } from "./engine.ts";
 import type { GuestArt } from "./guests.ts";
-import { FACING, buildingById, cameraFor, fromKey, key, project, seatOf, toWorld, unproject, type Camera, type Dir, type Item, type Placement, type Tile } from "./layout.ts";
+import { FACING, buildingById, cameraFor, fromKey, key, project, seatOf, seatsOf, toWorld, unproject, type Camera, type Dir, type Item, type Placement, type Tile } from "./layout.ts";
 
 export const VIEW = { width: 960, height: 640 } as const;
 export const INK = "#161616", PAPER = "#efede7";
@@ -57,6 +57,20 @@ function box(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, d: 
   poly(ctx, [l, f, { x: f.x, y: f.y - h }, { x: l.x, y: l.y - h }], left, INK);
   poly(ctx, [f, r, { x: r.x, y: r.y - h }, { x: f.x, y: f.y - h }], right, INK);
   poly(ctx, [b, r, f, l].map(point => ({ x: point.x, y: point.y - h })), top, INK);
+  // A soft bevel: a light line just inside the top's back edges, so boxes read as rounded and friendly.
+  if (Math.abs(r.x - l.x) > 6) {
+    const inset = (point: Point) => ({ x: point.x + (f.x - point.x) * 0.12, y: point.y - h + (f.y - point.y) * 0.12 });
+    ctx.save(); ctx.strokeStyle = "rgba(255,255,255,.45)"; ctx.lineWidth = 1.2; ctx.beginPath();
+    const [a, c, e] = [inset(l), inset(b), inset(r)]; ctx.moveTo(a.x, a.y); ctx.lineTo(c.x, c.y); ctx.lineTo(e.x, e.y); ctx.stroke(); ctx.restore();
+  }
+}
+/** A tiny happy face (dot eyes, a smile and blush) on the front of a pot. */
+function cuteFace(ctx: CanvasRenderingContext2D, at: Point, size = 1) {
+  ctx.save(); ctx.fillStyle = INK;
+  ctx.fillRect(at.x - 3.5 * size, at.y - 1, 1.6 * size, 1.6 * size); ctx.fillRect(at.x + 2 * size, at.y - 1, 1.6 * size, 1.6 * size);
+  ctx.strokeStyle = INK; ctx.lineWidth = 0.9; ctx.beginPath(); ctx.arc(at.x, at.y + 0.6, 1.6 * size, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke();
+  ctx.fillStyle = "rgba(201,143,143,.7)"; ctx.beginPath(); ctx.ellipse(at.x - 5 * size, at.y + 1.5, 1.6 * size, 1 * size, 0, 0, Math.PI * 2); ctx.ellipse(at.x + 5.2 * size, at.y + 1.5, 1.6 * size, 1 * size, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
 }
 function shadow(ctx: CanvasRenderingContext2D, x: number, y: number, radius = 16) {
   const point = project(x, y);
@@ -401,23 +415,85 @@ function backToFront(dir: Dir, parts: readonly Part[]) {
   }
 }
 
-function drawTable(ctx: CanvasRenderingContext2D, item: Item, number: number, accent: string) {
-  shadow(ctx, item.x, item.y, 20);
-  const base = project(item.x, item.y);
-  ctx.fillStyle = C.dark; ctx.fillRect(base.x - 2, base.y - 22, 4, 22);
-  ctx.beginPath(); ctx.ellipse(base.x, base.y - 1, 9, 3, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.strokeStyle = INK; ctx.lineWidth = 1.4;
-  ctx.fillStyle = "#e4e1da"; ctx.beginPath(); ctx.ellipse(base.x, base.y - 22, 24, 10, 0, 0, Math.PI); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = C.light; ctx.beginPath(); ctx.ellipse(base.x, base.y - 25, 24, 10, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = C.mid; ctx.font = "bold 9px ui-monospace, monospace"; ctx.textAlign = "center"; ctx.fillText(String(number), base.x + 14, base.y - 23);
-  ctx.fillStyle = accent; ctx.beginPath(); ctx.arc(base.x - 10, base.y - 31, 2.6, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-  line(ctx, { x: base.x - 10, y: base.y - 28.5 }, { x: base.x - 10, y: base.y - 25 });
+const WOOD = ["#c9ab85", "#9c7f63", "#b39374"] as const;
+/** A ring of grid points around (x, y), projected: iso-correct ovals for table tops and cloths. */
+function isoOval(x: number, y: number, rx: number, ry: number, lift: number, along: "x" | "y" = "x", steps = 28): Point[] {
+  return Array.from({ length: steps }, (_, index) => {
+    const a = index / steps * Math.PI * 2, u = Math.cos(a) * rx, v = Math.sin(a) * ry;
+    return along === "x" ? project(x + u, y + v, lift) : project(x + v, y + u, lift);
+  });
 }
-/** The chair faces its table; its back is on the far side. Chairs facing away from the viewer draw the back separately, in front of the guest. */
-function drawChair(ctx: CanvasRenderingContext2D, seat: Tile, dir: Dir, part: "seat" | "back" | "both" = "both") {
-  const facing = FACING[dir];
-  if (part !== "back") box(ctx, seat.x, seat.y, 0.42, 0.42, 14, "#8b8883", "#5f5d59", "#76736f");
-  if (part !== "seat") box(ctx, seat.x - facing.x * 0.2, seat.y - facing.y * 0.2, facing.x ? 0.06 : 0.42, facing.y ? 0.06 : 0.42, 20, "#8b8883", "#5f5d59", "#76736f", 14);
+function scallops(ctx: CanvasRenderingContext2D, points: readonly Point[], color: string) {
+  ctx.fillStyle = color;
+  points.forEach((point, index) => { if (index % 2) return; ctx.beginPath(); ctx.arc(point.x, point.y + 1.5, 2.4, 0, Math.PI); ctx.fill(); });
+}
+function vase(ctx: CanvasRenderingContext2D, at: Point, accent: string) {
+  ctx.strokeStyle = "#7f8f76"; ctx.lineWidth = 1.2; line(ctx, { x: at.x, y: at.y - 5 }, { x: at.x - 2, y: at.y - 12 }); line(ctx, { x: at.x, y: at.y - 5 }, { x: at.x + 3, y: at.y - 10 });
+  ctx.strokeStyle = INK; ctx.lineWidth = 1;
+  ctx.fillStyle = C.light; ctx.beginPath(); ctx.ellipse(at.x, at.y - 2.5, 2.6, 3.6, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  for (const [dx, dy] of [[-2, -12], [3, -10]]) { ctx.fillStyle = accent; ctx.beginPath(); ctx.arc(at.x + dx, at.y + dy, 2.3, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); }
+}
+/** Tables: a round café table with a scalloped cloth, an oval table for two with a candle, a square table for four with gingham. */
+function drawTable(ctx: CanvasRenderingContext2D, item: Pick<Item, "kind" | "x" | "y" | "dir">, number: number, accent: string, now = 0, reducedMotion = true) {
+  const seats = catalogItem(item.kind).seats ?? 1, base = project(item.x, item.y);
+  shadow(ctx, item.x, item.y, seats >= 4 ? 26 : 22);
+  ctx.lineWidth = 1.2; ctx.strokeStyle = INK;
+  if (seats >= 4) {
+    for (const [dx, dy] of [[-0.3, -0.3], [0.3, -0.3], [-0.3, 0.3], [0.3, 0.3]]) box(ctx, item.x + dx, item.y + dy, 0.07, 0.07, 22, WOOD[0], WOOD[1], WOOD[2]);
+    box(ctx, item.x, item.y, 0.78, 0.78, 4, WOOD[0], WOOD[1], WOOD[2], 22);
+    // Gingham cloth laid corner to corner, with a flower centrepiece.
+    const cloth = [project(item.x, item.y - 0.46, 26.5), project(item.x + 0.46, item.y, 26.5), project(item.x, item.y + 0.46, 26.5), project(item.x - 0.46, item.y, 26.5)];
+    poly(ctx, cloth, C.light, INK);
+    ctx.save(); ctx.beginPath(); cloth.forEach((point, index) => index ? ctx.lineTo(point.x, point.y) : ctx.moveTo(point.x, point.y)); ctx.closePath(); ctx.clip();
+    ctx.strokeStyle = accent; ctx.globalAlpha *= 0.55; ctx.lineWidth = 3;
+    for (let t = -0.4; t <= 0.4; t += 0.2) { line(ctx, project(item.x + t, item.y - 0.5, 26.5), project(item.x + t, item.y + 0.5, 26.5)); line(ctx, project(item.x - 0.5, item.y + t, 26.5), project(item.x + 0.5, item.y + t, 26.5)); }
+    ctx.restore(); ctx.lineWidth = 1;
+    vase(ctx, project(item.x, item.y, 27), accent);
+  } else if (seats === 2) {
+    const along = item.dir % 2 === 0 ? "y" : "x";
+    ctx.fillStyle = C.dark; ctx.fillRect(base.x - 2, base.y - 22, 4, 22); ctx.beginPath(); ctx.ellipse(base.x, base.y - 1, 10, 3.5, 0, 0, Math.PI * 2); ctx.fill();
+    poly(ctx, isoOval(item.x, item.y, 0.44, 0.3, 21, along), WOOD[1], INK);
+    poly(ctx, isoOval(item.x, item.y, 0.44, 0.3, 25, along), WOOD[0], INK);
+    ctx.strokeStyle = "rgba(22,22,22,.14)"; poly(ctx, isoOval(item.x, item.y, 0.3, 0.18, 25, along), "rgba(0,0,0,0)"); ctx.stroke(); ctx.strokeStyle = INK;
+    // A little candle, flickering.
+    const top = project(item.x, item.y, 25), flicker = reducedMotion ? 0 : Math.sin(now / 130 + item.x * 7) * 0.8;
+    ctx.fillStyle = C.light; ctx.fillRect(top.x - 2, top.y - 9, 4, 8); ctx.strokeRect(top.x - 2, top.y - 9, 4, 8);
+    ctx.fillStyle = C.amber; ctx.beginPath(); ctx.ellipse(top.x, top.y - 12 - flicker * 0.3, 1.8, 3 + flicker * 0.4, 0, 0, Math.PI * 2); ctx.fill();
+  } else {
+    ctx.fillStyle = C.dark; ctx.fillRect(base.x - 2, base.y - 22, 4, 22);
+    ctx.beginPath(); ctx.ellipse(base.x, base.y - 1, 9, 3, 0, 0, Math.PI * 2); ctx.fill();
+    // A round top under a pastel cloth with a scalloped hem.
+    ctx.fillStyle = "#e4e1da"; ctx.beginPath(); ctx.ellipse(base.x, base.y - 22, 24, 10, 0, 0, Math.PI); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = C.light; ctx.beginPath(); ctx.ellipse(base.x, base.y - 25, 24, 10, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    const hem = Array.from({ length: 12 }, (_, index) => { const a = index / 11 * Math.PI; return { x: base.x + Math.cos(a) * 23, y: base.y - 22 + Math.sin(a) * 9.5 }; });
+    scallops(ctx, hem, accent);
+    ctx.fillStyle = accent; ctx.globalAlpha *= 0.35; ctx.beginPath(); ctx.ellipse(base.x, base.y - 25, 14, 5.8, 0, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha /= 0.35;
+    vase(ctx, { x: base.x - 9, y: base.y - 27 }, accent);
+  }
+  if (number) {
+    const tag = project(item.x, item.y, seats >= 4 ? 27 : 25);
+    ctx.fillStyle = C.light; ctx.strokeStyle = INK; ctx.beginPath(); ctx.roundRect(tag.x + 7, tag.y - 6, number > 9 ? 16 : 11, 9, 3); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = C.mid; ctx.font = "bold 8px ui-monospace, monospace"; ctx.textAlign = "center"; ctx.fillText(String(number), tag.x + (number > 9 ? 15 : 12.5), tag.y + 1);
+  }
+}
+/**
+ * A wooden chair facing its table (its back on the far side): four legs, a seat with a pastel cushion, and a back with a heart.
+ * Chairs facing away from the viewer draw the back separately, in front of the seated guest.
+ */
+function drawChair(ctx: CanvasRenderingContext2D, seat: Tile, dir: Dir, part: "seat" | "back" | "both" = "both", cushion: string = C.rose) {
+  const facing = FACING[dir], side = FACING[(dir + 1) % 4];
+  if (part !== "back") {
+    for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) box(ctx, seat.x + a * 0.15, seat.y + b * 0.15, 0.05, 0.05, 11, WOOD[0], WOOD[1], WOOD[2]);
+    box(ctx, seat.x, seat.y, 0.42, 0.42, 3, WOOD[0], WOOD[1], WOOD[2], 11);
+    box(ctx, seat.x + facing.x * 0.02, seat.y + facing.y * 0.02, 0.32, 0.32, 3, cushion, shade(cushion.startsWith("#") ? cushion : "#d8b6b4", 0.82), shade(cushion.startsWith("#") ? cushion : "#d8b6b4", 0.92), 14);
+  }
+  if (part !== "seat") {
+    const bx = seat.x - facing.x * 0.19, by = seat.y - facing.y * 0.19, thinX = facing.x !== 0, w = thinX ? 0.05 : 0.4, d = thinX ? 0.4 : 0.05;
+    for (const s of [-1, 1]) box(ctx, bx + side.x * s * 0.17, by + side.y * s * 0.17, 0.05, 0.05, 18, WOOD[0], WOOD[1], WOOD[2], 14);
+    box(ctx, bx, by, w, d, 7, WOOD[0], WOOD[1], WOOD[2], 25);
+    const heartAt = project(bx, by, 22);
+    heart(ctx, heartAt.x, heartAt.y - 1, cushion, 2.6);
+  }
 }
 function drawRug(ctx: CanvasRenderingContext2D, kind: ItemKind, tile: Tile, dir: Dir, alpha = 0.7) {
   ctx.globalAlpha = alpha; ctx.lineWidth = 1;
@@ -472,7 +548,8 @@ export function drawItem(ctx: CanvasRenderingContext2D, kind: ItemKind, tile: Ti
   const base = project(tile.x, tile.y), front = facesViewer(dir);
   ctx.lineWidth = 1; ctx.strokeStyle = INK;
   if (kind === "plant") {
-    box(ctx, tile.x, tile.y, 0.4, 0.4, 18, "#9c8d7f", "#7b6e62", "#8b7d70");
+    box(ctx, tile.x, tile.y, 0.4, 0.4, 18, "#c79a82", "#a57a64", "#b88a73");
+    if (front) cuteFace(ctx, local(tile, dir, 0, 0.2, 9));
     const stem = project(tile.x, tile.y, 18);
     backToFront(dir, ([[-0.2, 0.08, 34, 10], [0.18, -0.12, 38, 11], [0.02, -0.04, 50, 10], [-0.02, 0.22, 28, 8], [0.22, 0.14, 30, 7]] as const).map(([u, v, lift, r]) => [u, v, () => {
       const leaf = local(tile, dir, u, v, lift);
@@ -481,7 +558,8 @@ export function drawItem(ctx: CanvasRenderingContext2D, kind: ItemKind, tile: Ti
       ctx.strokeStyle = "rgba(22,22,22,.3)"; line(ctx, { x: leaf.x - r * 0.6, y: leaf.y + (leaf.x - base.x) / 30 * -r }, { x: leaf.x + r * 0.6, y: leaf.y + (leaf.x - base.x) / 30 * r }); ctx.strokeStyle = INK;
     }] as const));
   } else if (kind === "cactus") {
-    box(ctx, tile.x, tile.y, 0.3, 0.3, 14, "#c79a82", "#a57a64", "#b88a73");
+    box(ctx, tile.x, tile.y, 0.3, 0.3, 14, "#d8b6b4", "#b39190", "#c6a3a1");
+    if (front) cuteFace(ctx, local(tile, dir, 0, 0.15, 7), 0.8);
     const top = project(tile.x, tile.y, 14), at = turn(dir, 0.3, 0.02), arm = local(tile, dir, 0.3, 0.02, 30);
     const drawArm = () => {
       ctx.fillStyle = "#9fb393"; ctx.beginPath(); ctx.roundRect(Math.min(top.x, arm.x), arm.y - 2, Math.abs(arm.x - top.x), 6, 3); ctx.fill(); ctx.stroke();
@@ -1128,25 +1206,26 @@ export function renderScene(ctx: CanvasRenderingContext2D, scene: Scene, pixelSc
   for (const item of state.items) {
     if (isRug(item.kind)) continue;
     const faded = build?.selected === item.id && build.ghost ? 0.35 : 1;
-    if (item.kind === "table") {
-      const seat = seatOf(item);
-      // A chair facing away from the viewer has its back in front of the seated guest.
-      if (facesViewer(item.dir)) add(seat.x + seat.y, 0, () => { ctx.globalAlpha = faded; drawChair(ctx, seat, item.dir); ctx.globalAlpha = 1; });
-      else {
-        add(seat.x + seat.y, 0, () => { ctx.globalAlpha = faded; drawChair(ctx, seat, item.dir, "seat"); ctx.globalAlpha = 1; });
-        add(seat.x + seat.y + 0.3, 0, () => { ctx.globalAlpha = faded; drawChair(ctx, seat, item.dir, "back"); ctx.globalAlpha = 1; });
+    if (isTable(item.kind)) {
+      const accent = accents[item.id % 4];
+      for (const seat of seatsOf(item)) {
+        // A chair facing away from the viewer has its back in front of the seated guest.
+        if (facesViewer(seat.dir)) add(seat.x + seat.y, 0, () => { ctx.globalAlpha = faded; drawChair(ctx, seat, seat.dir, "both", accent); ctx.globalAlpha = 1; });
+        else {
+          add(seat.x + seat.y, 0, () => { ctx.globalAlpha = faded; drawChair(ctx, seat, seat.dir, "seat", accent); ctx.globalAlpha = 1; });
+          add(seat.x + seat.y + 0.3, 0, () => { ctx.globalAlpha = faded; drawChair(ctx, seat, seat.dir, "back", accent); ctx.globalAlpha = 1; });
+        }
       }
-      add(item.x + item.y, 0, () => { ctx.globalAlpha = faded; drawTable(ctx, item, tableNumbers.get(item.id)!, accents[item.id % 4]); ctx.globalAlpha = 1; });
+      add(item.x + item.y, 0, () => { ctx.globalAlpha = faded; drawTable(ctx, item, tableNumbers.get(item.id)!, accent, now, reducedMotion); ctx.globalAlpha = 1; });
     } else add(item.x + item.y, 0, () => { ctx.globalAlpha = faded; drawItem(ctx, item.kind, item, item.dir, now, reducedMotion, statueRows(item.dir)); ctx.globalAlpha = 1; });
   }
   if (build?.ghost) {
     const ghost = build.ghost;
     const tint = () => { if (!build.valid) poly(ctx, tileQuad(ghost.x, ghost.y, 0.04), "rgba(184,109,109,.35)", "#9a4e4e"); };
     if (isRug(ghost.kind)) add(-1, 9, () => { drawRug(ctx, ghost.kind, ghost, ghost.dir, build.valid ? 0.55 : 0.25); tint(); });
-    else if (ghost.kind === "table") {
-      const seat = seatOf(ghost);
-      add(seat.x + seat.y + 0.02, 9, () => { ctx.globalAlpha = 0.65; drawChair(ctx, seat, ghost.dir); ctx.globalAlpha = 1; });
-      add(ghost.x + ghost.y + 0.02, 9, () => { tint(); ctx.globalAlpha = 0.65; drawTable(ctx, { ...ghost, id: 0 }, 0, C.butter); ctx.globalAlpha = 1; });
+    else if (isTable(ghost.kind)) {
+      for (const seat of seatsOf(ghost)) add(seat.x + seat.y + 0.02, 9, () => { ctx.globalAlpha = 0.65; drawChair(ctx, seat, seat.dir, "both", C.butter); ctx.globalAlpha = 1; });
+      add(ghost.x + ghost.y + 0.02, 9, () => { tint(); ctx.globalAlpha = 0.65; drawTable(ctx, ghost, 0, C.butter); ctx.globalAlpha = 1; });
     } else add(ghost.x + ghost.y + 0.02, 9, () => { tint(); ctx.globalAlpha = 0.65; drawItem(ctx, ghost.kind, ghost, ghost.dir, now, true, statueRows(ghost.dir)); ctx.globalAlpha = 1; });
   }
   for (const passer of state.passersby) add(passer.walker.x + passer.walker.y, 1, () => drawPasserby(ctx, scene, passer));

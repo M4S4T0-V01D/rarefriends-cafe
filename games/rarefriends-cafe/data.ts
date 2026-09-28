@@ -79,10 +79,10 @@ export const EAT_TIME = 4;
 
 // ---------- Staff ----------
 export const START_STAFF_SLOTS = 1;
-export const MAX_STAFF_SLOTS = 5;
+export const MAX_STAFF_SLOTS = 10;
 /** Cost and café level for staff slot number (index + 2). */
-export const STAFF_SLOT_COSTS = [120, 280, 520, 900] as const;
-export const STAFF_SLOT_LEVELS = [2, 4, 6, 9] as const;
+export const STAFF_SLOT_COSTS = [120, 280, 520, 900, 1300, 1800, 2400, 3100, 4000] as const;
+export const STAFF_SLOT_LEVELS = [2, 4, 6, 9, 10, 11, 12, 13, 14] as const;
 export type StaffRoleInfo = Readonly<{ id: "waiter" | "chef" | "promoter"; name: string; text: string }>;
 export const STAFF_ROLES: readonly StaffRoleInfo[] = [
   { id: "waiter", name: "Waiter", text: "Takes orders and delivers dishes." },
@@ -121,8 +121,9 @@ export const PASSERBY_INTERVAL = 1.6;
 export const BASE_WALK_IN = 0.34;
 export const PROMOTER_PULL = 0.12;
 /** Expanding adds 2 tiles to each side of the shop. */
-export const EXPAND_COSTS = [400, 900, 1600] as const;
-export const EXPAND_LEVELS = [4, 7, 10] as const;
+/** Ten expansions, each one tile longer on both sides and one more staff slot (up to the maximum). */
+export const EXPAND_COSTS = [300, 500, 750, 1000, 1300, 1650, 2050, 2500, 3000, 3600] as const;
+export const EXPAND_LEVELS = [3, 4, 5, 6, 7, 8, 9, 10, 12, 14] as const;
 
 // ---------- Shop upgrades ----------
 export type UpgradeId = "sign" | "shoes" | "chairs" | "tipjar" | "breakroom" | "dishwasher" | "plating" | "tray";
@@ -140,18 +141,46 @@ export const UPGRADES: readonly Upgrade[] = [
 ];
 export const upgradeById = (id: UpgradeId) => UPGRADES.find(item => item.id === id)!;
 
+// ---------- Manager skills ----------
+/** Every café level past the first gives your manager one skill point. */
+export type SkillId = "quick" | "hands" | "charm" | "service" | "leader" | "calm";
+export const MANAGER_SKILLS: readonly { id: SkillId; name: string; text: string; max: number }[] = [
+  { id: "quick", name: "Quick feet", text: "You walk 8% faster per point.", max: 3 },
+  { id: "hands", name: "Steady hands", text: "Carry one more dish per point.", max: 2 },
+  { id: "service", name: "Snappy service", text: "Taking orders and serving take 20% less time per point.", max: 2 },
+  { id: "charm", name: "Charm", text: "+4% tips on dishes you serve yourself, per point.", max: 3 },
+  { id: "calm", name: "Calm presence", text: "Guests wait 5% longer per point.", max: 3 },
+  { id: "leader", name: "Leadership", text: "Staff move 5% faster and tire 5% slower per point.", max: 3 },
+];
+
+// ---------- RF boosts ----------
+/**
+ * Boosts are paid with Rare Capsules (bought with RF through the SDK). The capsules still open and settle into recipes as
+ * usual, but give the boost instead of a collectible or duplicate Beans. `days` counts shop days, including one in progress.
+ */
+export type BoostId = "tireless" | "perfect" | "festival" | "golden";
+export const BOOSTS: readonly { id: BoostId; name: string; text: string; capsules: number; days: number }[] = [
+  { id: "tireless", name: "Tireless crew", text: "Staff don't tire at all.", capsules: 2, days: 3 },
+  { id: "perfect", name: "Perfect service", text: "No guest leaves unhappy: patience never runs out.", capsules: 2, days: 1 },
+  { id: "festival", name: "Street festival", text: "Twice as many Friends walk down the street.", capsules: 3, days: 2 },
+  { id: "golden", name: "Golden hour", text: "Every dish pays 25% more.", capsules: 3, days: 2 },
+];
+
 // ---------- Build mode ----------
 export type ExclusiveId = "luckycat" | "gumball" | "crane" | "jukebox" | "fountain" | "telescope" | "starlamp" | "statue";
 export type RugKind = "rug" | "runner" | "roundrug";
-export type ItemKind = "table" | "plant" | "lamp" | "shelf" | "record" | "piano" | RugKind
+export type ItemKind = "table" | "tabletwo" | "tablefour" | "plant" | "lamp" | "shelf" | "record" | "piano" | RugKind
   | "cactus" | "coatrack" | "chalkboard" | "flowers" | "armchair" | "catbed" | "birdcage" | "cakecase" | "sofa" | "clock" | "arcade" | "aquarium" | ExclusiveId;
 /**
  * `tier` marks an RF exclusive: collected from Rare Recipe Capsules (0 House Secret … 3 Golden Recipe), then placed for free.
  * Items that don't block are rugs: flat, walkable, and furniture can stand on them.
  */
-export type CatalogItem = Readonly<{ kind: ItemKind; name: string; cost: number; ambience: number; blocks: boolean; text: string; tier?: number }>;
+/** `seats` marks a table: 1 (chair on the `dir` side), 2 (opposite sides) or 4 (every side). */
+export type CatalogItem = Readonly<{ kind: ItemKind; name: string; cost: number; ambience: number; blocks: boolean; text: string; tier?: number; seats?: number }>;
 export const CATALOG: readonly CatalogItem[] = [
-  { kind: "table", name: "Table & chair", cost: 60, ambience: 0, blocks: true, text: "Seats one guest. R / Rotate turns the chair to any side." },
+  { kind: "table", name: "Table & chair", cost: 60, ambience: 0, blocks: true, seats: 1, text: "Seats one guest. R / Rotate turns the chair to any side." },
+  { kind: "tabletwo", name: "Table for two", cost: 110, ambience: 0, blocks: true, seats: 2, text: "Seats a pair across the table; one order for both." },
+  { kind: "tablefour", name: "Table for four", cost: 190, ambience: 1, blocks: true, seats: 4, text: "A chair on every side for groups of up to four; one order for the table." },
   { kind: "cactus", name: "Little cactus", cost: 25, ambience: 1, blocks: true, text: "+1 ambience" },
   { kind: "plant", name: "Potted monstera", cost: 35, ambience: 1, blocks: true, text: "+1 ambience" },
   { kind: "coatrack", name: "Coat rack", cost: 40, ambience: 1, blocks: true, text: "+1 ambience" },
@@ -187,9 +216,10 @@ export const EXCLUSIVES = CATALOG.filter(item => item.tier !== undefined);
 export const DUPLICATE_BEANS = [40, 80, 160, 400] as const;
 export const catalogItem = (kind: ItemKind) => CATALOG.find(item => item.kind === kind)!;
 export const isRug = (kind: ItemKind) => !catalogItem(kind).blocks;
+export const isTable = (kind: ItemKind) => (catalogItem(kind).seats ?? 0) > 0;
 export const START_TABLES = 3;
 /** Most tables allowed at a shop level (more room after expanding helps fit them). */
-export const tableLimit = (level: number) => Math.min(16, START_TABLES + level);
+export const tableLimit = (level: number) => Math.min(100, 5 + 7 * (level - 1));
 export const SELL_REFUND = 0.5;
 
 export type Finish = Readonly<{ id: string; name: string; cost: number; ambience: number; colors: readonly string[] }>;

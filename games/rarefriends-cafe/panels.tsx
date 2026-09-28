@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import {
-  MAX_STAT, WORKER_STATS, CATALOG, FAMILY_NAMES, FLOORS, MAX_STAFF_SLOTS, SHOPS, STAFF_ROLES, WALLPAPERS, WORKER_LEVEL_XP, catalogItem, tableLimit, tierOf, workerLevel,
+  isRug, isTable, MAX_STAT, WORKER_STATS, CATALOG, FAMILY_NAMES, FLOORS, MAX_STAFF_SLOTS, SHOPS, STAFF_ROLES, WALLPAPERS, WORKER_LEVEL_XP, catalogItem, tableLimit, tierOf, workerLevel,
   type DishShape, type Finish, type ItemKind, type ShopId, type StatId,
 } from "./data.ts";
 import { TRACKS, type TrackId } from "./audio.ts";
@@ -126,7 +126,7 @@ export function StaffPanel({ state, candidates, picking, onPick, onAssign, onRol
           {(() => { const worker = state.workers.find(item => item.slot === slot); return worker && <button type="button" disabled={paused || worker.duty !== "work" || member.fatigue < 20} onClick={() => onBreak(worker.id)}>{worker.duty !== "work" ? "On break" : `Break · ${Math.round(100 - member.fatigue)}%`}</button>; })()}
           <button type="button" disabled={paused} onClick={() => onAssign(slot, null)}>Dismiss</button>
         </div>}
-        {member && <div className="cafe-stats" role="group" aria-label={`Attributes for slot ${slot + 1}`}>
+        {member && <div className="cafe-attrs" role="group" aria-label={`Attributes for slot ${slot + 1}`}>
           <small>{statPoints(member) > 0 ? `${statPoints(member)} point${statPoints(member) > 1 ? "s" : ""} to spend` : "1 point per worker level"}</small>
           {WORKER_STATS.map(stat => <button type="button" key={stat.id} title={stat.text} disabled={paused || statPoints(member) <= 0 || member.stats[stat.id] >= MAX_STAT}
             aria-label={`${stat.name} ${member.stats[stat.id]} of ${MAX_STAT}. ${stat.text}`} onClick={() => onStat(slot, stat.id)}>
@@ -190,7 +190,10 @@ export function MusicControls({ prefs, collected, onChange }: { prefs: Prefs; co
   </div>;
 }
 
-export type BuildTool = { tab: "items" | "walls" | "floors" | "building" | "music"; mode: "place" | "move" | "sell"; kind: ItemKind; dir: Dir };
+/** Furniture is split into tables, rugs and décor tabs (all "items" underneath). */
+export type Shelf = "tables" | "rugs" | "decor";
+export type BuildTool = { tab: "items" | "walls" | "floors" | "building" | "music"; shelf: Shelf; mode: "place" | "move" | "sell"; kind: ItemKind; dir: Dir };
+const shelfOf = (kind: ItemKind): Shelf => isTable(kind) ? "tables" : isRug(kind) ? "rugs" : "decor";
 /** Screen arrow and words for each facing, in R order (a quarter turn clockwise each). */
 export const DIR_LABELS = [["↙", "front-left"], ["↘", "front-right"], ["↗", "back-right"], ["↖", "back-left"]] as const;
 export const turned = (dir: Dir, by = 1) => ((dir + by + 4) % 4) as Dir;
@@ -208,7 +211,10 @@ export function BuildBar({ state, tool, onTool, onFinish, onDone, message, onPre
   return <div className="cafe-build" role="toolbar" aria-label="Build mode">
     <div className="cafe-build-head">
       <div className="cafe-tabs" role="tablist" aria-label="Build categories">
-        {(["items", "walls", "floors", "building", "music"] as const).map(tab => <button type="button" role="tab" key={tab} aria-selected={tool.tab === tab} onClick={() => onTool({ ...tool, tab })}>{tab === "items" ? "Furniture" : tab === "walls" ? "Wallpaper" : tab === "floors" ? "Floor" : tab === "building" ? "Building" : "Music"}</button>)}
+        {(["tables", "rugs", "decor"] as const).map(shelf => <button type="button" role="tab" key={shelf} aria-selected={tool.tab === "items" && tool.shelf === shelf}
+          onClick={() => { const first = CATALOG.find(item => shelfOf(item.kind) === shelf)!; onTool({ ...tool, tab: "items", shelf, mode: "place", kind: shelfOf(tool.kind) === shelf ? tool.kind : first.kind }); }}>
+          {shelf === "tables" ? "Tables" : shelf === "rugs" ? "Rugs" : "Décor"}</button>)}
+        {(["walls", "floors", "building", "music"] as const).map(tab => <button type="button" role="tab" key={tab} aria-selected={tool.tab === tab} onClick={() => onTool({ ...tool, tab })}>{tab === "walls" ? "Wallpaper" : tab === "floors" ? "Floor" : tab === "building" ? "Building" : "Music"}</button>)}
       </div>
       <span className="cafe-build-status" role="status">{message || `☕ ${state.beans} · tables ${tableCount(state)}/${tableLimit(state.level)}`}</span>
       <button type="button" className="rf-frame-primary" onClick={onDone}>Done</button>
@@ -218,7 +224,7 @@ export function BuildBar({ state, tool, onTool, onFinish, onDone, message, onPre
         {(["move", "sell"] as const).map(mode => <button type="button" key={mode} aria-pressed={tool.mode === mode} onClick={() => onTool({ ...tool, mode })}>
           <span>{mode === "move" ? "✥ Move" : "✕ Sell"}<small>{mode === "move" ? "tap item, then tile" : "50% refund"}</small></span></button>)}
         <button type="button" onClick={() => onTool({ ...tool, dir: turned(tool.dir) })} aria-label={`Rotate (R), now facing ${DIR_LABELS[tool.dir][1]}`}><span>⟳ Rotate {DIR_LABELS[tool.dir][0]}<small>R · Shift+R back</small></span></button>
-        {CATALOG.filter(item => item.tier === undefined || (state.collection.has(item.kind) && !state.items.some(placed => placed.kind === item.kind))).map(item =>
+        {CATALOG.filter(item => shelfOf(item.kind) === tool.shelf && (item.tier === undefined || (state.collection.has(item.kind) && !state.items.some(placed => placed.kind === item.kind)))).map(item =>
           <button type="button" key={item.kind} aria-pressed={tool.mode === "place" && tool.kind === item.kind} disabled={state.beans < item.cost} className={item.tier !== undefined ? "cafe-exclusive" : undefined}
             onClick={() => onTool({ ...tool, mode: "place", kind: item.kind })}><span>{item.name}<small>{item.tier !== undefined ? "RF exclusive · free" : `☕ ${item.cost}`}{item.ambience ? ` · +${item.ambience}` : ""}</small></span></button>)}
       </> : tool.tab === "walls" ? finishes("wallpaper", WALLPAPERS) : tool.tab === "floors" ? finishes("floor", FLOORS)
