@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   isRug, isTable, MAX_STAT, WORKER_STATS, CATALOG, FAMILY_NAMES, FLOORS, MAX_STAFF_SLOTS, SHOPS, STAFF_ROLES, WALLPAPERS, WORKER_LEVEL_XP, catalogItem, tableLimit, tierOf, workerLevel,
   SCENERIES, type SceneryId, type DishShape, type Finish, type ItemKind, type ShopId, type StatId,
 } from "./data.ts";
 import { TRACKS, type TrackId } from "./audio.ts";
-import type { Prefs } from "./engine.ts";
+import { SHUFFLE_EVERY, type Prefs } from "./engine.ts";
 import { generationOf, purchaseCost, purchaseLevel, staffAt, staffPower, statPoints, tableCount, type CafeState, type StaffRole, type StaffWho } from "./engine.ts";
 import type { GuestArt } from "./guests.ts";
 import { drawItem, drawShape, INK } from "./render.ts";
@@ -176,8 +176,55 @@ export function ItemPreview({ kind, locked = false, statue, size = 64 }: { kind:
 }
 
 /** Music track, music/effects toggles and volume. Tracks from RF exclusives unlock when collected. */
+/** Tracks the player can play: every track not waiting on a capsule exclusive. */
+export const playableTracks = (collected: ReadonlySet<string>) => TRACKS.filter(track => !track.unlock || collected.has(track.unlock));
+/**
+ * The track `step` places along from the current one (wrapping round), or with `random`, any other playable track at random.
+ */
+export function stepTrack(current: string, collected: ReadonlySet<string>, step: 1 | -1, random?: () => number): TrackId {
+  const list = playableTracks(collected), index = list.findIndex(track => track.id === current);
+  if (random && list.length > 1) {
+    const others = list.filter(track => track.id !== current);
+    return others[Math.floor(random() * others.length)].id as TrackId;
+  }
+  return list[((index < 0 ? 0 : index + step) % list.length + list.length) % list.length].id as TrackId;
+}
+const trackName = (id: string) => TRACKS.find(track => track.id === id) ?? TRACKS[0];
+
+/** Previous / next buttons and the shuffle setting. */
+function MusicSkip({ prefs, collected, onChange }: { prefs: Prefs; collected: ReadonlySet<string>; onChange: (prefs: Prefs) => void }) {
+  const skip = (step: 1 | -1) => onChange({ ...prefs, music: true, track: stepTrack(prefs.track, collected, step, prefs.shuffle && step === 1 ? Math.random : undefined) });
+  return <div className="cafe-music-skip">
+    <button type="button" onClick={() => skip(-1)} aria-label="Previous track" title="Previous track">⏮</button>
+    <button type="button" onClick={() => skip(1)} aria-label="Next track" title={prefs.shuffle ? "Next track (random)" : "Next track"}>⏭</button>
+    <label className="cafe-check"><input type="checkbox" checked={prefs.shuffle} onChange={event => onChange({ ...prefs, shuffle: event.target.checked })} /> Shuffle every</label>
+    <select aria-label="Change song every" value={prefs.shuffleEvery} disabled={!prefs.shuffle} onChange={event => onChange({ ...prefs, shuffleEvery: Number(event.target.value) })}>
+      {SHUFFLE_EVERY.map(seconds => <option key={seconds} value={seconds}>{seconds / 60} min</option>)}
+    </select>
+  </div>;
+}
+
+/**
+ * Now playing, in the bottom-left corner: it pops up with the track's name and mood when the song changes, then folds
+ * down to a small chip that keeps the skip buttons.
+ */
+export function NowPlaying({ prefs, collected, onChange }: { prefs: Prefs; collected: ReadonlySet<string>; onChange: (prefs: Prefs) => void }) {
+  const [open, setOpen] = useState(true), [hover, setHover] = useState(false), track = trackName(prefs.track);
+  useEffect(() => { setOpen(true); const timer = setTimeout(() => setOpen(false), 6000); return () => clearTimeout(timer); }, [prefs.track, prefs.music]);
+  if (!prefs.music) return null;
+  const skip = (step: 1 | -1) => onChange({ ...prefs, track: stepTrack(prefs.track, collected, step, prefs.shuffle && step === 1 ? Math.random : undefined) });
+  const expanded = open || hover;
+  return <div className={`cafe-now${expanded ? " open" : ""}`} role="status" aria-live="polite" onPointerEnter={() => setHover(true)} onPointerLeave={() => setHover(false)}>
+    <span className="cafe-now-note" aria-hidden="true">♫</span>
+    <span className="cafe-now-text"><small>{prefs.shuffle ? "Now playing · shuffle" : "Now playing"}</small><strong>{track.name}</strong>{expanded && <small>{track.mood}</small>}</span>
+    <button type="button" onClick={() => skip(-1)} aria-label="Previous track" title="Previous track">⏮</button>
+    <button type="button" onClick={() => skip(1)} aria-label="Next track" title="Next track">⏭</button>
+  </div>;
+}
+
 export function MusicControls({ prefs, collected, onChange }: { prefs: Prefs; collected: ReadonlySet<string>; onChange: (prefs: Prefs) => void }) {
   return <div className="cafe-music">
+    <MusicSkip prefs={prefs} collected={collected} onChange={onChange} />
     <div className="cafe-music-tracks" role="radiogroup" aria-label="Music track">
       {TRACKS.map(track => {
         const locked = Boolean(track.unlock && !collected.has(track.unlock));

@@ -74,8 +74,10 @@ export type CafeState = {
 };
 export type OwnedInput = number | { id: number; generation: number | null };
 /** Audio and interface preferences, saved with the wallet's shop. `confirm` asks before Beans purchases. */
-export type Prefs = { track: string; music: boolean; sfx: boolean; volume: number; confirm: boolean; theme: "auto" | "light" | "dark" };
-export const DEFAULT_PREFS: Prefs = { track: "latte", music: true, sfx: true, volume: 0.6, confirm: true, theme: "auto" };
+/** `shuffle`: move on to a random unlocked track every `shuffleEvery` seconds. */
+export type Prefs = { track: string; music: boolean; sfx: boolean; volume: number; confirm: boolean; theme: "auto" | "light" | "dark"; shuffle: boolean; shuffleEvery: number };
+export const SHUFFLE_EVERY = [60, 120, 180, 300] as const;
+export const DEFAULT_PREFS: Prefs = { track: "latte", music: true, sfx: true, volume: 0.6, confirm: true, theme: "auto", shuffle: false, shuffleEvery: 120 };
 
 const perk = (state: CafeState, family: number) => state.familyId === family;
 const emptyDay = (): DayStats => ({ served: 0, lost: 0, beans: 0, tips: 0, vips: 0, best: 0, walkIns: 0, happy: 0, group: 0, done: [], rewards: 0 });
@@ -667,7 +669,8 @@ export function restoreCafe(state: CafeState, input: unknown): boolean {
     staffSlots: save.staffSlots, totalServed: save.totalServed, staff: [], collection: new Set(collection), upgrades: { ...upgrades }, capsule: null, building: save.building ?? "corner", skills: { ...skills }, boosts: { ...boosts }, scenery: save.scenery ?? "lot", sceneries: owned,
     prefs: { track: typeof prefs.track === "string" ? prefs.track : DEFAULT_PREFS.track, music: prefs.music !== false, sfx: prefs.sfx !== false,
       volume: typeof prefs.volume === "number" && prefs.volume >= 0 && prefs.volume <= 1 ? prefs.volume : DEFAULT_PREFS.volume,
-      confirm: prefs.confirm !== false, theme: prefs.theme === "light" || prefs.theme === "dark" ? prefs.theme : "auto" },
+      confirm: prefs.confirm !== false, theme: prefs.theme === "light" || prefs.theme === "dark" ? prefs.theme : "auto",
+      shuffle: prefs.shuffle === true, shuffleEvery: (SHUFFLE_EVERY as readonly unknown[]).includes(prefs.shuffleEvery) ? prefs.shuffleEvery : DEFAULT_PREFS.shuffleEvery },
     // Exclusives can only be placed once each, and only if collected.
     items: save.items.filter((item, index, all) => !exclusiveIds.has(item.kind) || (collection.includes(item.kind) && all.findIndex(other => other.kind === item.kind) === index))
       .map((item, index) => ({ id: index + 1, kind: item.kind, x: item.x, y: item.y, dir: item.dir })),

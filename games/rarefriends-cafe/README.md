@@ -27,7 +27,9 @@ See [the root README](../../README.md#how-the-host-extends-the-sdk).
 Tasks queue up with numbered markers. The shop pauses while paused, while a menu or build mode is open, or during a runtime confirmation.
 Settings has **dark mode** (auto, light or dark), **Ask before spending Beans**, and **What's new** (the update log).
 Sound starts on your first tap. The **♪** button mutes everything. Settings and Build → **Music** have the track
-picker, music and effects toggles, and volume. **Reduce motion** is in Settings and follows the system setting.
+picker, ⏮ / ⏭ skip buttons, **Shuffle every 1 / 2 / 3 / 5 min** (a random unlocked track; 2 min by default), music and
+effects toggles, and volume. A **now playing** card pops up in the bottom-left corner when the song changes, then folds to a
+small chip that keeps the skip buttons (hover it to see the track's mood). **Reduce motion** is in Settings and follows the system setting.
 
 ## The shop
 
@@ -153,7 +155,7 @@ usual, but give the boost instead of a collectible. Boosts count shop days, incl
 - **Wallpapers (12):** plain, faded stripes 60 (+1), sage gingham 70 (+1), polka dots 90 (+1), subway tile 110 (+1), white brick 140 (+2), butter florals 150 (+2), wood panelling 180 (+2), lavender chevron 200 (+2), dusty-blue damask 520 (+3), rose scallops 680 (+3), starry night 950 (+4).
 - **Floors (12):** grey checker, strawberry checker 70 (+1), oak planks 80 (+1), tatami mats 110 (+1), sage hex 120 (+1), slate flagstones 140 (+2), terrazzo 150 (+2), parquet squares 170 (+2), herringbone 190 (+2), lavender carpet 210 (+2), rose marble 560 (+3), blue mosaic 900 (+4). Once bought, a design is free to switch back to.
 - **Ambience level** 1–5 at 3 / 8 / 15 / 24 / 36 points (décor, wallpaper, floor and scenery). It raises tips, patience and walk-ins, and hangs framed art, paper lanterns (level 3) and a moon chandelier (level 5).
-- **Music** tab: pick the jazz track and set volume (see Audio).
+- **Music** tab: pick the jazz track, skip, turn on shuffle and set volume (see Audio).
 
 ## Manager family perks
 

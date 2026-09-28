@@ -188,6 +188,23 @@
 .cafe-music-tracks small { display: block; font-size: 10px; opacity: .75; }
 .cafe-music-levels { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 .cafe-music-levels .cafe-check { margin: 0; font-size: 12px; }
+.cafe-music-skip { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; flex: 0 0 auto; }
+.cafe-music-skip button { box-shadow: none; min-height: 30px; padding: 3px 10px; }
+.cafe-music-skip .cafe-check { margin: 0; font-size: 12px; }
+.cafe-music-skip select { font: inherit; font-size: 12px; min-height: 30px; border: 1.5px solid var(--ink); background: var(--paper); color: var(--ink); }
+/* Now playing: bottom-left, above the host bar; pops open on a song change, then folds to a chip. */
+.cafe-now { position: absolute; left: 12px; bottom: 100px; z-index: 4; display: flex; align-items: center; gap: 6px; max-width: min(300px, calc(100% - 24px));
+  padding: 4px 6px 4px 8px; background: var(--card); border: 1.5px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); transition: padding .2s, transform .2s; }
+.cafe-now.open { padding: 8px 8px 8px 10px; transform: translateY(-2px); }
+.cafe-now-note { display: grid; place-items: center; width: 24px; height: 24px; flex: 0 0 auto; background: var(--sage); border: 1.5px solid var(--ink); font-size: 13px; }
+.cafe-now.open .cafe-now-note { width: 34px; height: 34px; font-size: 18px; animation: cafe-now-pop .5s ease-out; }
+.cafe-now-text { display: grid; min-width: 0; line-height: 1.2; }
+.cafe-now-text strong { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cafe-now-text small { font-size: 9.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cafe-now button { min-height: 26px; padding: 1px 7px; font-size: 12px; box-shadow: none; flex: 0 0 auto; }
+@keyframes cafe-now-pop { 0% { transform: scale(.6) rotate(-12deg); } 70% { transform: scale(1.12) rotate(4deg); } 100% { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .cafe-now, .cafe-now.open .cafe-now-note { transition: none; animation: none; } }
+@media (max-width: 640px) { .cafe-now { bottom: 70px; left: 6px; } .cafe-now-text strong { font-size: 10px; } .cafe-now button { min-height: 22px; font-size: 10px; } }
 .cafe-build-row .cafe-music { flex-wrap: nowrap; }
 .cafe-build-row .cafe-music-tracks { flex-wrap: nowrap; }
 .cafe-build-row button.cafe-exclusive { border-color: #b8962e; background: #f6efd6; }

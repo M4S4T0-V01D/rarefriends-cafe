@@ -3,6 +3,14 @@ export type Release = Readonly<{ version: string; date: string; title: string; n
 
 export const CHANGELOG: readonly Release[] = [
   {
+    version: "1.7", date: "2026-09-28", title: "Shuffle, skip and now playing",
+    notes: [
+      "Music can shuffle: Settings or Build → Music → Shuffle every 1, 2, 3 or 5 minutes plays a random unlocked track.",
+      "⏮ ⏭ skip buttons in the music controls.",
+      "A now playing card pops up in the bottom-left corner when the song changes, then folds to a small chip with the skip buttons.",
+    ],
+  },
+  {
     version: "1.6", date: "2026-09-28", title: "Two roads, three new buildings, a busy kitchen and a master menu",
     notes: [
       "A side road now runs along the café's other front into the main road, with its own sidewalks, curbs, lamps and a zebra crossing. The side-street shops sit across it, and their Friends cross at the corner.",

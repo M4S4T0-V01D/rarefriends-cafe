@@ -18,7 +18,7 @@ import {
 } from "./engine.ts";
 import { createGuests } from "./guests.ts";
 import { buildingById, placementProblem, viewTurn, worldStep, type Tile } from "./layout.ts";
-import { BuildBar, BuildingPicker, ItemPreview, MusicControls, ShopPicker, SpriteChip, StaffPanel, staffCandidates, toolLabel, turned, type BuildTool } from "./panels.tsx";
+import { BuildBar, BuildingPicker, ItemPreview, MusicControls, NowPlaying, ShopPicker, SpriteChip, StaffPanel, staffCandidates, stepTrack, toolLabel, turned, type BuildTool } from "./panels.tsx";
 import { REGULAR_SPRITES } from "./regulars.ts";
 import { VIEW, friendRows, hitTest, panBy, renderScene, resetView, tileAt, turnViewBy, view, zoomAt, type BuildView, type Floater } from "./render.ts";
 import { HOST_HELLO, HOST_STATE, SAVE_WRITE, SHARE_REQUEST, SHARE_RESULT, parseStaffRoster, type ShareAction, type ShareOutcome } from "./roster.ts";
@@ -577,6 +577,16 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
   };
 
   const state = cafe.current;
+  // Shuffle: move on to a random unlocked track every few minutes while the music plays.
+  const prefs = state?.prefs;
+  useEffect(() => {
+    if (!prefs?.shuffle || !prefs.music) return;
+    const timer = setTimeout(() => {
+      const current = cafe.current;
+      if (current) changePrefs({ ...current.prefs, track: stepTrack(current.prefs.track, current.collection, 1, Math.random) });
+    }, prefs.shuffleEvery * 1000);
+    return () => clearTimeout(timer);
+  }, [prefs?.track, prefs?.shuffle, prefs?.shuffleEvery, prefs?.music]);
   const shop = shopById(state && !state.started && state.phase === "intro" ? shopChoice : state?.shop ?? "cafe");
   const familyName = friend.current ? FAMILY_NAMES[friend.current.familyId] : "";
   const familyPerk = friend.current ? FAMILY_PERKS[friend.current.familyId] : null;
@@ -713,6 +723,7 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
           onBuilding={id => confirmBuy(`Move into the ${buildingById(id).name.toLowerCase()}`, 0, () => { const problem = setBuilding(state, id); setBuildMessage(problem ?? `Moved into the ${buildingById(id).name.toLowerCase()}.`); if (!problem) cue("purchase"); setBuild({ ...build, selected: null, cursor: null }); setHud(readHud(state)); refresh(); },
             state.started && state.building !== id ? "Furniture that doesn't fit the new building is refunded in Beans." : undefined)}
           onFinish={(surface, id) => { const finish = (surface === "wallpaper" ? WALLPAPERS : FLOORS).find(item => item.id === id)!; confirmBuy(`${finish.name} ${surface}`, state.finishes.has(id) ? 0 : finish.cost, () => { const problem = applyFinish(state, surface, id); setBuildMessage(problem ?? `${surface === "wallpaper" ? "Wallpaper" : "Floor"} applied.`); if (!problem) cue("purchase"); setHud(readHud(state)); refresh(); }); }} />}
+        {!build && state && <NowPlaying prefs={state.prefs} collected={state.collection} onChange={changePrefs} />}
         {hud.phase === "open" && !build && <div className="cafe-footer">
           <p role="status" aria-live="polite">{toast || (hud.queue ? `${hud.queue} task${hud.queue > 1 ? "s" : ""} queued${hud.carrying ? ` · carrying ${hud.carrying}` : ""}` : hud.carrying ? `Carrying ${hud.carrying} dish${hud.carrying > 1 ? "es" : ""}` : "Tap a guest to take an order · tap the counter when a dish is ready")}</p>
           {hud.queue > 0 && <button type="button" onClick={() => { if (cafe.current) { clearQueue(cafe.current); setHud(readHud(cafe.current)); } }}>Clear tasks</button>}
