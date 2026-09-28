@@ -942,10 +942,10 @@ function stroll(layout: Plan, from: Tile, down: boolean): Tile[] {
   const end = down ? layout.laneEnd : layout.laneStart;
   return Array.from({ length: Math.abs(end - from.y) }, (_, index) => ({ x: layout.lane, y: from.y + (down ? index + 1 : -index - 1) }));
 }
-/** The side sidewalk from its far end to the corner (or back), one tile at a time. */
-function sideWalk(layout: Plan, east: boolean): Tile[] {
+/** A side sidewalk (the café's, or across the side road at `sideFar`) from its far end to the corner (or back), one tile at a time. */
+function sideWalk(layout: Plan, east: boolean, row = layout.side): Tile[] {
   const xs = Array.from({ length: layout.lane - layout.sideStart + 1 }, (_, index) => layout.sideStart + index);
-  return (east ? xs : xs.reverse()).map(x => ({ x, y: layout.side }));
+  return (east ? xs : xs.reverse()).map(x => ({ x, y: row }));
 }
 /** Friends stroll along the street in both directions, and some come round the corner from the side sidewalk. */
 function spawnPasserby(state: CafeState) {
@@ -953,9 +953,10 @@ function spawnPasserby(state: CafeState) {
   const regular = state.regulars.length && state.rng() < 0.1 ? state.regulars[Math.floor(state.rng() * state.regulars.length)] : null;
   let start: Tile, path: Tile[];
   if (corner && down) {
-    // Down the street, round the corner and off along the side.
+    // Down the street, round the corner and off along the side; some cross the side road first and take the far sidewalk.
+    const row = state.rng() < 0.5 ? layout.side : layout.sideFar;
     start = { x: layout.lane, y: layout.laneStart };
-    path = [...stroll(layout, start, true).filter(tile => tile.y <= layout.side), ...sideWalk(layout, false).slice(1)];
+    path = [...stroll(layout, start, true).filter(tile => tile.y <= row), ...sideWalk(layout, false, row).slice(1)];
   } else if (corner) {
     // In from the side, round the corner and up the street past the door.
     const along = sideWalk(layout, true);
@@ -974,7 +975,7 @@ function spawnPasserby(state: CafeState) {
     const home = homes[Math.floor(state.rng() * homes.length)];
     start = home.door;
     path = home.row === "side"
-      ? [home.approach, ...sideWalk(layout, true).filter(tile => tile.x > home.approach.x), ...stroll(layout, { x: layout.lane, y: layout.side }, false)]
+      ? [home.approach, ...sideWalk(layout, true, layout.sideFar).filter(tile => tile.x > home.approach.x), ...stroll(layout, { x: layout.lane, y: layout.sideFar }, false)]
       : [home.approach, { x: layout.lane, y: home.approach.y }, ...stroll(layout, { x: layout.lane, y: home.approach.y }, true)];
   } else if (state.rng() < 0.3) {
     const shop = homes.find(n => path.findIndex(tile => same(tile, n.approach)) > 3);

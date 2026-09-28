@@ -272,6 +272,58 @@ function paintFloorTile(ctx: CanvasRenderingContext2D, id: string, x: number, y:
   ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.quadraticCurveTo((a.x + b.x) / 2 + 6, (a.y + b.y) / 2 - 4, b.x, b.y); ctx.stroke();
 }
 
+const CURB = ["#c7c4bd", "#a9a6a0", "#b8b5ae"] as const, ASPHALT = "#9b9994";
+/** A road's surface between two corners, with a few patches and cracks so it isn't flat grey. */
+function asphalt(ctx: CanvasRenderingContext2D, x0: number, y0: number, x1: number, y1: number) {
+  poly(ctx, [project(x0, y0), project(x1, y0), project(x1, y1), project(x0, y1)], ASPHALT);
+  for (let y = Math.ceil(y0); y < y1; y++) for (let x = Math.ceil(x0); x < x1; x++) {
+    const h = Math.abs(x * 73 + y * 151) % 23;
+    if (h === 3) poly(ctx, [project(x + 0.1, y + 0.1), project(x + 0.6, y + 0.1), project(x + 0.6, y + 0.45), project(x + 0.1, y + 0.45)], "rgba(22,22,22,.07)");
+    if (h === 11) { ctx.strokeStyle = "rgba(22,22,22,.16)"; ctx.lineWidth = 0.8; const a = project(x + 0.2, y + 0.3), b = project(x + 0.5, y + 0.4), c = project(x + 0.7, y + 0.25); ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.lineTo(c.x, c.y); ctx.stroke(); ctx.lineWidth = 1; }
+    if (h === 17) { const p = project(x + 0.5, y + 0.5); ctx.fillStyle = "rgba(247,245,240,.18)"; ctx.fillRect(p.x - 3, p.y, 2, 1); ctx.fillRect(p.x + 2, p.y - 2, 1.5, 1); }
+  }
+}
+/** A zebra crossing: stripes stepped along the `across` axis from `from` to `to`, each `width` tiles long and centred on `at`. */
+function zebra(ctx: CanvasRenderingContext2D, across: "x" | "y", from: number, to: number, at: number, width: number) {
+  for (let t = from + 0.15; t + 0.1 <= to; t += 0.3) {
+    const quad = across === "x"
+      ? [project(t, at - width / 2), project(t + 0.14, at - width / 2), project(t + 0.14, at + width / 2), project(t, at + width / 2)]
+      : [project(at - width / 2, t), project(at + width / 2, t), project(at + width / 2, t + 0.14), project(at - width / 2, t + 0.14)];
+    poly(ctx, quad, "rgba(247,245,240,.82)");
+  }
+}
+/**
+ * The streets: the main road past the door with a sidewalk on each side, and the side road along the building's other
+ * front, which runs into the main road at a T-junction with a crossing where the café's sidewalk meets it.
+ */
+function paintStreets(ctx: CanvasRenderingContext2D, layout: ReturnType<typeof plan>) {
+  const { w, d, lane, laneStart, laneEnd, side, sideStart, sideFar, farLane } = layout;
+  const crossing = (y: number) => y > side && y < sideFar;
+  for (let y = laneStart; y <= laneEnd; y++) for (let x = w; x <= lane; x++) if (!crossing(y)) paintFloorTile(ctx, "sidewalk", x, y, []);
+  for (let y = d; y <= side; y++) for (let x = sideStart; x < w; x++) paintFloorTile(ctx, "sidewalk", x, y, []);
+  for (let x = sideStart; x < w; x++) paintFloorTile(ctx, "sidewalk", x, sideFar, []);
+  for (let y = laneStart; y <= laneEnd; y++) paintFloorTile(ctx, "sidewalk", farLane, y, []);
+  // Road surfaces: the main road, and the side road running into it across the corner.
+  asphalt(ctx, lane + 0.5, laneStart - 0.5, lane + 2.5, laneEnd + 0.5);
+  asphalt(ctx, sideStart - 0.5, side + 0.5, lane + 0.5, sideFar - 0.5);
+  ctx.strokeStyle = C.light; ctx.lineWidth = 2; ctx.setLineDash([10, 12]);
+  line(ctx, project(lane + 1.5, laneStart - 0.5), project(lane + 1.5, laneEnd + 0.5));
+  line(ctx, project(sideStart - 0.5, side + 1.5), project(w - 1.5, side + 1.5)); ctx.setLineDash([]);
+  // A give-way line where the side road meets the main road.
+  ctx.lineWidth = 2.5; line(ctx, project(lane + 0.5, side + 0.5), project(lane + 0.5, sideFar - 0.5)); ctx.lineWidth = 1;
+  // Curbs along every sidewalk edge, broken where the side road runs through.
+  const curbAlongY = (x: number, from: number, to: number) => box(ctx, x, (from + to) / 2, 0.1, to - from, 4, ...CURB);
+  const curbAlongX = (y: number, from: number, to: number) => box(ctx, (from + to) / 2, y, to - from, 0.1, 4, ...CURB);
+  curbAlongY(farLane - 0.55, laneStart - 0.5, laneEnd + 0.5);
+  curbAlongX(side + 0.55, sideStart - 0.5, lane + 0.5);
+  curbAlongX(sideFar - 0.55, sideStart - 0.5, lane + 0.5);
+  curbAlongY(lane + 0.55, laneStart - 0.5, side + 0.5);
+  curbAlongY(lane + 0.55, sideFar - 0.5, laneEnd + 0.5);
+  // Striped crossings: over the main road in front of the door, and over the side road on the café's sidewalk.
+  zebra(ctx, "y", layout.door.y - 0.5, layout.door.y + 0.5, lane + 1.5, 1.6);
+  zebra(ctx, "x", w - 0.5, lane + 0.5, side + 1.5, 1.6);
+}
+
 function paintBackdrop(state: CafeState, scale: number, camera: Camera) {
   const canvas = recycled.pop() ?? document.createElement("canvas");
   canvas.width = Math.round(VIEW.width * scale); canvas.height = Math.round(VIEW.height * scale);
@@ -283,20 +335,10 @@ function paintBackdrop(state: CafeState, scale: number, camera: Camera) {
   ctx.translate(camera.x, camera.y); ctx.scale(camera.zoom, camera.zoom);
   const shop = shopById(state.shop), level = ambience(state), layout = plan(state), { w: WIDE, d: DEEP } = layout;
 
-  // Outside: the scenery's ground and the props behind the back walls, then the sidewalks, curbs and a quiet road.
+  // Outside: the scenery's ground and the props behind the back walls, then the sidewalks, curbs and quiet roads.
   paintGround(ctx, layout, state.scenery);
   for (const prop of outsideProps(layout, state.scenery).filter(prop => behindWalls(prop, layout)).sort((a, b) => depthOf(a.x, a.y) - depthOf(b.x, b.y))) drawProp(ctx, prop, 0, true);
-  for (let y = layout.laneStart; y <= layout.laneEnd; y++) for (let x = WIDE; x <= layout.lane; x++) paintFloorTile(ctx, "sidewalk", x, y, []);
-  for (let y = DEEP; y <= layout.side; y++) for (let x = layout.sideStart; x < WIDE; x++) paintFloorTile(ctx, "sidewalk", x, y, []);
-  for (let y = layout.laneStart; y <= layout.laneEnd; y++) paintFloorTile(ctx, "sidewalk", layout.farLane, y, []);
-  box(ctx, layout.farLane - 0.55, (layout.laneStart + layout.laneEnd) / 2, 0.1, layout.laneEnd - layout.laneStart + 1, 4, "#c7c4bd", "#a9a6a0", "#b8b5ae");
-  box(ctx, (layout.sideStart - 0.5 + layout.lane + 0.5) / 2, layout.side + 0.55, layout.lane - layout.sideStart + 1, 0.1, 4, "#c7c4bd", "#a9a6a0", "#b8b5ae");
-  poly(ctx, [project(layout.lane + 0.5, layout.laneStart - 0.5), project(layout.lane + 2.5, layout.laneStart - 0.5), project(layout.lane + 2.5, layout.laneEnd + 0.5), project(layout.lane + 0.5, layout.laneEnd + 0.5)], "#9b9994");
-  ctx.strokeStyle = C.light; ctx.lineWidth = 2; ctx.setLineDash([10, 12]);
-  line(ctx, project(layout.lane + 1.5, layout.laneStart - 0.5), project(layout.lane + 1.5, layout.laneEnd + 0.5)); ctx.setLineDash([]); ctx.lineWidth = 1;
-  box(ctx, layout.lane + 0.55, (layout.laneStart + layout.laneEnd) / 2, 0.1, layout.laneEnd - layout.laneStart + 1, 4, "#c7c4bd", "#a9a6a0", "#b8b5ae");
-  // A striped crossing in front of the door.
-  for (let i = 0; i < 4; i++) poly(ctx, [project(layout.lane + 0.7, layout.door.y - 0.45 + i * 0.25), project(layout.lane + 2.3, layout.door.y - 0.45 + i * 0.25), project(layout.lane + 2.3, layout.door.y - 0.35 + i * 0.25), project(layout.lane + 0.7, layout.door.y - 0.35 + i * 0.25)], "rgba(247,245,240,.8)");
+  paintStreets(ctx, layout);
 
   const paper = WALLPAPERS.find(item => item.id === state.wallpaper) ?? WALLPAPERS[0], backs = backSides();
   for (const side of backs) paintWall(ctx, state, layout, side, paper, level, shop);
@@ -1209,7 +1251,7 @@ function drawStove(ctx: CanvasRenderingContext2D, tile: Tile, index: number, bus
 }
 /** Interior half-height walls between the kitchen, the break room and the dining room. */
 /** A darker shade of a #rrggbb colour, for the sides of the building's trim. */
-function shade(hex: string, factor: number) {
+export function shade(hex: string, factor: number) {
   const value = parseInt(hex.slice(1), 16), channel = (shift: number) => Math.round(((value >> shift) & 255) * factor);
   return `rgb(${channel(16)},${channel(8)},${channel(0)})`;
 }
@@ -1545,7 +1587,8 @@ export function renderScene(ctx: CanvasRenderingContext2D, scene: Scene, pixelSc
     add(depthOf(centre.x, centre.y), 0, () => { const alpha = ctx.globalAlpha; if (blocking) ctx.globalAlpha = 0.22; drawNeighbour(ctx, n, awnings[n.style % awnings.length]); ctx.globalAlpha = alpha; });
   }
   const lamps = [...[layout.laneStart + 1, layout.door.y + (layout.door.y > layout.d / 2 ? -3 : 3), layout.laneEnd - 1].map(y => ({ x: layout.lane + 0.45, y })),
-    ...[layout.sideStart + 2, 0, layout.w - 4].map(x => ({ x, y: layout.side + 0.45 }))];
+    ...[layout.sideStart + 2, 0, layout.w - 4].map(x => ({ x, y: layout.side + 0.45 })),
+    ...[layout.sideStart + 5, -4, layout.w - 1].map(x => ({ x, y: layout.sideFar - 0.45 }))];
   for (const lamp of lamps) if (!hiddenBehindWalls(layout, lamp.x, lamp.y)) add(depthOf(lamp.x, lamp.y), 1, () => drawStreetLamp(ctx, lamp));
   // The scenery's props in front of the back walls join the scene, culled to what's on screen.
   for (const prop of outsideProps(layout, state.scenery)) {

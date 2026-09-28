@@ -54,8 +54,11 @@ export type Plan = Readonly<{
   /** Kitchen tiles (floor, stoves and counter), and the dining tiles where things can be placed. */
   kitchenArea: ReadonlySet<number>; dining: ReadonlySet<number>;
   chefSpots: readonly Tile[]; restSpots: readonly Tile[]; promoterSpots: readonly Tile[];
-  /** The street: the sidewalk runs down the door side (x = w … lane) and, as `side`, along the building's other front (y = d, d + 1) out to `sideStart`. */
-  lane: number; laneStart: number; laneEnd: number; side: number; sideStart: number;
+  /**
+   * The street: the sidewalk runs down the door side (x = w … lane) and, as `side`, along the building's other front (y = d, d + 1) out to `sideStart`.
+   * A side road (y = side + 1, side + 2) runs beside it into the main road, with its own far sidewalk at `sideFar`.
+   */
+  lane: number; laneStart: number; laneEnd: number; side: number; sideStart: number; sideFar: number;
   /** A sidewalk across the road, and the neighbouring shops: closed to you, but Friends come and go through their doors. */
   farLane: number; neighbours: readonly Neighbour[];
 }>;
@@ -66,19 +69,19 @@ export type Plan = Readonly<{
 export type Neighbour = Readonly<{ x0: number; y0: number; x1: number; y1: number; door: Tile; approach: Tile; row: "far" | "side" | "up"; name: string; style: number }>;
 const NEIGHBOUR_NAMES = ["BAKERY", "BOOKS", "FLOWERS", "TEA HOUSE", "RECORDS", "LAUNDRY", "TOYS", "PHARMACY", "BARBER", "GALLERY", "POST", "ARCADE"] as const;
 
-/** Shops across the road (doors facing it), along the side street, and up the street beside the café. */
+/** Shops across the road (doors facing it), across the side road, and up the street beside the café. */
 function neighboursFor(w: number, d: number): Neighbour[] {
   const list: Neighbour[] = [];
   let index = 0;
   const name = () => NEIGHBOUR_NAMES[(index++ + w) % NEIGHBOUR_NAMES.length];
-  const lane = w + 1, far = w + 4, side = d + 1;
+  const lane = w + 1, far = w + 4, sideFar = d + 4;
   for (let y0 = -15; y0 + 5 <= d + 14; y0 += 7) {
     const door = { x: far + 1, y: y0 + 3 };
     list.push({ x0: far + 1, y0, x1: far + 5, y1: y0 + 5, door, approach: { x: far, y: door.y }, row: "far", name: name(), style: index });
   }
   for (let x0 = -15; x0 + 5 <= w - 2; x0 += 7) {
-    const door = { x: x0 + 3, y: side + 1 };
-    list.push({ x0, y0: side + 1, x1: x0 + 5, y1: side + 5, door, approach: { x: door.x, y: side }, row: "side", name: name(), style: index });
+    const door = { x: x0 + 3, y: sideFar + 1 };
+    list.push({ x0, y0: sideFar + 1, x1: x0 + 5, y1: sideFar + 5, door, approach: { x: door.x, y: sideFar }, row: "side", name: name(), style: index });
   }
   for (let y0 = -15; y0 + 4 <= -3; y0 += 6) {
     const door = { x: w - 1, y: y0 + 2 };
@@ -137,7 +140,7 @@ export function planFor(size: number, options: { building?: BuildingId; capsule?
     chefSpots: [...chefRow.filter((_, index) => index % 2 === 0), ...chefRow.filter((_, index) => index % 2 === 1)],
     restSpots: breakRows.flatMap(y => [{ x: 1, y }, { x: 0, y }]).filter(tile => !(tile.x === 0 && tile.y === d - 3)),
     promoterSpots: [2, -2, 4, -4, 6, -6, 3, -3, 5, -5].map(offset => ({ x: w, y: door.y + offset })).filter(tile => tile.y >= -2 && tile.y <= d + 1),
-    lane: w + 1, laneStart: -16, laneEnd: d + 14, side: d + 1, sideStart: -16,
+    lane: w + 1, laneStart: -16, laneEnd: d + 14, side: d + 1, sideStart: -16, sideFar: d + 4,
     farLane: w + 4, neighbours: neighboursFor(w, d),
   });
   cache.set(id, plan);

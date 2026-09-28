@@ -55,7 +55,7 @@ test("passers-by walk the street and some come in through the door", () => {
   assert.ok(state.today.walkIns > 0);
   const layout = plan(state);
   const doors = layout.neighbours.flatMap(n => [n.door, n.approach]);
-  const onSidewalk = ({ x, y }) => x === layout.lane || x === layout.farLane || (y === layout.side && x >= layout.sideStart && x <= layout.lane)
+  const onSidewalk = ({ x, y }) => x === layout.lane || x === layout.farLane || ((y === layout.side || y === layout.sideFar) && x >= layout.sideStart && x <= layout.lane)
     || doors.some(tile => tile.x === x && tile.y === y) || (x === layout.w && y < 0);
   assert.ok(state.passersby.every(passer => onSidewalk({ x: Math.round(passer.walker.x), y: Math.round(passer.walker.y) })), "down the street or along the side sidewalk");
   assert.ok(until(state, () => state.passersby.some(passer => Math.round(passer.walker.y) === layout.side && passer.walker.x < layout.w - 1), 40), "some come round the corner");
