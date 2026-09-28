@@ -1278,8 +1278,10 @@ function drawCounter(ctx: CanvasRenderingContext2D, tile: Tile, scene: Scene) {
     ctx.fillStyle = "rgba(0,0,0,.25)"; ctx.fillRect(-15, -4, 30, 4);
   });
   const top = project(tile.x, tile.y, 36), offset = layout.kitchenSide === "left" ? tile.y - layout.pass.y : tile.x - layout.pass.x;
-  if (offset === 0) {
-    const ready = state.orders.filter(order => order.state === "ready");
+  const pass = layout.passes.findIndex(spot => spot.x === tile.x && spot.y === tile.y);
+  if (pass >= 0) {
+    // A pass: the dishes set down on it, and a bell counting them.
+    const ready = state.orders.filter(order => order.state === "ready" && (order.at ?? 0) === pass);
     ctx.fillStyle = C.light; ctx.beginPath(); ctx.ellipse(top.x, top.y, 20, 8, 0, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = INK; ctx.stroke();
     ready.slice(0, 4).forEach((order, index) => drawDish(ctx, order.dish, top.x - 12 + (index % 2) * 18, top.y - 4 - Math.floor(index / 2) * 12, 0.85));
     if (ready.length) {
@@ -1681,7 +1683,7 @@ export function renderScene(ctx: CanvasRenderingContext2D, scene: Scene, pixelSc
     ctx.strokeStyle = "rgba(22,22,22,.28)"; ctx.setLineDash([2, 3]);
     for (const id of layout.dining) { const tile = fromKey(id); poly(ctx, tileQuad(tile.x, tile.y), "rgba(0,0,0,0)"); ctx.stroke(); }
     ctx.setLineDash([]);
-    for (const tile of [layout.door, layout.pickup, layout.capsuleSpot, { x: 3, y: layout.breakDoor.y }]) poly(ctx, tileQuad(tile.x, tile.y, 0.08), "rgba(22,22,22,.12)");
+    for (const tile of [layout.door, ...layout.pickups, layout.capsuleSpot, { x: 3, y: layout.breakDoor.y }]) poly(ctx, tileQuad(tile.x, tile.y, 0.08), "rgba(22,22,22,.12)");
     const selected = build.selected === CAPSULE_ID ? layout.capsule : state.items.find(item => item.id === build.selected);
     if (selected) poly(ctx, tileQuad(selected.x, selected.y, 0.04), "rgba(226,215,173,.5)", INK);
     if (build.cursor) poly(ctx, tileQuad(build.cursor.x, build.cursor.y, 0.02), "rgba(0,0,0,0)", INK);
@@ -1858,7 +1860,7 @@ export function hitTest(state: CafeState, sx: number, sy: number): Hit {
     const customer = state.customers.find(item => item.table === table.id);
     return customer ? { kind: "customer", id: customer.id } : null;
   }
-  if (layout.kitchenArea.has(key(tile)) || (tile.x === layout.pickup.x && tile.y === layout.pickup.y)) return { kind: "counter" };
+  if (layout.kitchenArea.has(key(tile)) || layout.pickups.some(spot => spot.x === tile.x && spot.y === tile.y)) return { kind: "counter" };
   if (!layout.dining.has(key(tile))) return null;
   return { kind: "tile", tile };
 }

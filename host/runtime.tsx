@@ -5,8 +5,9 @@
  * simulated ledger, confirmations and the sandboxed frame. It adds two things for the game:
  *  1. A read-only discovery of the connected account's eligible Friends with the SDK's `readOwnedFriends`,
  *     so your other owned Friends can work as staff.
- *  2. Per-wallet save data. The sandbox has no storage, so this trusted page keeps each wallet's progress
- *     in its own localStorage, keyed by wallet address.
+ *  2. Save data per manager. The sandbox has no storage, so this trusted page keeps each shop in its own localStorage,
+ *     keyed by the managing Friend's token number: every Friend you pick as manager runs its own shop. A save is only
+ *     read or written for a Friend in the connected wallet's roster.
  *  3. Sharing the end-of-day card. On the player's click, it uses the share sheet, clipboard, a download or an
  *     X post link. The sandbox has none of these powers.
  * Both reach the sandboxed game only over postMessage, when it asks. The watcher session only uses
@@ -26,12 +27,19 @@ import "@rarefriends/friendsdk/frame.css";
 import "@rarefriends/friendsdk/runtime.css";
 
 const definition = parseChanceGame(gameJson);
-const saveKey = (account: string) => `rarefriends-cafe:save:v1:${account.toLowerCase()}`;
-function readSave(account: string): unknown {
-  try { const raw = localStorage.getItem(saveKey(account)); return raw ? JSON.parse(raw) : null; } catch { return null; }
+const saveKey = (manager: string) => `rarefriends-cafe:save:v2:friend:${manager}`;
+/** Before v2, a wallet had one shop: the first manager to open the game from that wallet takes it over. */
+const walletSaveKey = (account: string) => `rarefriends-cafe:save:v1:${account.toLowerCase()}`;
+function readSave(account: string, manager: string): unknown {
+  try {
+    let raw = localStorage.getItem(saveKey(manager));
+    const legacy = raw ? null : localStorage.getItem(walletSaveKey(account));
+    if (legacy) { localStorage.setItem(saveKey(manager), legacy); localStorage.removeItem(walletSaveKey(account)); raw = legacy; }
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
 }
-function writeSave(account: string, save: unknown) {
-  try { const raw = JSON.stringify(save); if (raw.length < 100_000) localStorage.setItem(saveKey(account), raw); } catch { /* Storage full or blocked: play continues unsaved. */ }
+function writeSave(manager: string, save: unknown) {
+  try { const raw = JSON.stringify(save); if (raw.length < 100_000) localStorage.setItem(saveKey(manager), raw); } catch { /* Storage full or blocked: play continues unsaved. */ }
 }
 
 function download(image: Blob, filename: string) {
@@ -64,8 +72,14 @@ function CafeHost() {
     const session = createFriendWalletSession(), client = createFriendPublicClient();
     let account: string | null = null, controller: AbortController | null = null, roster: string[] | null = null;
     const frames = () => [...document.querySelectorAll("iframe")].flatMap(frame => frame.contentWindow ? [frame.contentWindow] : []);
-    // Nothing is sent until this wallet's roster is known, so the game can match it to its verified manager.
-    const send = (target: Window) => { if (account && roster) target.postMessage({ type: HOST_STATE, ids: roster, save: readSave(account) }, "*"); };
+    // Nothing is sent until this wallet's roster is known, so the game can match it to its verified manager; the save
+    // sent is that manager's shop, and only when the manager is in this wallet.
+    const managers = new Map<Window, string>();
+    const owns = (manager: string | undefined) => Boolean(manager && roster?.some(entry => entry.split(":")[0] === manager));
+    const send = (target: Window) => {
+      const manager = managers.get(target);
+      if (account && roster) target.postMessage({ type: HOST_STATE, ids: roster, save: owns(manager) ? readSave(account, manager!) : null }, "*");
+    };
     const broadcast = () => frames().forEach(send);
     const check = () => {
       const snapshot = session.getSnapshot();
@@ -81,8 +95,11 @@ function CafeHost() {
     // Only the game frame we host may ask or save. Saves are accepted only for a Friend in this wallet's roster.
     const receive = (event: MessageEvent) => {
       if (!event.source || !frames().includes(event.source as Window)) return;
-      if (event.data?.type === HOST_HELLO) send(event.source as Window);
-      else if (event.data?.type === SAVE_WRITE && account && roster?.some(entry => entry.split(":")[0] === String(event.data.manager))) writeSave(account, event.data.save);
+      if (event.data?.type === HOST_HELLO) {
+        if (/^\d{1,12}$/.test(String(event.data.manager))) managers.set(event.source as Window, String(event.data.manager));
+        send(event.source as Window);
+      } else if (event.data?.type === SAVE_WRITE && account && managers.get(event.source as Window) === String(event.data.manager) && owns(String(event.data.manager)))
+        writeSave(String(event.data.manager), event.data.save);
       else if (event.data?.type === SHARE_REQUEST && ["post", "copy", "save"].includes(event.data.action) && event.data.image instanceof Blob
         && event.data.image.type === "image/png" && event.data.image.size < 5_000_000 && typeof event.data.text === "string" && event.data.text.length <= 1000) {
         const source = event.source as Window, action = event.data.action as ShareAction;

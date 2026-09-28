@@ -3,6 +3,13 @@ export type Release = Readonly<{ version: string; date: string; title: string; n
 
 export const CHANGELOG: readonly Release[] = [
   {
+    version: "1.8", date: "2026-09-28", title: "A shop per manager and a second pass",
+    notes: [
+      "Every manager has their own shop: progress saves by the managing Friend's token number. Pick another of your Friends as manager to open a new shop; switch back and the first is waiting. An existing shop moves to the first manager you open it with.",
+      "Second pass (Upgrades → Shop, level 8): a second serving spot at the far end of the counter. Chefs set dishes down at the nearest pass and staff pick up wherever dishes wait, so food gets out faster.",
+    ],
+  },
+  {
     version: "1.7", date: "2026-09-28", title: "Shuffle, skip and now playing",
     notes: [
       "Music can shuffle: Settings or Build → Music → Shuffle every 1, 2, 3 or 5 minutes plays a random unlocked track.",

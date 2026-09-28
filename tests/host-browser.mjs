@@ -1,5 +1,5 @@
 // End-to-end check of the custom runtime page (host/runtime.tsx) with the SDK's mock wallet fixture:
-// a wallet holding two Friends (#7730 manager, #3412 staff), owned-Friend staff, and per-wallet save + restore.
+// a wallet holding two Friends (#7730 manager, #3412 staff), owned-Friend staff, and a save + restore per manager.
 // Automated test only: public builds always use the real wallet and ownership gate.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
@@ -71,10 +71,10 @@ try {
   });
   const game = page.frameLocator("iframe");
   const cafe = game.locator(".cafe-game");
-  const enter = async () => {
+  const enter = async (manager = 7730) => {
     await page.goto(origin);
     await page.getByRole("button", { name: /^Connect (wallet|Browser wallet)$/ }).click();
-    await page.getByRole("button", { name: /^Friend #7730\b/ }).click();
+    await page.getByRole("button", { name: new RegExp(`^Friend #${manager}\\b`) }).click();
     await cafe.waitFor();
   };
 
@@ -116,9 +116,9 @@ try {
   const cardBytes = card.data;
   (await import("node:fs")).writeFileSync("./artifacts/day-card.png", Buffer.from(cardBytes, "base64"));
 
-  const key = `rarefriends-cafe:save:v1:${OWNER.toLowerCase()}`;
+  const key = "rarefriends-cafe:save:v2:friend:7730";
   const saved = JSON.parse(await page.evaluate(name => localStorage.getItem(name), key));
-  assert.equal(saved?.shop, "pastry", "progress is saved for this wallet address");
+  assert.equal(saved?.shop, "pastry", "progress is saved for the managing Friend");
   assert.deepEqual(saved.staff.map(({ slot, role, owned }) => ({ slot, role, owned })), [{ slot: 0, role: "chef", owned: 3412 }]);
   assert.equal(typeof saved.staff[0].xp, "number", "worker XP is saved");
 
@@ -128,10 +128,22 @@ try {
   assert.match(await game.locator(".cafe-perk, .rf-frame-menu").first().innerText(), /day 2/, "the next day is ready after closing");
   assert.equal(await cafe.getAttribute("data-shop"), "pastry");
   await page.locator(".rf-game-frame").screenshot({ path: "./artifacts/host-welcome-back.png" });
+
+  // Another Friend as manager runs a shop of its own; the first one's shop is still there afterwards.
+  await enter(3412);
+  await game.getByRole("heading", { name: "What kind of shop is it?" }).waitFor();
+  await game.locator('.cafe-game[data-linked="yes"]').waitFor();
+  assert.equal(await cafe.getAttribute("data-shop"), "cafe", "a new manager starts a new shop");
+  await game.getByRole("radio", { name: /Patty Friends/ }).click();
+  await game.getByRole("button", { name: "Open Patty Friends", exact: true }).click();
+  await page.waitForFunction(() => JSON.parse(localStorage.getItem("rarefriends-cafe:save:v2:friend:3412") ?? "null")?.shop === "burger", null, { timeout: 15_000 });
+  assert.equal(JSON.parse(await page.evaluate(() => localStorage.getItem("rarefriends-cafe:save:v2:friend:7730"))).shop, "pastry", "the first manager's shop is untouched");
+  await enter(7730);
+  await game.getByRole("heading", { name: "Welcome back to Flour Moon" }).waitFor();
   assert.deepEqual([...errors, ...fixture.errors], [], "browser errors");
   assert((await page.evaluate(() => window.__friendWalletTest.state.requests)).every(method =>
     ["eth_accounts", "eth_requestAccounts", "eth_chainId", "wallet_switchEthereumChain"].includes(method)), "no signing requests");
-  console.log("PASS custom host: owned-Friend staff and per-wallet save/restore");
+  console.log("PASS custom host: owned-Friend staff and a save per manager");
 } finally {
   await browser?.close();
   if (server) { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }

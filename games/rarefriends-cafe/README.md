@@ -5,7 +5,7 @@ verified Rare Friend manages it, your other owned Friends staff it, and Friends 
 
 The SDK runtime handles wallet connection, owned-Friend selection, the fresh ownership and generation check, and the
 fixed, **simulated** RF action client. This component has no wallet code and no identity gate of its own. The trusted
-host page (`host/runtime.tsx`) adds the owned-Friend roster (with generations), per-wallet saves and day-card sharing.
+host page (`host/runtime.tsx`) adds the owned-Friend roster (with generations), a save per managing Friend and day-card sharing.
 See [the root README](../../README.md#how-the-host-extends-the-sdk).
 
 ## Controls
@@ -99,6 +99,7 @@ Bought one level at a time in Upgrades → **Shop**:
 | Dishwasher | guests finish eating 20% sooner | 240 (4) · 560 (8) |
 | Fancy plating | dishes sell for 6% more | 300 (5) · 900 (9) · 2,400 (12) |
 | Big serving tray | you carry one more dish | 2,500 (11) |
+| Second pass | a second serving spot at the far end of the counter: chefs set dishes down at the nearest pass, and staff pick up wherever dishes are waiting (between days) | 1,200 (8) |
 | Staff training | staff move 5% faster | 700 (7) · 1,600 (10) · 3,200 (13) |
 | Chef's hats | dishes cook 6% faster | 900 (8) · 2,000 (11) · 4,000 (14) |
 | Neon storefront | +10% walk-ins | 1,400 (10) · 3,200 (14) |
@@ -189,7 +190,8 @@ picture** and **Save picture** are also offered. The post links to https://raref
 
 ## Saving
 
-Progress saves automatically every few seconds and at closing, **per wallet address** on this device. The save covers
+Progress saves automatically every few seconds and at closing, **per managing Friend** (by token number) on this device:
+every Friend you pick as manager runs its own shop, and the save is only used while that Friend is in the connected wallet. The save covers
 shop, day, Beans, levels, rating, dishes, station, size, building, furniture (with facing), the capsule machine's spot,
 designs, upgrades, staff (with worker XP and attribute points), collectibles and audio preferences. A closed day resumes at the next day. Saves are validated on load; older saves migrate, and
 furniture that no longer fits is refunded.

@@ -152,7 +152,7 @@ export const EXPAND_COSTS = [300, 500, 750, 1000, 1300, 1650, 2050, 2500, 3000, 
 export const EXPAND_LEVELS = [3, 4, 5, 6, 7, 8, 9, 10, 12, 14] as const;
 
 // ---------- Shop upgrades ----------
-export type UpgradeId = "sign" | "shoes" | "chairs" | "tipjar" | "breakroom" | "dishwasher" | "plating" | "tray" | "training" | "chefhat" | "neon" | "station";
+export type UpgradeId = "sign" | "shoes" | "chairs" | "tipjar" | "breakroom" | "dishwasher" | "plating" | "tray" | "training" | "chefhat" | "neon" | "station" | "pass";
 /** Beans upgrades bought one level at a time; `levels` is the café level each step needs. */
 export type Upgrade = Readonly<{ id: UpgradeId; name: string; text: string; costs: readonly number[]; levels: readonly number[] }>;
 export const UPGRADES: readonly Upgrade[] = [
@@ -164,6 +164,7 @@ export const UPGRADES: readonly Upgrade[] = [
   { id: "dishwasher", name: "Dishwasher", text: "Guests finish eating 20% sooner per level, freeing tables.", costs: [240, 560], levels: [4, 8] },
   { id: "plating", name: "Fancy plating", text: "Every dish sells for 6% more per level.", costs: [300, 900, 2400], levels: [5, 9, 12] },
   { id: "tray", name: "Big serving tray", text: "You carry one more dish.", costs: [2500], levels: [11] },
+  { id: "pass", name: "Second pass", text: "A second serving spot on the counter: chefs plate and staff pick up at either, so dishes get out faster. Between days.", costs: [1200], levels: [8] },
   // Late game.
   { id: "training", name: "Staff training", text: "Staff move 5% faster per level.", costs: [700, 1600, 3200], levels: [7, 10, 13] },
   { id: "chefhat", name: "Chef's hats", text: "Dishes cook 6% faster per level.", costs: [900, 2000, 4000], levels: [8, 11, 14] },

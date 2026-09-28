@@ -160,7 +160,7 @@ test("a day lasts five minutes and earns slowly; the level curve runs to 15", ()
 });
 
 test("shop upgrades cost Beans, need café levels and change play", () => {
-  assert.equal(UPGRADES.length, 12);
+  assert.equal(UPGRADES.length, 13);
   const state = cafe(); state.beans = 100_000;
   assert.match(buyUpgrade(state, "tray"), /level 11/);
   assert.deepEqual(nextUpgrade(state, "sign"), { cost: 90, level: 2 });
@@ -241,6 +241,33 @@ test("every building, at every size, works: routes to the counter, capsules, bre
     for (const tile of [layout.pickup, layout.door, ...layout.clear]) assert.ok(layout.dining.has((tile.y + 8) * 64 + tile.x + 8), `${label}: ${JSON.stringify(tile)} is a dining tile`);
   }
   assert.deepEqual([planFor(10, { building: "long" }).d, planFor(10, { building: "parlour" }).d, planFor(10, { building: "townhouse" }).kitchenSide], [14, 12, "back"]);
+});
+
+test("a second pass: every building fits one, and dishes go out through both", () => {
+  for (const building of BUILDINGS.map(item => item.id)) for (let size = 10; size <= 20; size++) {
+    const layout = planFor(size, { building, passes: 2 }), label = `${building} ${size}`, blocked = blockedTiles([], layout);
+    assert.equal(layout.pickups.length, 2, label);
+    assert.notDeepEqual(layout.pickups[0], layout.pickups[1], label);
+    for (const tile of layout.pickups) assert.ok(layout.dining.has((tile.y + 8) * 64 + tile.x + 8), `${label}: pickup ${JSON.stringify(tile)} is a dining tile`);
+    for (const tile of layout.chefPasses) assert.ok(route(layout.chefSpots[0], [tile], blocked, layout), `${label}: chefs reach ${JSON.stringify(tile)}`);
+    assert.equal(layoutProblem([], layout), null, label);
+  }
+  const state = cafe({ ownedFriends: [3412, 555] }); state.beans = 10_000; state.level = 8;
+  assignStaff(state, 0, { owned: 3412 }, "chef");
+  assert.equal(plan(state).pickups.length, 1);
+  assert.equal(buyUpgrade(state, "pass"), null);
+  assert.equal(plan(state).pickups.length, 2, "the counter has two passes");
+  assert.equal(layoutProblem(state.items, plan(state)), null);
+  openCafe(state);
+  const used = new Set();
+  for (let t = 0; t < 200; t += 0.05) {
+    for (const customer of state.customers) actOnCustomer(state, customer.id);
+    for (const order of state.orders) if (order.state === "ready") used.add(order.at ?? 0);
+    if (state.orders.some(order => order.state === "ready")) actOnCounter(state);
+    update(state, 0.05);
+  }
+  assert.deepEqual([...used].sort(), [0, 1], "dishes are set down on both passes");
+  assert.ok(state.today.served > 0);
 });
 
 test("the building is chosen at setup and changed between days; misfit furniture is refunded", () => {
@@ -676,11 +703,11 @@ test("collection and music preferences are saved; tracks unlock with exclusives"
   const { TRACKS } = await import("../games/rarefriends-cafe/audio.ts");
   assert.equal(TRACKS.find(track => track.id === "neon").unlock, "jukebox");
   const state = cafe(); openCafe(state);
-  state.collection.add("jukebox"); state.prefs = { track: "neon", music: false, sfx: true, volume: 0.3, confirm: false, theme: "dark" };
+  state.collection.add("jukebox"); state.prefs = { track: "neon", music: false, sfx: true, volume: 0.3, confirm: false, theme: "dark", shuffle: true, shuffleEvery: 180 };
   const fresh = cafe();
   assert.equal(restoreCafe(fresh, JSON.parse(JSON.stringify(serializeCafe(state)))), true);
   assert.ok(fresh.collection.has("jukebox"));
-  assert.deepEqual(fresh.prefs, { track: "neon", music: false, sfx: true, volume: 0.3, confirm: false, theme: "dark" });
+  assert.deepEqual(fresh.prefs, { track: "neon", music: false, sfx: true, volume: 0.3, confirm: false, theme: "dark", shuffle: true, shuffleEvery: 180 });
   const tampered = { ...serializeCafe(state), collection: ["jukebox", "casino"], items: [...serializeCafe(state).items, { kind: "statue", x: 8, y: 8, dir: 0 }] };
   const other = cafe();
   assert.equal(restoreCafe(other, tampered), true);

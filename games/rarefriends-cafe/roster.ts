@@ -1,9 +1,10 @@
 /**
  * Messages between the sandboxed game and its trusted host page (host/runtime.tsx).
  *
- * - The game asks with HOST_HELLO. The host answers with HOST_STATE: the connected account's eligible Friend IDs
- *   (found with the SDK's `readOwnedFriends`) and that wallet's saved progress from the host page's localStorage.
- * - The game sends SAVE_WRITE with its progress; the host stores it under the connected wallet address.
+ * - The game asks with HOST_HELLO, naming its manager. The host answers with HOST_STATE: the connected account's eligible
+ *   Friend IDs (found with the SDK's `readOwnedFriends`) and that manager's shop from the host page's localStorage.
+ * - The game sends SAVE_WRITE with its progress; the host stores it under the manager's token number, so each Friend
+ *   you manage with has its own shop.
  *
  * The game accepts HOST_STATE only from its parent window, and only when the roster contains the runtime-verified
  * manager, so roster and save belong to the same wallet. It writes saves only after such a confirmation.

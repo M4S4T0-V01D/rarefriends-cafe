@@ -12,11 +12,11 @@
 - **The street is alive, and so is the world around it.** Friends stroll down a long street and round the corner, and some walk in through your door. Two roads meet at your corner: the main road past the door and a side road along the other front, each with sidewalks, curbs, crossings and street lamps. Dress the world beyond your walls with one of eight sceneries, from a cottage garden to a night market, with leafy shaded trees, flowers, rocks and grass. Neighbouring shops line both roads, with Friends coming and going through their doors. **Drag** to look around, **scroll or pinch** to zoom, and **turn the whole view** a quarter at a time.
 - **Groups come in together.** Tables for one, two and four: a party sits down together and one tap takes the whole table's order.
 - **Make it yours.** Pick a café, seafood restaurant, pastry shop, burger diner or Asian noodle house, and one of seven **buildings**: a corner café, a long diner, a townhouse with its kitchen on the back wall, a café with a front parlour, a slim bistro, an **L-shaped café** round a paved patio, or a **U-shaped café** with its kitchen in the middle of the U. Arrange 40 kinds of furniture and décor, from a little cactus to a grand piano, a koi pond and a mini carousel, **turning any piece four ways** (even after it's placed). Move the capsule machine, choose from 12 wallpapers and 12 floors, and expand ten times, up to 20 × 20.
-- **A slow, cosy climb.** Five-minute days, 22 café levels, **nineteen dishes per shop** (the last seven, the master menu, unlock one a level from 16 to 22), twelve upgrade tracks, manager skill points every level, worker attribute points, and three **daily challenges**. **Random events** keep days different: a food critic, a celebrity Friend, a tour bus, a rain shower, a lunch rush or a kitchen hiccup.
+- **A slow, cosy climb.** Five-minute days, 22 café levels, **nineteen dishes per shop** (the last seven, the master menu, unlock one a level from 16 to 22), thirteen upgrade tracks (including a **second pass** on the counter, so dishes get out faster), manager skill points every level, worker attribute points, and three **daily challenges**. **Random events** keep days different: a food critic, a celebrity Friend, a tour bus, a rain shower, a lunch rush or a kitchen hiccup.
 - **It sounds alive too.** Sixteen procedural tracks (swing, bossa, jazz waltz and lo-fi) playing eleven composed melodies in song form, with ⏮ ⏭ skip buttons, a *now playing* card in the corner and an optional shuffle that changes the song every few minutes, a coffee-ready chime, a door bell, and Friends who chirp, sigh and yawn.
 - **$RAREFRIENDS capsules.** Rare Capsules cost (simulated) RF. Each one holds a secret recipe, which you keep for a boost or redeem for RF, plus one of 8 RF-exclusive collectibles for your shop. Capsules also pay for **RF boosts** (tireless staff, a perfect-service day, a street festival, a golden hour) and **RF sceneries** (seaside, snowy village, cherry blossom lane, night market).
 - **Comfy to play:** pause any time (⏸ / Esc), purchases ask first, dark mode, thick themed scrollbars, and an in-game update log.
-- **Progress saves per wallet**, and each day's report card is ready to **post on X**, tagged *@RareFriendsNFT #RareFriends #RareFriendsCafe*.
+- **Every manager has their own shop.** Progress saves per managing Friend (by token number): pick another of your Friends as manager and you open a brand-new shop; switch back and the first one is waiting. Each day's report card is ready to **post on X**, tagged *@RareFriendsNFT #RareFriends #RareFriendsCafe*.
 
 | | |
 | --- | --- |
@@ -39,7 +39,7 @@
 | ![The café seen from another side](docs/turned.png) | ![An L-shaped café with benches and flowers on its corner patio](docs/lshape.png) | |
 | **Choose your shop** | **Your owned Friend cooking** | **Rare Capsule Machine** |
 | ![Shop picker](docs/shop-picker.png) | ![Owned Friend #3412 in the kitchen](docs/owned-chef.png) | ![Capsule machine](docs/capsule-machine.png) |
-| **Five capsules opened** | **RF-exclusive collection** | **Saved per wallet** |
+| **Five capsules opened** | **RF-exclusive collection** | **Saved per manager** |
 | ![Capsule results](docs/capsules-opened.png) | ![Collection](docs/collection.png) | ![Welcome back](docs/welcome-back.png) |
 
 **The end-of-day card, ready to post on X:**
@@ -138,7 +138,7 @@ The runtime page is the SDK's own **`GameHost`**: wallet connection, owned-Frien
 `host/runtime.tsx` adds three things the SDK doesn't supply:
 
 1. **Owned-Friend roster.** A read-only watcher (`eth_accounts` only) runs the SDK's account-filtered `readOwnedFriends`. The roster includes each Friend's generation, and it never scans the collection.
-2. **Per-wallet saves** in the trusted page's `localStorage` (the sandbox has no storage), keyed by wallet address.
+2. **A save per manager** in the trusted page's `localStorage` (the sandbox has no storage), keyed by the managing Friend's token number, and read or written only while that Friend is in the connected wallet. A save from before v1.8 (one per wallet) moves to the first manager who opens the game from that wallet.
 3. **Sharing the day card.** On your click, the page uses the share sheet (phones) or copies the picture and opens a prefilled X post (desktop). X post links can't carry images, so you paste it. Nothing posts without you pressing Post.
 
 The game receives the roster and save only over `postMessage` from its parent window. It uses them only if the
@@ -147,7 +147,7 @@ Under the plain SDK CLI (`npx friendsdk dev` / `test`), the game runs without th
 
 ## Known issues and limitations
 
-- Saves live in this browser on this device, keyed by wallet address. They are client-side, so a determined player could edit their own simulated Beans.
+- Saves live in this browser on this device, keyed by the manager's token number. They are client-side, so a determined player could edit their own simulated Beans.
 - Capsule RF balances and kept recipes live in the SDK's session ledger and reset on reload. Collectibles are saved.
 - Guest Friends are procedural art in the Rare Friends style, not specific tokens. The roster needs the RPC to return the wallet's transfer history; guest applicants work regardless.
 - Audio is synthesized in the browser and starts on your first tap. On iPhones before iOS 17, silent mode may keep it quiet.

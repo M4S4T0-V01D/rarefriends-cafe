@@ -148,7 +148,7 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
       const state = cafe.current, roster = parseStaffRoster(data.ids, friendId);
       if (!state || roster === null) return;
       setOwnedFriends(state, roster.staff); managerGeneration.current = roster.manager;
-      if (!linked.current && data.save && restoreCafe(state, data.save)) { setToast("Welcome back! This wallet's shop has been restored."); setHud(readHud(state)); applyPrefs(state.prefs); }
+      if (!linked.current && data.save && restoreCafe(state, data.save)) { setToast(`Welcome back! Friend #${friendId.toString()}'s shop has been restored.`); setHud(readHud(state)); applyPrefs(state.prefs); }
       linked.current = true; refresh();
     };
     // Roster and saved progress from the trusted host; accepted only from the parent window.
@@ -185,7 +185,7 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
       cafe.current = createCafe({ familyId: sprites.familyId, guestCount: GUESTS.length, regulars: regulars.map(item => Number(item.tokenId)) });
       // Ask the trusted host for this wallet's other owned Friends and saved progress (answered by host/runtime.tsx).
       if (pendingHost.current) applyHost(pendingHost.current as { ids?: unknown; save?: unknown });
-      window.parent.postMessage({ type: HOST_HELLO }, "*");
+      window.parent.postMessage({ type: HOST_HELLO, manager: friendId.toString() }, "*");
       setSnapshot(value); syncBlends(value); setHud(readHud(cafe.current)); setStatus("");
       const regularMap = new Map(regulars.map(item => [Number(item.tokenId), item]));
       const render = (now: number) => {

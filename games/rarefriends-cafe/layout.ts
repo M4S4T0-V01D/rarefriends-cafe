@@ -48,6 +48,11 @@ export type Wall = Readonly<{ x: number; y: number; along: "x" | "y"; low?: bool
 export type Plan = Readonly<{
   size: number; building: BuildingId; w: number; d: number;
   door: Tile; entry: Tile; pickup: Tile; pass: Tile; chefPass: Tile; capsule: Tile; capsuleSpot: Tile; capsuleDir: Dir;
+  /**
+   * Every serving spot on the counter, the main one first: `passes` on the counter, `pickups` in front of them where
+   * staff collect, `chefPasses` behind them where chefs plate. The Second pass upgrade adds one.
+   */
+  passes: readonly Tile[]; pickups: readonly Tile[]; chefPasses: readonly Tile[];
   /** The kitchen stands against the left wall (x = −0.5) or a back wall (running along x) for `kitchenLength` tiles. */
   kitchenSide: "left" | "back"; kitchenLength: number;
   /**
@@ -99,12 +104,12 @@ function neighboursFor(w: number, d: number): Neighbour[] {
 }
 const range = (from: number, to: number) => Array.from({ length: Math.max(0, to - from) }, (_, index) => from + index);
 const cache = new Map<string, Plan>();
-export function planFor(size: number, options: { building?: BuildingId; capsule?: Placement | null } = {}): Plan {
-  const building = options.building ?? "corner";
+export function planFor(size: number, options: { building?: BuildingId; capsule?: Placement | null; passes?: number } = {}): Plan {
+  const building = options.building ?? "corner", passCount = options.passes === 2 ? 2 : 1;
   const w = building === "slim" ? size - 2 : building === "lshape" || building === "ushape" ? size + 2 : size;
   const d = size + (building === "long" ? 4 : building === "parlour" || building === "lshape" ? 2 : building === "slim" ? 6 : building === "ushape" ? 1 : 0);
   const machine = options.capsule ?? defaultCapsule(w);
-  const id = `${size}:${building}:${machine.x},${machine.y},${machine.dir}`;
+  const id = `${size}:${building}:${machine.x},${machine.y},${machine.dir}:${passCount}`;
   let plan = cache.get(id);
   if (plan) return plan;
   // The L's patio takes the street corner; the U's courtyard is cut into the middle of the back.
@@ -120,6 +125,9 @@ export function planFor(size: number, options: { building?: BuildingId; capsule?
   const kx = u ? courtX : 0, ky = u ? courtDepth : 0;
   const along = (t: number, depth: number): Tile => back ? { x: kx + t, y: ky + depth } : { x: depth, y: t };
   const middle = Math.floor(kitchenLength / 2);
+  // A second pass goes as far along the counter from the first as it can, clear of the station beside it.
+  const second = range(0, kitchenLength).filter(t => t !== middle && t !== middle - 1).sort((a, b) => Math.abs(b - middle) - Math.abs(a - middle) || b - a)[0];
+  const spots = passCount === 2 && second !== undefined ? [middle, second] : [middle];
   const stoves = range(0, kitchenLength).map(t => along(t, 0)), chefRow = range(0, kitchenLength).map(t => along(t, 1));
   const counter = range(0, kitchenLength).map(t => along(t, 2));
   // The kitchen's closing wall, with a door in the chef row.
@@ -152,6 +160,7 @@ export function planFor(size: number, options: { building?: BuildingId; capsule?
     size, building, w, d, kitchenSide: back ? "back" as const : "left" as const, kitchenLength, cut, notch,
     door, entry: { x: w, y: door.y },
     pickup: along(middle, 3), pass: along(middle, 2), chefPass: along(middle, 1),
+    pickups: spots.map(t => along(t, 3)), passes: spots.map(t => along(t, 2)), chefPasses: spots.map(t => along(t, 1)),
     capsule: { x: machine.x, y: machine.y }, capsuleSpot: { x: machine.x + FACING[machine.dir].x, y: machine.y + FACING[machine.dir].y }, capsuleDir: machine.dir,
     breakDoor, kitchenDoor, stoves, counter, walls, kitchenFloor, breakFloor, clear,
     kitchenArea: new Set([...stoves, ...chefRow, ...counter].map(key)), dining,
@@ -207,7 +216,7 @@ export const inDining = (tile: Tile, plan: Plan) => plan.dining.has(key(tile));
 const fixtures = (plan: Plan) => new Set([...plan.stoves, ...plan.counter, ...plan.walls, plan.capsule].map(key));
 /** Tiles where nothing may be placed. */
 export function isReserved(tile: Tile, plan: Plan) {
-  return !inDining(tile, plan) || [plan.door, plan.pickup, plan.capsuleSpot, plan.capsule, ...plan.clear].some(reserved => same(reserved, tile));
+  return !inDining(tile, plan) || [plan.door, ...plan.pickups, plan.capsuleSpot, plan.capsule, ...plan.clear].some(reserved => same(reserved, tile));
 }
 
 /** Blocked tiles for routing. Seats and rugs stay walkable. */
@@ -271,7 +280,7 @@ export function serviceTiles(table: Pick<Item, "kind" | "x" | "y" | "dir">, bloc
 /** Can guests reach every chair from the street, and staff reach every table, the counter, capsules and the break room? */
 export function layoutProblem(items: readonly Item[], plan: Plan): string | null {
   const blocked = blockedTiles(items, plan), open = reachable({ x: plan.lane, y: plan.door.y }, blocked, plan);
-  if (!open.has(key(plan.pickup)) || !open.has(key(plan.capsuleSpot))) return "That would wall off the counter or capsule machine.";
+  if (plan.pickups.some(tile => !open.has(key(tile))) || !open.has(key(plan.capsuleSpot))) return "That would wall off the counter or capsule machine.";
   if (!open.has(key(plan.breakDoor))) return "Staff need a path to the break room.";
   if (!open.has(key(plan.kitchenDoor))) return "Chefs need a way out of the kitchen.";
   for (const item of items) if (isTable(item.kind)) {
@@ -283,8 +292,8 @@ export function layoutProblem(items: readonly Item[], plan: Plan): string | null
 
 /** Why the capsule machine can't stand at `machine` (with its use tile on the `dir` side) in `plan`'s building, or null. */
 export function capsuleProblem(items: readonly Item[], plan: Plan, machine: Placement): string | null {
-  const next = planFor(plan.size, { building: plan.building, capsule: machine }), spots = [next.capsule, next.capsuleSpot];
-  if (spots.some(tile => !inDining(tile, next) || [next.door, next.pickup, ...next.clear].some(reserved => same(reserved, tile))))
+  const next = planFor(plan.size, { building: plan.building, capsule: machine, passes: plan.passes.length }), spots = [next.capsule, next.capsuleSpot];
+  if (spots.some(tile => !inDining(tile, next) || [next.door, ...next.pickups, ...next.clear].some(reserved => same(reserved, tile))))
     return "The machine and the tile you use it from must be in the dining room, clear of the door and counter.";
   if (items.some(item => !isRug(item.kind) && spots.some(tile => same(item, tile) || onSeat(item, tile)))) return "Something is already there.";
   return layoutProblem(items, next);

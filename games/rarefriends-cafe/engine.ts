@@ -31,6 +31,8 @@ export type Order = {
   /** "plating": cooked, and a chef is carrying it from the stove to the pass. */
   id: number; customer: number; dish: DishId; state: "queued" | "cooking" | "plating" | "ready" | "carried";
   progress: number; duration: number; carrier: number | null;
+  /** Which pass a ready dish sits on (0 is the main one). */
+  at?: number;
 };
 export type Job = { kind: "take"; customer: number } | { kind: "pickup" } | { kind: "serve"; customer: number } | { kind: "walk"; to: Tile } | { kind: "plate" };
 /** Who fills a staff slot: one of the player's own verified Friends, or a guest Friend applicant. */
@@ -86,7 +88,9 @@ export const DIR_FACING: readonly Facing[] = ["down", "right", "up", "left"];
 const walker = (tile: Tile, speed: number): Walker => ({ x: tile.x, y: tile.y, path: [], speed, facing: "down", moving: false });
 const byId = <T extends { id: number }>(items: readonly T[], id: number) => items.find(item => item.id === id);
 const at = (body: Walker): Tile => ({ x: Math.round(body.x), y: Math.round(body.y) });
-export const plan = (state: CafeState): Plan => planFor(state.size, { building: state.building, capsule: state.capsule });
+export const plan = (state: CafeState): Plan => planFor(state.size, { building: state.building, capsule: state.capsule, passes: 1 + (state.upgrades.pass ?? 0) });
+/** The pass whose pickup (or chef side) is `tile`, or −1. */
+const passAt = (layout: Plan, tile: Tile) => Math.max(layout.pickups.findIndex(spot => same(spot, tile)), layout.chefPasses.findIndex(spot => same(spot, tile)));
 /** Build-mode selection id for the capsule machine (items have positive ids). */
 export const CAPSULE_ID = -1;
 export const upgradeLevel = (state: CafeState, id: UpgradeId) => state.upgrades[id] ?? 0;
@@ -179,8 +183,6 @@ const activeChefs = (state: CafeState) => chefs(state).filter(worker => {
   const tile = at(worker.walker);
   return isWorking(state, worker) && worker.duty === "work" && plan(state).kitchenArea.has(key(tile));
 });
-/** Where a chef stands to set a dish on the pass. */
-const chefPass = (layout: Plan): Tile => layout.chefPass;
 export const kitchenSlots = (state: CafeState) => 1 + activeChefs(state).length + upgradeLevel(state, "station");
 export const tables = (state: CafeState) => state.items.filter(item => isTable(item.kind));
 /** The chair a guest sits on. */
@@ -259,7 +261,10 @@ export function buyUpgrade(state: CafeState, id: UpgradeId): string | null {
   if (!next) return "Fully upgraded.";
   if (state.level < next.level) return `Reach level ${next.level} first.`;
   if (state.beans < next.cost) return "Not enough Beans.";
+  if (id === "pass" && state.phase === "open") return "Open the second pass between days, while the shop is closed.";
   state.beans -= next.cost; state.upgrades[id] = upgradeLevel(state, id) + 1;
+  // A new pass reshapes the counter: its pickup tile is kept clear, and anything standing there is refunded.
+  if (id === "pass") { refitItems(state); syncWorkers(state); afterLayoutChange(state); }
   return null;
 }
 
@@ -777,7 +782,7 @@ export function interactNearby(state: CafeState): string {
     if (!table || !["waiting", "ordered"].includes(customer.state)) continue;
     if (serviceTiles(table, state.blocked, layout).some(tile => same(tile, here))) return actOnCustomer(state, customer.id);
   }
-  if (same(here, layout.pickup)) return actOnCounter(state);
+  if (layout.pickups.some(tile => same(here, tile))) return actOnCounter(state);
   return "Nothing to do here. Walk next to a table, the counter or the capsule machine.";
 }
 export function clearQueue(state: CafeState) {
@@ -803,8 +808,12 @@ function replan(state: CafeState, worker: Worker) {
 }
 function goalsFor(state: CafeState, job: Job): Tile[] | null {
   if (job.kind === "walk") return [job.to];
-  if (job.kind === "pickup") return [plan(state).pickup];
-  if (job.kind === "plate") return [chefPass(plan(state))];
+  if (job.kind === "pickup") {
+    // Go for a pass with dishes waiting on it (the nearest, if both have some).
+    const layout = plan(state), waiting = layout.pickups.filter((_, index) => state.orders.some(order => order.state === "ready" && (order.at ?? 0) === index));
+    return waiting.length ? waiting : [...layout.pickups];
+  }
+  if (job.kind === "plate") return [...plan(state).chefPasses];
   const customer = byId(state.customers, job.customer), table = customer && byId(state.items, customer.table);
   return table ? serviceTiles(table, state.blocked, plan(state)) : null;
 }
@@ -872,10 +881,11 @@ function tendJob(state: CafeState, worker: Worker): Job | null {
 function finish(state: CafeState, worker: Worker, job: Job) {
   if (job.kind === "walk") return;
   if (job.kind === "plate") {
-    // The chef sets the finished dishes on the pass for the waiters.
+    // The chef sets the finished dishes on the pass they're standing at, for the waiters.
+    const spot = Math.max(0, passAt(plan(state), at(worker.walker)));
     for (const id of worker.carrying) {
       const order = byId(state.orders, id);
-      if (order) { order.state = "ready"; order.carrier = null; state.events.push({ kind: "ready", dish: order.dish }); train(state, worker); tire(state, worker, FATIGUE.perDish); }
+      if (order) { order.state = "ready"; order.at = spot; order.carrier = null; state.events.push({ kind: "ready", dish: order.dish }); train(state, worker); tire(state, worker, FATIGUE.perDish); }
     }
     worker.carrying = [];
     return;
@@ -883,8 +893,10 @@ function finish(state: CafeState, worker: Worker, job: Job) {
   if (job.kind === "pickup") {
     const room = carryCapacity(state, worker) - worker.carrying.length;
     const queued = worker.queue.flatMap(item => item.kind === "serve" ? [item.customer] : []);
+    // Dishes on this pass first, then any on the other.
+    const here = Math.max(0, passAt(plan(state), at(worker.walker)));
     const ready = state.orders.filter(order => order.state === "ready")
-      .sort((a, b) => Number(queued.includes(b.customer)) - Number(queued.includes(a.customer)) || a.id - b.id);
+      .sort((a, b) => Number((b.at ?? 0) === here) - Number((a.at ?? 0) === here) || Number(queued.includes(b.customer)) - Number(queued.includes(a.customer)) || a.id - b.id);
     for (const order of ready.slice(0, room)) { order.state = "carried"; order.carrier = worker.id; worker.carrying.push(order.id); }
     return;
   }
@@ -1145,7 +1157,7 @@ export function update(state: CafeState, dt: number) {
       continue;
     }
     const customer = job.kind === "pickup" || job.kind === "plate" ? null : byId(state.customers, job.customer);
-    const target = job.kind === "pickup" || job.kind === "plate" ? layout.pass : byId(state.items, customer?.table ?? -1) ?? body;
+    const target = job.kind === "pickup" || job.kind === "plate" ? layout.passes[Math.max(0, passAt(layout, at(body)))] : byId(state.items, customer?.table ?? -1) ?? body;
     const dx = target.x - body.x, dy = target.y - body.y;
     body.facing = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "right" : "left") : (dy > 0 ? "down" : "up");
     worker.action = (job.kind === "take" ? 0.45 : job.kind === "pickup" || job.kind === "plate" ? 0.3 : 0.35)
