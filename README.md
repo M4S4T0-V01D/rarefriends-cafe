@@ -8,14 +8,14 @@
 ![RareFriends Cafe: a decorated long diner on a greyscale street, with Rare Friends walking in](docs/decor.png)
 
 - **Your Friend is the manager.** The Friend you select appears with its canonical on-chain sprite and a gameplay perk from its Generations family.
-- **Your other Friends are the staff.** Every other eligible Friend in your wallet can work as a waiter, chef or promoter. Their tier comes from their on-chain generation (Gen 1 is best, Gen 6 the lowest), and they level up as they work, earning a point per level for **speed, stamina or skill**. Chefs carry each dish from the stove to the pass. When staff get tired, you send them to the break room.
-- **The street is alive, and so is the world around it.** Friends stroll down a long street and round the corner, and some walk in through your door. Dress the world beyond your walls with one of eight sceneries, from a cottage garden to a night market. Neighbouring shops line a long street, with Friends coming and going through their doors. **Drag** to look around, **scroll or pinch** to zoom, and **turn the whole view** a quarter at a time.
+- **Your other Friends are the staff.** Every other eligible Friend in your wallet can work as a waiter, chef or promoter. Their tier comes from their on-chain generation (Gen 1 is best, Gen 6 the lowest), and they level up as they work, earning a point per level for **speed, stamina or skill**. Chefs work their way along the stoves, fridge, sink and prep top while dishes cook, then carry each dish to the pass. When staff get tired, you send them to the break room.
+- **The street is alive, and so is the world around it.** Friends stroll down a long street and round the corner, and some walk in through your door. Two roads meet at your corner: the main road past the door and a side road along the other front, each with sidewalks, curbs, crossings and street lamps. Dress the world beyond your walls with one of eight sceneries, from a cottage garden to a night market, with leafy shaded trees, flowers, rocks and grass. Neighbouring shops line both roads, with Friends coming and going through their doors. **Drag** to look around, **scroll or pinch** to zoom, and **turn the whole view** a quarter at a time.
 - **Groups come in together.** Tables for one, two and four: a party sits down together and one tap takes the whole table's order.
-- **Make it yours.** Pick a café, seafood restaurant, pastry shop, burger diner or Asian noodle house, and a **building**: a corner café, a long diner, a townhouse with its kitchen on the back wall, or a café with a front parlour. Arrange 40 kinds of furniture and décor, from a little cactus to a grand piano, a koi pond and a mini carousel, **turning any piece four ways** (even after it's placed). Move the capsule machine, choose from 12 wallpapers and 12 floors, and expand ten times, up to 20 × 20.
-- **A slow, cosy climb.** Five-minute days, 15 café levels, twelve dishes per shop, twelve upgrade tracks, manager skill points every level, worker attribute points, and three **daily challenges**. **Random events** keep days different: a food critic, a celebrity Friend, a tour bus, a rain shower, a lunch rush or a kitchen hiccup.
+- **Make it yours.** Pick a café, seafood restaurant, pastry shop, burger diner or Asian noodle house, and one of seven **buildings**: a corner café, a long diner, a townhouse with its kitchen on the back wall, a café with a front parlour, a slim bistro, an **L-shaped café** round a paved patio, or a **U-shaped café** with its kitchen in the middle of the U. Arrange 40 kinds of furniture and décor, from a little cactus to a grand piano, a koi pond and a mini carousel, **turning any piece four ways** (even after it's placed). Move the capsule machine, choose from 12 wallpapers and 12 floors, and expand ten times, up to 20 × 20.
+- **A slow, cosy climb.** Five-minute days, 22 café levels, **nineteen dishes per shop** (the last seven, the master menu, unlock one a level from 16 to 22), twelve upgrade tracks, manager skill points every level, worker attribute points, and three **daily challenges**. **Random events** keep days different: a food critic, a celebrity Friend, a tour bus, a rain shower, a lunch rush or a kitchen hiccup.
 - **It sounds alive too.** Sixteen procedural tracks (swing, bossa, jazz waltz and lo-fi) playing eleven composed melodies in song form, a coffee-ready chime, a door bell, and Friends who chirp, sigh and yawn.
 - **$RAREFRIENDS capsules.** Rare Capsules cost (simulated) RF. Each one holds a secret recipe, which you keep for a boost or redeem for RF, plus one of 8 RF-exclusive collectibles for your shop. Capsules also pay for **RF boosts** (tireless staff, a perfect-service day, a street festival, a golden hour) and **RF sceneries** (seaside, snowy village, cherry blossom lane, night market).
-- **Comfy to play:** pause any time (⏸ / Esc), purchases ask first, dark mode, and an in-game update log.
+- **Comfy to play:** pause any time (⏸ / Esc), purchases ask first, dark mode, thick themed scrollbars, and an in-game update log.
 - **Progress saves per wallet**, and each day's report card is ready to **post on X**, tagged *@RareFriendsNFT #RareFriends #RareFriendsCafe*.
 
 | | |
@@ -28,15 +28,15 @@
 
 ## Screenshots
 
-| The world outside (zoomed out) | Four buildings | Staff: tiers, levels, attribute points |
+| The world outside (zoomed out) | Seven buildings | Staff: tiers, levels, attribute points |
 | --- | --- | --- |
-| ![Zoomed out over a cherry blossom lane](docs/world.png) | ![Building picker in build mode](docs/buildings.png) | ![Staff panel](docs/staff.png) |
+| ![Zoomed out over an L-shaped café where the main road meets the side road](docs/world.png) | ![Building picker with seven floor plans](docs/buildings.png) | ![Staff panel](docs/staff.png) |
 | **Build mode: Tables, Rugs, Décor, Turn** | **Upgrades** | **Your manager's skills** |
 | ![Build mode](docs/build.png) | ![Shop upgrades](docs/upgrades.png) | ![Manager skill points](docs/manager.png) |
 | **RF boosts and sceneries** | **Buy only when you mean it** | **Dark mode** |
 | ![Boosts tab](docs/boosts.png) | ![Purchase confirmation](docs/confirm.png) | ![Dark mode](docs/dark.png) |
-| **The view turned a quarter** | | |
-| ![The café seen from another side](docs/turned.png) | | |
+| **The view turned a quarter** | **L-shaped café with a patio** | |
+| ![The café seen from another side](docs/turned.png) | ![An L-shaped café with benches and flowers on its corner patio](docs/lshape.png) | |
 | **Choose your shop** | **Your owned Friend cooking** | **Rare Capsule Machine** |
 | ![Shop picker](docs/shop-picker.png) | ![Owned Friend #3412 in the kitchen](docs/owned-chef.png) | ![Capsule machine](docs/capsule-machine.png) |
 | **Five capsules opened** | **RF-exclusive collection** | **Saved per wallet** |

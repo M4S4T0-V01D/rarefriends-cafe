@@ -45,7 +45,7 @@ function reserved(layout: Plan, x: number, y: number) {
 }
 const cache = new Map<string, Prop[]>();
 export function outsideProps(layout: Plan, scenery: SceneryId): Prop[] {
-  const id = `${scenery}:${layout.w}:${layout.d}`;
+  const id = `${scenery}:${layout.building}:${layout.w}:${layout.d}`;
   let props = cache.get(id);
   if (props) return props;
   props = [];
@@ -57,6 +57,15 @@ export function outsideProps(layout: Plan, scenery: SceneryId): Prop[] {
     let roll = hash(x, y, 2) * total, kind = weights[0][0];
     for (const [candidate, weight] of weights) { roll -= weight; if (roll < 0) { kind = candidate; break; } }
     props.push({ x: x + (hash(x, y, 3) - 0.5) * 0.4, y: y + (hash(x, y, 4) - 0.5) * 0.4, kind, seed: hash(x, y, 5) });
+  }
+  // The L's patio and the U's courtyard: benches and flower beds along their walls, whatever the scenery.
+  const notch = layout.notch;
+  if (notch) {
+    const patio = layout.building === "lshape";
+    for (let x = notch.x0; x <= notch.x1; x += 2) props.push({ x, y: patio ? notch.y0 + 0.1 : notch.y1 - 0.1, kind: "flowers", seed: hash(x, notch.y0, 6) });
+    const mid = { x: (notch.x0 + notch.x1) / 2, y: (notch.y0 + notch.y1) / 2 };
+    props.push({ x: mid.x, y: mid.y, kind: "bench", seed: 0.5 }, { x: patio ? notch.x0 + 0.2 : notch.x0 + 0.3, y: patio ? notch.y1 - 0.4 : notch.y0 + 0.4, kind: "bush", seed: 0.7 });
+    if (notch.x1 - notch.x0 >= 4) props.push({ x: notch.x1 - 0.4, y: patio ? notch.y1 - 0.4 : notch.y0 + 0.4, kind: "bush", seed: 0.3 });
   }
   cache.set(id, props);
   return props;
@@ -114,7 +123,7 @@ function blob(ctx: CanvasRenderingContext2D, at: Point, rx: number, ry: number, 
   ctx.fillStyle = fill; ctx.strokeStyle = INK; ctx.beginPath(); ctx.ellipse(at.x, at.y, rx, ry, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
 }
 /** A small round fruit, berry or pebble with a glint. */
-function bead(ctx: CanvasRenderingContext2D, at: Point, r: number, fill: string) {
+export function bead(ctx: CanvasRenderingContext2D, at: Point, r: number, fill: string) {
   blob(ctx, at, r, r, fill);
   ctx.fillStyle = "rgba(255,255,255,.6)"; ctx.fillRect(at.x - r * 0.5, at.y - r * 0.6, r * 0.6, r * 0.5);
 }

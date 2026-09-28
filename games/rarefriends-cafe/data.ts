@@ -4,7 +4,7 @@ export type ShopId = "cafe" | "seafood" | "pastry" | "burger" | "asian";
 export type DishShape =
   | "cup" | "latte" | "tall" | "bowl" | "noodles" | "plate" | "fish" | "fries" | "skewer" | "dumplings" | "sushi"
   | "burger" | "bread" | "croissant" | "cake" | "macaron" | "shells" | "pan" | "rice" | "mochi" | "pancakes" | "omurice" | "parfait";
-/** A dish id is `<shop>:<menu index>`; indexes 7 and 8 are the capsule specials, 9–11 the late-game signatures. */
+/** A dish id is `<shop>:<menu index>`; indexes 7 and 8 are the capsule specials, 9–11 the late-game signatures, 12–18 the master menu. */
 export type DishId = `${ShopId}:${number}`;
 export type Dish = Readonly<{
   id: DishId; name: string; price: number; cook: number; unlockCost: number; level: number;
@@ -21,6 +21,10 @@ const TIERS = [
   { price: 35, cook: 6, unlockCost: 0, level: 1, blend: 1 }, { price: 55, cook: 11, unlockCost: 0, level: 1, blend: 2 },
   // Late-game signatures.
   { price: 38, cook: 11, unlockCost: 900, level: 11 }, { price: 48, cook: 12, unlockCost: 1500, level: 13 }, { price: 62, cook: 14, unlockCost: 2400, level: 15 },
+  // The master menu: one dish a level from 16 to 22, each a long save.
+  { price: 72, cook: 15, unlockCost: 3400, level: 16 }, { price: 84, cook: 16, unlockCost: 4600, level: 17 }, { price: 96, cook: 17, unlockCost: 6000, level: 18 },
+  { price: 110, cook: 18, unlockCost: 7800, level: 19 }, { price: 126, cook: 19, unlockCost: 10000, level: 20 }, { price: 145, cook: 20, unlockCost: 13000, level: 21 },
+  { price: 170, cook: 22, unlockCost: 17000, level: 22 },
 ] as const;
 type MenuRow = readonly [name: string, shape: DishShape, color: string, accent: string];
 
@@ -40,37 +44,52 @@ export const SHOPS: readonly Shop[] = [
     ["Omurice (ketchup heart)", "omurice", "#e2d49e", "#c98f8f"], ["Cloud Parfait", "parfait", "#c5bdd6", "#f3f0f8"],
     ["Silver Latte", "latte", "#b9bfc6", "#ffffff"], ["Moonlight Parfait", "parfait", "#9fabc2", "#e9e3c4"],
     ["Honey Butter Toast", "bread", "#e2c98e", "#f6f0dc"], ["Strawberry Crêpe Cake", "cake", "#f3e4e2", "#d49d9d"], ["Latte Art Flight", "latte", "#c9b08f", "#f7f5f0"],
+    ["Affogato", "tall", "#e9e3d4", "#6f6a64"], ["Tiramisu", "cake", "#d9c7a6", "#6f5a4c"], ["Soufflé Pancake Tower", "pancakes", "#efe3bd", "#d49d9d"],
+    ["Black Sesame Parfait", "parfait", "#8a8680", "#f3f0f8"], ["Truffle Omurice", "omurice", "#e8d9a4", "#6f5a4c"], ["Gold-Leaf Mocha", "latte", "#8f7563", "#e2d49e"],
+    ["Friendship High Tea", "cake", "#f1e3e2", "#c6bed4"],
   ]),
   shop("seafood", "Tide & Shell", "Seafood restaurant", "SEAFOOD", "Chowder, fish & chips and a lobster roll by the window.", "tank", "#afbccb", [
     ["Clam Chowder", "bowl", "#e8e1cf", "#b8a894"], ["Fish & Chips", "fish", "#dccb9c", "#e2d7ad"], ["Grilled Squid", "skewer", "#d9c3b0", "#8f8a84"],
     ["Shrimp Tempura", "fries", "#e2cfa0", "#d8a79c"], ["Oyster Plate", "shells", "#cfd3d6", "#f4f1ea"], ["Lobster Roll", "bread", "#dcc39a", "#d49d93"],
     ["Seafood Paella", "pan", "#e2c98e", "#c98f8f"], ["Silver Pearl Oysters", "shells", "#b9bfc6", "#ffffff"], ["Moonlight Bouillabaisse", "bowl", "#c9a58f", "#9fabc2"],
     ["Grilled Lobster", "fish", "#d49d93", "#e2cf98"], ["Crab Pot", "pan", "#d9a79c", "#f1e3c2"], ["Grand Seafood Tower", "shells", "#cfd3d6", "#d49d93"],
+    ["Scallop Carpaccio", "shells", "#f1e8dc", "#b4c3ab"], ["Seared Tuna Steak", "fish", "#b97f7a", "#e8e1cf"], ["Uni Risotto", "rice", "#ecd9a8", "#d9a36f"],
+    ["Lobster Thermidor", "fish", "#dba08f", "#f1e3c2"], ["King Crab Legs", "skewer", "#d98f7f", "#f4efe6"], ["Caviar Blini", "bread", "#e8dcc2", "#3b3a38"],
+    ["Ocean Grand Platter", "shells", "#b9c7d4", "#d49d93"],
   ]),
   shop("pastry", "Flour Moon", "Pastry shop", "PÂTISSERIE", "Croissants, macarons and strawberry shortcake.", "oven", "#e2d7ad", [
     ["Croissant", "croissant", "#dcc39a", "#b89b73"], ["Cinnamon Roll", "bread", "#cfb08f", "#f1e8d8"], ["Macarons", "macaron", "#d8b6b4", "#b4c3ab"],
     ["Strawberry Shortcake", "cake", "#f3eee6", "#d49d9d"], ["Éclair", "bread", "#8f7563", "#e2d7ad"], ["Mille-feuille", "cake", "#e7dcc4", "#c6bed4"],
     ["Lemon Tart", "pan", "#e8dc9e", "#f6f0dc"], ["Silver Soufflé", "tall", "#dcd6cc", "#ffffff"], ["Moonlight Mont Blanc", "cake", "#b3a08b", "#9fabc2"],
     ["Opera Cake", "cake", "#6f5a4c", "#e2d49e"], ["Macaron Tower", "macaron", "#c6bed4", "#e8cfd0"], ["Gold-Leaf Éclair", "bread", "#8f7563", "#e2d49e"],
+    ["Kouign-amann", "croissant", "#c9a26f", "#e2d49e"], ["Paris-Brest", "bread", "#d9bd8a", "#f1e8d8"], ["Saint-Honoré", "cake", "#f3eee6", "#d9bd8a"],
+    ["Chocolate Soufflé", "tall", "#6f5a4c", "#f3eee6"], ["Fraisier", "cake", "#f1e3e2", "#c98f8f"], ["Croquembouche", "macaron", "#dcc39a", "#f6f0dc"],
+    ["Moon Palace Pièce Montée", "cake", "#e9e3c4", "#9fabc2"],
   ]),
   shop("burger", "Patty Friends", "Burger diner", "DINER", "Smash burgers, onion rings and thick shakes.", "grill", "#d9a79c", [
     ["Fries", "fries", "#e2cf98", "#c98f8f"], ["Milkshake", "tall", "#e8cfd0", "#f6eeee"], ["Classic Burger", "burger", "#b98d6c", "#b4c3ab"],
     ["Cheeseburger", "burger", "#b98d6c", "#e6cd7a"], ["Onion Rings", "shells", "#d9bd8a", "#f1e3c2"], ["Double Stack", "burger", "#8f6a52", "#e6cd7a"],
     ["Friend Deluxe", "burger", "#a07a5e", "#c98f8f"], ["Silver Smash", "burger", "#9fa6ad", "#ffffff"], ["Moonlight Melt", "burger", "#8a93a8", "#e9e3c4"],
     ["Loaded Nachos", "fries", "#e2cf98", "#b4c3ab"], ["Truffle Burger", "burger", "#6f5a4c", "#e2d7ad"], ["Tower of Friendship", "burger", "#8f6a52", "#c6bed4"],
+    ["Chili Cheese Fries", "fries", "#e6cd7a", "#c98f8f"], ["Wagyu Burger", "burger", "#7a5a48", "#e8dcc2"], ["Lobster Slider Trio", "burger", "#d49d93", "#f4efe6"],
+    ["Triple Truffle Shake", "tall", "#b8a894", "#f6eeee"], ["BBQ Brisket Stack", "burger", "#6f4f3f", "#d9a36f"], ["Onion Ring Tower", "shells", "#d9bd8a", "#b89b73"],
+    ["Golden Friend Burger", "burger", "#b98d6c", "#e2d49e"],
   ]),
   shop("asian", "Lantern Noodle House", "Asian kitchen", "NOODLES", "Ramen, gyoza, sushi and steamed bao.", "steamer", "#b4c3ab", [
     ["Green Tea", "cup", "#a9b99a", "#eef1e6"], ["Gyoza", "dumplings", "#e8dcc2", "#b89b73"], ["Onigiri", "rice", "#f6f3ec", "#3b3a38"],
     ["Miso Ramen", "noodles", "#d9c28f", "#c98f8f"], ["Sushi Set", "sushi", "#f3eee6", "#d8a79c"], ["Bao Buns", "dumplings", "#f4efe6", "#b4c3ab"],
     ["Katsu Curry", "plate", "#c9a26f", "#e2cf98"], ["Silver Tempura Udon", "noodles", "#c9ccd0", "#ffffff"], ["Moonlight Bento", "rice", "#9fabc2", "#e9e3c4"],
     ["Peking Duck", "plate", "#b98d6c", "#e8dcc2"], ["Omakase Box", "sushi", "#f3eee6", "#c98f8f"], ["Dragon Ramen", "noodles", "#d9a79c", "#c98f8f"],
+    ["Tonkotsu Ramen", "noodles", "#efe6d0", "#6f5a4c"], ["Xiao Long Bao", "dumplings", "#f4efe6", "#d9c28f"], ["Unagi Don", "rice", "#8f6a52", "#e2cf98"],
+    ["Wagyu Hot Pot", "bowl", "#c9785f", "#e8dcc2"], ["Lobster Dim Sum", "dumplings", "#f1d9d2", "#d49d93"], ["Toro Nigiri Flight", "sushi", "#e8c3bd", "#3b3a38"],
+    ["Imperial Banquet", "plate", "#c98f8f", "#e2d49e"],
   ]),
 ];
 export const shopById = (id: ShopId) => SHOPS.find(item => item.id === id)!;
 export const dishById = (id: DishId) => shopById(id.split(":")[0] as ShopId).menu[Number(id.split(":")[1])];
 
 /** XP needed to reach level n + 2 (index 0 is level 2). */
-export const LEVEL_XP = [15, 40, 75, 120, 180, 255, 345, 450, 575, 720, 885, 1070, 1275, 1500] as const;
+export const LEVEL_XP = [15, 40, 75, 120, 180, 255, 345, 450, 575, 720, 885, 1070, 1275, 1500, 1750, 2030, 2340, 2685, 3065, 3485, 3945] as const;
 export const MAX_LEVEL = LEVEL_XP.length + 1;
 
 export const MACHINE_COSTS = [70, 150, 260, 420, 650] as const;

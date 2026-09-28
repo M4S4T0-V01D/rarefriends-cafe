@@ -317,7 +317,7 @@ export function setBuilding(state: CafeState, id: BuildingId): string | null {
   if (state.building === id) return null;
   state.building = id;
   if (state.capsule && capsuleProblem(state.items, plan(state), state.capsule)) state.capsule = null;
-  if (!state.started) state.items = defaultItems(id).map(item => ({ ...item }));
+  if (!state.started) state.items = defaultItems(id, state.size).map(item => ({ ...item }));
   else refitItems(state);
   syncWorkers(state); afterLayoutChange(state);
   for (const worker of state.workers) { worker.walker.x = worker.home.x; worker.walker.y = worker.home.y; worker.walker.path = []; }
@@ -362,7 +362,7 @@ function refitItems(state: CafeState) {
     else kept.push(item);
   }
   if (!kept.some(item => isTable(item.kind))) {
-    const spare = [...defaultItems(state.building), ...DEFAULT_ITEMS].find(table => !placementProblem(kept, table, plan(state)));
+    const spare = [...defaultItems(state.building, state.size), ...DEFAULT_ITEMS].find(table => !placementProblem(kept, table, plan(state)));
     if (spare) kept.push({ ...spare, id: state.nextId++ });
   }
   state.items = kept;
@@ -838,6 +838,7 @@ function nextJob(state: CafeState, worker: Worker): Job | null {
   if (worker.role === "chef" && carried.length) return { kind: "plate" };
   if (carried.length) return { kind: "serve", customer: carried[0]!.customer };
   if (worker.role === "manager") return null;
+  if (worker.role === "chef" && isWorking(state, worker) && worker.duty === "work") return tendJob(state, worker);
   const home = same(at(worker.walker), worker.home) ? null : { kind: "walk" as const, to: worker.home };
   if (worker.role !== "waiter" || !isWorking(state, worker)) return home;
   const mine = new Set(manager(state).queue.flatMap(job => job.kind === "take" ? [job.customer] : []));
@@ -847,6 +848,22 @@ function nextJob(state: CafeState, worker: Worker): Job | null {
     .sort((a, b) => a.patience - b.patience)[0];
   if (waiting) { waiting.claimed = worker.id; return { kind: "take", customer: waiting.id }; }
   return home;
+}
+
+/**
+ * A working chef keeps moving along the chef row between the fridge, stoves, sink and prep top: a short stop at each
+ * while dishes cook, drifting back to their own station when the kitchen is quiet.
+ */
+function tendJob(state: CafeState, worker: Worker): Job | null {
+  const layout = plan(state), here = at(worker.walker);
+  const taken = new Set(state.workers.filter(other => other !== worker && other.role === "chef")
+    .flatMap(other => [key(at(other.walker)), ...(other.job?.kind === "walk" ? [key(other.job.to)] : [])]));
+  const busy = state.orders.some(order => order.state === "cooking");
+  if (!busy && !same(here, worker.home) && !taken.has(key(worker.home)) && state.rng() < 0.6) return { kind: "walk", to: worker.home };
+  const spots = layout.chefSpots.filter(tile => !same(tile, here) && !taken.has(key(tile)));
+  const near = spots.filter(tile => Math.abs(tile.x - here.x) + Math.abs(tile.y - here.y) <= 3);
+  const pool = near.length ? near : spots;
+  return pool.length ? { kind: "walk", to: pool[Math.floor(state.rng() * pool.length)] } : null;
 }
 
 function finish(state: CafeState, worker: Worker, job: Job) {
@@ -1088,6 +1105,10 @@ export function update(state: CafeState, dt: number) {
     if (worker.role === "promoter" && isWorking(state, worker) && same(at(body), worker.home) && !body.path.length) {
       tire(state, worker, FATIGUE.promoterPerSecond * dt);
     }
+    // A chef pottering about the kitchen drops it as soon as a dish is done, and takes it to the pass.
+    const pottering = worker.role === "chef" && worker.carrying.length > 0 && worker.job?.kind === "walk";
+    if (pottering && worker.action > 0) worker.action = dt;
+    if (pottering && body.path.length > 1) body.path = [body.path[0]];
     if (worker.action > 0) {
       if ((worker.action -= dt) <= 0) { const job = worker.job!; worker.job = null; worker.action = 0; finish(state, worker, job); }
       continue;
@@ -1110,7 +1131,16 @@ export function update(state: CafeState, dt: number) {
     }
     // Arrived: face the target and perform the action.
     const job = worker.job;
-    if (job.kind === "walk") { worker.job = null; if (worker.role === "chef") body.facing = layout.kitchenSide === "left" ? "left" : "up"; continue; }
+    if (job.kind === "walk") {
+      if (worker.role !== "chef") { worker.job = null; continue; }
+      // At a station: face the stoves (now and then the counter behind) and work there a moment before moving on.
+      const counter = state.rng() < 0.25;
+      body.facing = layout.kitchenSide === "left" ? (counter ? "right" : "left") : (counter ? "down" : "up");
+      if (!isWorking(state, worker) || worker.duty !== "work") { worker.job = null; continue; }
+      const busy = state.orders.some(order => order.state === "cooking");
+      worker.action = busy ? 1 + state.rng() * 1.6 : 2.5 + state.rng() * 3.5;
+      continue;
+    }
     const customer = job.kind === "pickup" || job.kind === "plate" ? null : byId(state.customers, job.customer);
     const target = job.kind === "pickup" || job.kind === "plate" ? layout.pass : byId(state.items, customer?.table ?? -1) ?? body;
     const dx = target.x - body.x, dy = target.y - body.y;

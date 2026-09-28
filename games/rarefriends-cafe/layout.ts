@@ -13,8 +13,8 @@ export type Tile = Readonly<{ x: number; y: number }>;
 /** Tile footprint in world pixels; the camera scales the whole plan to fit the view. */
 export const TILE_W = 66, TILE_H = 33, ORIGIN_X = 480, ORIGIN_Y = 168;
 export const START_SIZE = 10, MAX_SIZE = 20;
-/** Largest building extent on either axis (the long diner at full size). */
-export const MAX_EXTENT = MAX_SIZE + 4;
+/** Largest building extent on either axis (the slim bistro at full size). */
+export const MAX_EXTENT = MAX_SIZE + 6;
 /** Street lanes: the sidewalk at w and w + 1, the road beyond. */
 export const STREET_WIDTH = 4;
 
@@ -29,13 +29,16 @@ export const isDir = (value: unknown): value is Dir => value === 0 || value === 
 export type Placement = Readonly<{ x: number; y: number; dir: Dir }>;
 export const defaultCapsule = (w: number): Placement => ({ x: w - 1, y: 0, dir: 3 });
 
-export type BuildingId = "corner" | "long" | "townhouse" | "parlour";
+export type BuildingId = "corner" | "long" | "townhouse" | "parlour" | "slim" | "lshape" | "ushape";
 export type Building = Readonly<{ id: BuildingId; name: string; text: string; trim: string }>;
 export const BUILDINGS: readonly Building[] = [
   { id: "corner", name: "Corner café", text: "Square room. The kitchen runs along the left wall and opens into the break room.", trim: "#d0cdc6" },
   { id: "long", name: "Long diner", text: "Four tiles longer on the street. A short kitchen, and the break room at the far end.", trim: "#ccd3d9" },
   { id: "townhouse", name: "Townhouse", text: "The kitchen is on the back wall, across the room from the break room.", trim: "#d8c6b9" },
   { id: "parlour", name: "Café with parlour", text: "Two tiles deeper. A half wall closes off a front parlour, far from the pass.", trim: "#d9d1c0" },
+  { id: "slim", name: "Slim bistro", text: "Narrow and long down the street: a row of tables past a short kitchen.", trim: "#cfd6cc" },
+  { id: "lshape", name: "L-shaped café", text: "Two wings round a paved patio on the street corner. The kitchen runs down the left wall.", trim: "#d6cdd8" },
+  { id: "ushape", name: "U-shaped café", text: "Wings either side of a back courtyard, with the kitchen in the middle of the U.", trim: "#dccfc1" },
 ];
 export const buildingById = (id: BuildingId) => BUILDINGS.find(item => item.id === id) ?? BUILDINGS[0];
 export const isBuilding = (value: unknown): value is BuildingId => BUILDINGS.some(item => item.id === value);
@@ -45,8 +48,13 @@ export type Wall = Readonly<{ x: number; y: number; along: "x" | "y"; low?: bool
 export type Plan = Readonly<{
   size: number; building: BuildingId; w: number; d: number;
   door: Tile; entry: Tile; pickup: Tile; pass: Tile; chefPass: Tile; capsule: Tile; capsuleSpot: Tile; capsuleDir: Dir;
-  /** The kitchen stands against the left wall (x = −0.5) or the back wall (y = −0.5) for `kitchenLength` tiles. */
+  /** The kitchen stands against the left wall (x = −0.5) or a back wall (running along x) for `kitchenLength` tiles. */
   kitchenSide: "left" | "back"; kitchenLength: number;
+  /**
+   * Tiles of the `w × d` rectangle that aren't part of the building (the L's patio, the U's courtyard), and their bounds
+   * (inclusive), or null for a plain rectangle.
+   */
+  cut: ReadonlySet<number>; notch: Readonly<{ x0: number; y0: number; x1: number; y1: number }> | null;
   breakDoor: Tile; kitchenDoor: Tile; stoves: readonly Tile[]; counter: readonly Tile[]; walls: readonly Wall[];
   kitchenFloor: readonly Tile[]; breakFloor: readonly Tile[];
   /** Tiles kept clear in front of doors and openings. */
@@ -93,14 +101,24 @@ const range = (from: number, to: number) => Array.from({ length: Math.max(0, to 
 const cache = new Map<string, Plan>();
 export function planFor(size: number, options: { building?: BuildingId; capsule?: Placement | null } = {}): Plan {
   const building = options.building ?? "corner";
-  const w = size, d = size + (building === "long" ? 4 : building === "parlour" ? 2 : 0), machine = options.capsule ?? defaultCapsule(w);
+  const w = building === "slim" ? size - 2 : building === "lshape" || building === "ushape" ? size + 2 : size;
+  const d = size + (building === "long" ? 4 : building === "parlour" || building === "lshape" ? 2 : building === "slim" ? 6 : building === "ushape" ? 1 : 0);
+  const machine = options.capsule ?? defaultCapsule(w);
   const id = `${size}:${building}:${machine.x},${machine.y},${machine.dir}`;
   let plan = cache.get(id);
   if (plan) return plan;
-  const back = building === "townhouse";
-  // Kitchen: stoves on the wall, the chef row, then the counter. It reaches the break room in the corner café and parlour.
-  const kitchenLength = back ? w - 4 : building === "long" ? size - 4 : d - 4;
-  const along = (t: number, depth: number): Tile => back ? { x: t, y: depth } : { x: depth, y: t };
+  // The L's patio takes the street corner; the U's courtyard is cut into the middle of the back.
+  const courtWidth = Math.max(4, Math.floor(w / 3)), courtX = Math.floor((w - courtWidth) / 2), courtDepth = Math.floor(d / 4) + 1;
+  const notch = building === "lshape" ? { x0: w - Math.floor(w / 2), y0: d - Math.floor(d / 2), x1: w - 1, y1: d - 1 }
+    : building === "ushape" ? { x0: courtX, y0: 0, x1: courtX + courtWidth - 1, y1: courtDepth - 1 } : null;
+  const cut = new Set<number>();
+  if (notch) for (let y = notch.y0; y <= notch.y1; y++) for (let x = notch.x0; x <= notch.x1; x++) cut.add(key({ x, y }));
+  const u = building === "ushape", back = building === "townhouse" || u;
+  // Kitchen: stoves on the wall, the chef row, then the counter. It reaches the break room in the corner café, parlour and L.
+  // In the U it backs onto the courtyard, walled off at both ends, with a door out into each wing.
+  const kitchenLength = u ? courtWidth : back ? w - 4 : building === "long" || building === "slim" ? size - 4 : d - 4;
+  const kx = u ? courtX : 0, ky = u ? courtDepth : 0;
+  const along = (t: number, depth: number): Tile => back ? { x: kx + t, y: ky + depth } : { x: depth, y: t };
   const middle = Math.floor(kitchenLength / 2);
   const stoves = range(0, kitchenLength).map(t => along(t, 0)), chefRow = range(0, kitchenLength).map(t => along(t, 1));
   const counter = range(0, kitchenLength).map(t => along(t, 2));
@@ -108,13 +126,14 @@ export function planFor(size: number, options: { building?: BuildingId; capsule?
   const kitchenDoor = along(kitchenLength, 1);
   const walls: Wall[] = [0, 2].map(depth => ({ ...along(kitchenLength, depth), along: back ? "y" as const : "x" as const }));
   const clear: Tile[] = [];
+  if (u) { walls.push(...[0, 2].map(depth => ({ ...along(-1, depth), along: "y" as const }))); clear.push(along(-1, 1), along(-2, 1)); }
   // Break room in the front-left corner: rows d − 3 … d − 1 at x 0–1, walled on top (y = d − 4) and on the dining side (x = 2).
   const breakRows = range(d - 3, d), breakDoor = { x: 2, y: d - 2 };
   const breakFloor = breakRows.flatMap(y => [{ x: 0, y }, { x: 1, y }]);
   const joined = !back && kitchenLength === d - 4;
   if (!joined) {
     walls.push(...[0, 1, 2].map(x => ({ x, y: d - 4, along: "x" as const })));
-    clear.push(back ? { x: kitchenLength + 1, y: 1 } : { x: 1, y: kitchenLength + 1 });
+    clear.push(back ? along(kitchenLength + 1, 1) : { x: 1, y: kitchenLength + 1 });
   }
   walls.push(...breakRows.filter(y => y !== breakDoor.y).map(y => ({ x: 2, y, along: "y" as const })));
   clear.push({ x: 3, y: breakDoor.y });
@@ -124,13 +143,13 @@ export function planFor(size: number, options: { building?: BuildingId; capsule?
     walls.push(...range(3, w).filter(x => x !== opening).map(x => ({ x, y: d - 4, along: "x" as const, low: true })));
     clear.push({ x: opening, y: d - 4 }, { x: opening, y: d - 5 }, { x: opening, y: d - 3 });
   }
-  const door = { x: w - 1, y: back || building === "long" ? Math.floor(d / 2) : 3 };
+  const door = { x: w - 1, y: back || building === "long" || building === "slim" ? Math.floor(d / 2) : 3 };
   const kitchenFloor = [...chefRow, ...(joined ? [kitchenDoor] : [])];
   const fixed = new Set([...stoves, ...counter, ...kitchenFloor, ...breakFloor, ...walls, breakDoor, kitchenDoor].map(key));
   const dining = new Set<number>();
-  for (let y = 0; y < d; y++) for (let x = 0; x < w; x++) if (!fixed.has(key({ x, y }))) dining.add(key({ x, y }));
+  for (let y = 0; y < d; y++) for (let x = 0; x < w; x++) if (!fixed.has(key({ x, y })) && !cut.has(key({ x, y }))) dining.add(key({ x, y }));
   plan = Object.freeze({
-    size, building, w, d, kitchenSide: back ? "back" as const : "left" as const, kitchenLength,
+    size, building, w, d, kitchenSide: back ? "back" as const : "left" as const, kitchenLength, cut, notch,
     door, entry: { x: w, y: door.y },
     pickup: along(middle, 3), pass: along(middle, 2), chefPass: along(middle, 1),
     capsule: { x: machine.x, y: machine.y }, capsuleSpot: { x: machine.x + FACING[machine.dir].x, y: machine.y + FACING[machine.dir].y }, capsuleDir: machine.dir,
@@ -162,14 +181,23 @@ export const DEFAULT_ITEMS: readonly Item[] = [
   { id: 1, kind: "table", x: 5, y: 3, dir: 0 }, { id: 2, kind: "table", x: 7, y: 5, dir: 0 }, { id: 3, kind: "table", x: 5, y: 7, dir: 0 },
 ];
 /** Starting tables for a building (the townhouse's back kitchen needs them a row further forward). */
-export const defaultItems = (building: BuildingId): readonly Item[] =>
-  building === "townhouse" ? DEFAULT_ITEMS.map(item => ({ ...item, y: item.y + 1 })) : DEFAULT_ITEMS;
+export function defaultItems(building: BuildingId, size = START_SIZE): readonly Item[] {
+  if (building === "townhouse") return DEFAULT_ITEMS.map(item => ({ ...item, y: item.y + 1 }));
+  if (building === "slim") return DEFAULT_ITEMS.map(item => ({ ...item, x: item.x - 1, y: item.y + 1 }));
+  if (building === "ushape") {
+    // One table in each wing and one in front of the counter, wherever the wings fall at this size.
+    const { w, d, notch } = planFor(size, { building });
+    return [{ id: 1, kind: "table", x: 1, y: 1, dir: 0 }, { id: 2, kind: "table", x: w - 2, y: 2, dir: 0 }, { id: 3, kind: "table", x: notch!.x0 + 1, y: d - 2, dir: 0 }];
+  }
+  return DEFAULT_ITEMS;
+}
 
 export const same = (a: Tile, b: Tile) => a.x === b.x && a.y === b.y;
 /** Tiles are keyed with room for the street and the lane's off-screen ends. */
 export const key = (tile: Tile) => (tile.y + 8) * 64 + tile.x + 8;
 export const fromKey = (id: number): Tile => ({ x: (id % 64) - 8, y: Math.floor(id / 64) - 8 });
-export const inside = (tile: Tile, plan: Pick<Plan, "w" | "d">) => tile.x >= 0 && tile.y >= 0 && tile.x < plan.w && tile.y < plan.d;
+export const inside = (tile: Tile, plan: Pick<Plan, "w" | "d"> & { cut?: ReadonlySet<number> }) =>
+  tile.x >= 0 && tile.y >= 0 && tile.x < plan.w && tile.y < plan.d && !plan.cut?.has(key(tile));
 /** Walkable: the building floor plus the sidewalk strip in front of it. */
 export const walkable = (tile: Tile, plan: Plan) => inside(tile, plan)
   || (tile.x >= plan.w && tile.x <= plan.lane && tile.y >= plan.laneStart && tile.y <= plan.laneEnd)

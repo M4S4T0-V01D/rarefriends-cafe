@@ -3,6 +3,18 @@ export type Release = Readonly<{ version: string; date: string; title: string; n
 
 export const CHANGELOG: readonly Release[] = [
   {
+    version: "1.6", date: "2026-09-28", title: "Two roads, three new buildings, a busy kitchen and a master menu",
+    notes: [
+      "A side road now runs along the café's other front into the main road, with its own sidewalks, curbs, lamps and a zebra crossing. The side-street shops sit across it, and their Friends cross at the corner.",
+      "Prettier outdoors: leafy shaded trees, lit pines with snow caps, petalled flowers, mossy rocks, grass tufts, fallen leaves, pebbles, sand ripples and snow drifts.",
+      "Three new buildings: a slim bistro, an L-shaped café round a paved corner patio, and a U-shaped café with its kitchen in the middle of the U.",
+      "The kitchen looks like one: a two-door fridge, ranges with oven doors, a steaming stockpot and a sizzling pan, a sink and a prep board, a tiled splashback with hanging utensils, and wooden counter tops.",
+      "Chefs keep busy, moving between the stoves, fridge, sink and prep top while dishes cook, and still bring every dish to the pass.",
+      "A master menu: seven more dishes for every shop, one a level from 16 to 22. The café now climbs to level 22.",
+      "Thick scrollbars in the game's colours, easy to see and grab in build mode and menus.",
+    ],
+  },
+  {
     version: "1.5", date: "2026-09-28", title: "Turn the view, a neighbourhood, random events and a longer climb",
     notes: [
       "Turn the whole view a quarter at a time: ⟲ ⟳ buttons, [ and ], or right-drag. Walls, furniture, Friends and the street all turn with it, and WASD keeps walking the way you look.",

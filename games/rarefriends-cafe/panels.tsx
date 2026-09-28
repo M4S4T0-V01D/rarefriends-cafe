@@ -64,14 +64,19 @@ export function PlanPreview({ building, size }: { building: BuildingId; size: nu
     for (const tile of plan.breakFloor) colors.set(key(tile), "#c6bed4");
     for (const tile of plan.walls) colors.set(key(tile), tile.low ? "#9fae96" : "#6d6b67");
     colors.set(key(plan.kitchenDoor), "#cfccc5"); colors.set(key(plan.door), "#d8b6b4"); colors.set(key(plan.pickup), "#e2d7ad");
+    // Grid corner (gx, gy) on the canvas; tile (x, y) spans corners x…x + 1, y…y + 1.
+    const corner = (gx: number, gy: number) => ({ x: 45 + (gx - gy) * half, y: top + (gx + gy) * half / 2 });
+    ctx.strokeStyle = INK; ctx.lineWidth = 1;
     for (let y = 0; y < plan.d; y++) for (let x = 0; x < plan.w; x++) {
-      const cx = 45 + (x - y) * half, cy = top + (x + y + 1) * half / 2;
+      if (plan.cut.has(key({ x, y }))) continue;
+      const points = [corner(x, y), corner(x + 1, y), corner(x + 1, y + 1), corner(x, y + 1)];
       ctx.fillStyle = colors.get(key({ x, y })) ?? "#f7f5f0";
-      ctx.beginPath(); ctx.moveTo(cx, cy - half / 2); ctx.lineTo(cx + half, cy); ctx.lineTo(cx, cy + half / 2); ctx.lineTo(cx - half, cy); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); points.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); ctx.closePath(); ctx.fill();
+      // Outline the building along the edges that face outside.
+      const outside = (dx: number, dy: number) => x + dx < 0 || y + dy < 0 || x + dx >= plan.w || y + dy >= plan.d || plan.cut.has(key({ x: x + dx, y: y + dy }));
+      for (const [dx, dy, a, b] of [[0, -1, 0, 1], [1, 0, 1, 2], [0, 1, 2, 3], [-1, 0, 3, 0]] as const)
+        if (outside(dx, dy)) { ctx.beginPath(); ctx.moveTo(points[a].x, points[a].y); ctx.lineTo(points[b].x, points[b].y); ctx.stroke(); }
     }
-    ctx.strokeStyle = INK; ctx.lineWidth = 1; ctx.beginPath();
-    ctx.moveTo(45, top); ctx.lineTo(45 + plan.w * half, top + plan.w * half / 2); ctx.lineTo(45 + (plan.w - plan.d) * half, top + (plan.w + plan.d) * half / 2);
-    ctx.lineTo(45 - plan.d * half, top + plan.d * half / 2); ctx.closePath(); ctx.stroke();
   }, [building, size]);
   return <canvas ref={node} className="cafe-plan" width={90} height={52} aria-hidden="true" />;
 }

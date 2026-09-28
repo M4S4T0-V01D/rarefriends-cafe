@@ -2,6 +2,16 @@
 .cafe-game { --ink: #161616; --paper: #efede7; --card: #f7f5f0ee; --line: #161616; --muted: #6d6b67; --rose: #d8b6b4; --sage: #b4c3ab; --butter: #e2d7ad; --blue: #afbccb;
   position: relative; width: 100%; height: 100%; overflow: hidden; background: var(--paper); color: var(--ink); font: 13px/1.4 ui-monospace, "SFMono-Regular", Menlo, monospace; }
 .cafe-game * { box-sizing: border-box; }
+/* Scrollbars: thick, inked and in the theme's colours, so scrolling rows and menus are easy to see and grab. */
+.cafe-game { --scroll-thumb: var(--sage); --scroll-track: var(--card); }
+.cafe-game ::-webkit-scrollbar { width: 14px; height: 14px; }
+.cafe-game ::-webkit-scrollbar-track { background: var(--scroll-track); border: 1.5px solid var(--ink); }
+.cafe-game ::-webkit-scrollbar-thumb { background: var(--scroll-thumb); border: 1.5px solid var(--ink); box-shadow: inset 2px 2px 0 rgba(255,255,255,.35); min-height: 28px; min-width: 28px; }
+.cafe-game ::-webkit-scrollbar-thumb:hover { background: var(--rose); }
+.cafe-game ::-webkit-scrollbar-thumb:active { background: var(--butter); }
+.cafe-game ::-webkit-scrollbar-corner { background: var(--scroll-track); }
+.cafe-game ::-webkit-scrollbar-button { display: none; }
+@supports not selector(::-webkit-scrollbar) { .cafe-game, .cafe-game * { scrollbar-width: auto; scrollbar-color: var(--ink) var(--scroll-track); } }
 .cafe-world { position: absolute; inset: 0; }
 .cafe-world canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: pointer; outline-offset: -3px; }
 .cafe-world canvas:focus-visible { outline: 3px solid var(--ink); }
@@ -136,7 +146,7 @@
 .cafe-build-head .cafe-tabs { margin: 0; flex: none; }
 .cafe-build-head .cafe-tabs button { flex: none; min-height: 30px; padding: 4px 10px; }
 .cafe-build-status { flex: 1; min-width: 0; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cafe-build-row { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 3px; scrollbar-width: thin; }
+.cafe-build-row { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 3px; }
 .cafe-build-row button { flex: none; display: flex; align-items: center; gap: 6px; text-align: left; box-shadow: none; padding: 5px 9px; font-size: 12px; }
 .cafe-build-row button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
 .cafe-build-row small { display: block; font-size: 10px; opacity: .75; }
@@ -230,7 +240,7 @@
 .cafe-news li { margin: 2px 0; }
 
 /* Dark mode: the UI goes night-time charcoal; the shop scene dims a touch, like the lights are low. */
-.cafe-game[data-theme="dark"] { --ink: #eceae4; --paper: #1d1d1c; --card: #262625ee; --line: #eceae4; --muted: #a7a49d; --rose: #8f6f6d; --sage: #6f7d68; --butter: #8a7f55; --blue: #6b7888; color-scheme: dark; }
+.cafe-game[data-theme="dark"] { --scroll-track: #2e2e2c; --ink: #eceae4; --paper: #1d1d1c; --card: #262625ee; --line: #eceae4; --muted: #a7a49d; --rose: #8f6f6d; --sage: #6f7d68; --butter: #8a7f55; --blue: #6b7888; color-scheme: dark; }
 .cafe-game[data-theme="dark"] .cafe-world canvas { filter: brightness(.8) contrast(1.06) saturate(.92); }
 .cafe-game[data-theme="dark"] button:hover:not(:disabled) { background: #333331; }
 .cafe-game[data-theme="dark"] .rf-frame-menu { background: #232322; color: var(--ink); border-color: #5a5955; }

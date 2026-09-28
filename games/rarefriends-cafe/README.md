@@ -31,7 +31,7 @@ picker, music and effects toggles, and volume. **Reduce motion** is in Settings 
 
 ## The shop
 
-- **Plan:** the **kitchen** is a room against a back wall, closed off by the **counter**, which is its wall: guests order at the pass. A **break room** with a sofa sits in the front-left corner behind its own door. Every other tile is the dining room, your grid. Outside, a long **street** runs past the door to the edge of the world, the **sidewalk** wraps round the building's other front, and a second sidewalk runs across the road. Rows of **neighbouring shops** (bakery, books, flowers, tea house and more) line the streets: you can't go in, but Friends come out of their doors and pop into them. A shop standing between you and the café turns see-through.
+- **Plan:** the **kitchen** is a room against a back wall, closed off by the **counter**, which is its wall: guests order at the pass. A **break room** with a sofa sits in the front-left corner behind its own door. Every other tile is the dining room, your grid. Outside, a long **street** runs past the door to the edge of the world, with a sidewalk on each side. Along the building's other front a **side road** with its own two sidewalks runs into the main road at a T-junction, with a zebra crossing where your sidewalk meets it. Friends from the side-street shops cross at the corner. Rows of **neighbouring shops** (bakery, books, flowers, tea house and more) line the streets: you can't go in, but Friends come out of their doors and pop into them. A shop standing between you and the café turns see-through.
 - **The world outside:** Build → **Outside** dresses the ground beyond the walls and sidewalks. *Quiet lot* (free), *Cottage garden* (☕ 1,200, +2 ambience), *City park* (☕ 2,600, +3) and *Pine woods* (☕ 4,200, +4) cost Beans. *Seaside* and *Snowy village* (3 capsules, +4), *Cherry blossom lane* (4, +5) and *Night market* (5, +6) are paid with RF capsules in Capsules → Boosts. Owned sceneries switch for free.
 - **Buildings:** pick one at setup; change it in Build → **Building** between days (furniture that no longer fits is refunded).
 
@@ -41,24 +41,35 @@ picker, music and effects toggles, and volume. **Reduce motion** is in Settings 
 | Long diner | 10 × 14 | Four tiles longer on the street, door in the middle. A short kitchen opens into a dining nook; the break room is at the far end. |
 | Townhouse | 10 × 10 | Kitchen on the back wall beside the sign, across the room from the break room. |
 | Café with parlour | 10 × 12 | Like the corner café, two tiles deeper. A half wall with planters closes off a front parlour, reached through one opening by the door, far from the pass. |
+| Slim bistro | 8 × 16 | Narrow and long down the street, door in the middle: a row of tables past a short kitchen, the break room at the far end. |
+| L-shaped café | 12 × 12 | Two wings round a paved patio (benches and flowers) on the street corner. The kitchen runs down the left wall into the break room. |
+| U-shaped café | 12 × 11 | Two wings either side of a back courtyard. The kitchen sits in the middle of the U against the courtyard wall, with a door out into each wing. |
 
 - **Expansion:** ten expansions, each one tile longer on both sides (10 → 20 wide) and each adding a free staff slot (up to 10). Costs are 300 / 500 / 750 / 1,000 / 1,300 / 1,650 / 2,050 / 2,500 / 3,000 / 3,600 Beans at levels 3–10, 12 and 14, between days only. The kitchen counter lengthens. Furniture that would land on a reserved tile is refunded in full.
 - **Capsule machine:** starts in the back corner by the window. In Build → **Move**, tap it, then a tile; **R** (or **Turn**) turns the side you use it from (the crank shows which).
 - **Shops:** choose one before your first day. All five play alike, with their own menu, dish art, kitchen station, sign and awning colour.
 
-| Shop | Menu (slots 1–7) · capsule specials · late-game signatures |
+| Shop | Menu (slots 1–7) · capsule specials · late-game signatures · master menu (levels 16–22) |
 | --- | --- |
-| RareFriends Cafe (coffee & sweets) | Espresso, Latte ♡, Matcha Latte, Strawberry Mochi, Fluffy Pancakes, Omurice, Cloud Parfait · Silver Latte, Moonlight Parfait · Honey Butter Toast, Strawberry Crêpe Cake, Latte Art Flight |
-| Tide & Shell (seafood) | Clam Chowder, Fish & Chips, Grilled Squid, Shrimp Tempura, Oyster Plate, Lobster Roll, Seafood Paella · Silver Pearl Oysters, Moonlight Bouillabaisse · Grilled Lobster, Crab Pot, Grand Seafood Tower |
-| Flour Moon (pastry) | Croissant, Cinnamon Roll, Macarons, Strawberry Shortcake, Éclair, Mille-feuille, Lemon Tart · Silver Soufflé, Moonlight Mont Blanc · Opera Cake, Macaron Tower, Gold-Leaf Éclair |
-| Patty Friends (burgers) | Fries, Milkshake, Classic Burger, Cheeseburger, Onion Rings, Double Stack, Friend Deluxe · Silver Smash, Moonlight Melt · Loaded Nachos, Truffle Burger, Tower of Friendship |
-| Lantern Noodle House (Asian) | Green Tea, Gyoza, Onigiri, Miso Ramen, Sushi Set, Bao Buns, Katsu Curry · Silver Tempura Udon, Moonlight Bento · Peking Duck, Omakase Box, Dragon Ramen |
+| RareFriends Cafe (coffee & sweets) | Espresso, Latte ♡, Matcha Latte, Strawberry Mochi, Fluffy Pancakes, Omurice, Cloud Parfait · Silver Latte, Moonlight Parfait · Honey Butter Toast, Strawberry Crêpe Cake, Latte Art Flight · Affogato, Tiramisu, Soufflé Pancake Tower, Black Sesame Parfait, Truffle Omurice, Gold-Leaf Mocha, Friendship High Tea |
+| Tide & Shell (seafood) | Clam Chowder, Fish & Chips, Grilled Squid, Shrimp Tempura, Oyster Plate, Lobster Roll, Seafood Paella · Silver Pearl Oysters, Moonlight Bouillabaisse · Grilled Lobster, Crab Pot, Grand Seafood Tower · Scallop Carpaccio, Seared Tuna Steak, Uni Risotto, Lobster Thermidor, King Crab Legs, Caviar Blini, Ocean Grand Platter |
+| Flour Moon (pastry) | Croissant, Cinnamon Roll, Macarons, Strawberry Shortcake, Éclair, Mille-feuille, Lemon Tart · Silver Soufflé, Moonlight Mont Blanc · Opera Cake, Macaron Tower, Gold-Leaf Éclair · Kouign-amann, Paris-Brest, Saint-Honoré, Chocolate Soufflé, Fraisier, Croquembouche, Moon Palace Pièce Montée |
+| Patty Friends (burgers) | Fries, Milkshake, Classic Burger, Cheeseburger, Onion Rings, Double Stack, Friend Deluxe · Silver Smash, Moonlight Melt · Loaded Nachos, Truffle Burger, Tower of Friendship · Chili Cheese Fries, Wagyu Burger, Lobster Slider Trio, Triple Truffle Shake, BBQ Brisket Stack, Onion Ring Tower, Golden Friend Burger |
+| Lantern Noodle House (Asian) | Green Tea, Gyoza, Onigiri, Miso Ramen, Sushi Set, Bao Buns, Katsu Curry · Silver Tempura Udon, Moonlight Bento · Peking Duck, Omakase Box, Dragon Ramen · Tonkotsu Ramen, Xiao Long Bao, Unagi Don, Wagyu Hot Pot, Lobster Dim Sum, Toro Nigiri Flight, Imperial Banquet |
 
 | Menu slot | 1 | 2 | 3 | 4 | 5 | 6 | 7 | Silver | Moonlight | 10 | 11 | 12 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Price (Beans) | 5 | 7 | 9 | 12 | 16 | 23 | 29 | 35 | 55 | 38 | 48 | 62 |
 | Cook time | 3 s | 4 s | 5 s | 6 s | 8 s | 10 s | 9 s | 6 s | 11 s | 11 s | 12 s | 14 s |
 | Unlock | start | start | Lv 2 · 60 | Lv 3 · 120 | Lv 5 · 200 | Lv 7 · 350 | Lv 9 · 500 | kept Silver Recipe | kept Moonlight Recipe | Lv 11 · 900 | Lv 13 · 1,500 | Lv 15 · 2,400 |
+
+**Master menu** (slots 13–19, one a level):
+
+| Menu slot | 13 | 14 | 15 | 16 | 17 | 18 | 19 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Price (Beans) | 72 | 84 | 96 | 110 | 126 | 145 | 170 |
+| Cook time | 15 s | 16 s | 17 s | 18 s | 19 s | 20 s | 22 s |
+| Unlock | Lv 16 · 3,400 | Lv 17 · 4,600 | Lv 18 · 6,000 | Lv 19 · 7,800 | Lv 20 · 10,000 | Lv 21 · 13,000 | Lv 22 · 17,000 |
 
 ## A day of service
 
@@ -69,8 +80,8 @@ picker, music and effects toggles, and volume. **Reduce motion** is in Settings 
 - **Random events** (from day two, most days, partway through): *Food critic* (serve them happily for +0.3 rating and ☕ 80; if they leave unhappy, −0.4), *Celebrity Friend* (☕ 150 and +0.15 rating), *Tour bus* (a minute of passers-by galore), *Rain shower* (90 s: fewer walkers, +30% patience), *Lunch rush* (90 s: +20% tips), *Kitchen hiccup* (45 s: cooking 25% slower).
 - **Patience:** 18 s to order, 34 s for food (+6% per ambience level). If it runs out, the guest leaves unhappy and the rating drops.
 - **Payment** = price × (1 + tip), with Fancy plating raising the price. Tip = 20% × remaining patience + 2% per ambience level + House Secret bonus + tip jar + the serving waiter's skill. Rating is a rolling average (5 happy, 4 slow, 1 left).
-- **Shop XP:** +1 per guest served, +1 if happy, +2 for a Genesis VIP. **15 levels** (15 / 40 / 75 / 120 / 180 / 255 / 345 / 450 / 575 / 720 / 885 / 1,070 / 1,275 / 1,500 XP). Levels unlock dishes, more tables (5 at level 1, +7 a level, up to 100), staff slots, expansions and upgrades. Every level past the first also gives your **manager a skill point** (Upgrades → You): *Quick feet* (+8% walk, ×3), *Steady hands* (+1 dish carried, ×2), *Snappy service* (−20% order/serve time, ×2), *Charm* (+4% tips on dishes you serve, ×3), *Calm presence* (+5% patience, ×3), *Leadership* (staff +5% speed and −5% fatigue, ×3).
-- **Kitchen:** 1 dish at a time, plus 1 per working chef and per Second station level. Station levels (70 / 150 / 260 / 420 / 650 Beans) cut cook time 12% each. A chef carries each cooked dish from the stove to the pass; with no chef, dishes appear on the pass. You carry 2 dishes (3 with the Cellular perk, +1 with the big tray).
+- **Shop XP:** +1 per guest served, +1 if happy, +2 for a Genesis VIP. **22 levels** (15 / 40 / 75 / 120 / 180 / 255 / 345 / 450 / 575 / 720 / 885 / 1,070 / 1,275 / 1,500 / 1,750 / 2,030 / 2,340 / 2,685 / 3,065 / 3,485 / 3,945 XP). Levels unlock dishes, more tables (5 at level 1, +7 a level, up to 100), staff slots, expansions and upgrades. Every level past the first also gives your **manager a skill point** (Upgrades → You): *Quick feet* (+8% walk, ×3), *Steady hands* (+1 dish carried, ×2), *Snappy service* (−20% order/serve time, ×2), *Charm* (+4% tips on dishes you serve, ×3), *Calm presence* (+5% patience, ×3), *Leadership* (staff +5% speed and −5% fatigue, ×3).
+- **Kitchen:** 1 dish at a time, plus 1 per working chef and per Second station level. Station levels (70 / 150 / 260 / 420 / 650 Beans) cut cook time 12% each. While dishes cook, a chef works their way along the chef row (a short stop at the fridge, a range, the sink or the prep top, now and then turning to the counter), and drifts back to their own station when the kitchen is quiet. As soon as a dish is done they drop what they're doing and carry it from the stove to the pass; with no chef, dishes appear on the pass. You carry 2 dishes (3 with the Cellular perk, +1 with the big tray).
 
 ## Shop upgrades
 

@@ -30,11 +30,12 @@ test("the plan: kitchen room behind the counter wall, a break room, the street a
   }
 });
 
-test("every shop has a full, balanced twelve-dish menu (seven, two capsule specials, three late-game signatures)", () => {
+test("every shop has a full, balanced nineteen-dish menu (seven, two capsule specials, three signatures, seven master dishes)", () => {
   assert.equal(SHOPS.length, 5);
   for (const shop of SHOPS) {
-    assert.equal(shop.menu.length, 12, shop.id);
-    assert.deepEqual(shop.menu.slice(9).map(dish => dish.level), [11, 13, 15]);
+    assert.equal(shop.menu.length, 19, shop.id);
+    assert.deepEqual(shop.menu.slice(9).map(dish => dish.level), [11, 13, 15, 16, 17, 18, 19, 20, 21, 22]);
+    assert.equal(new Set(shop.menu.map(dish => dish.name)).size, 19, `${shop.id}: every dish has its own name`);
     assert.deepEqual(shop.menu.map(dish => dish.price), SHOPS[0].menu.map(dish => dish.price));
     assert.equal(dishById(shop.menu[4].id), shop.menu[4]);
   }
@@ -146,7 +147,7 @@ test("the catalog, wallpapers and floors have unique ids; the three rugs stack u
 test("a day lasts five minutes and earns slowly; the level curve runs to 15", () => {
   assert.equal(DAY_LENGTH, 300);
   assert.deepEqual(SHOPS[0].menu.slice(0, 7).map(dish => dish.price), [5, 7, 9, 12, 16, 23, 29]);
-  assert.equal(LEVEL_XP.length + 1, 15);
+  assert.equal(LEVEL_XP.length + 1, 22);
   const state = cafe(); state.items = state.items.slice(0, 3);
   openCafe(state);
   // Auto-serve with the manager for a whole day: a first day earns a modest handful of Beans.
@@ -212,13 +213,26 @@ test("a chef carries each cooked dish from the stove to the pass", () => {
     if (plated && state.orders.some(item => item.state === "ready" || item.state === "carried")) carried = true;
   }
   assert.ok(plated && carried, "a dish went stove → chef → pass");
-  assert.ok(until(state, () => !chef.carrying.length && Math.round(chef.walker.x) === 1 && Math.round(chef.walker.y) === chef.home.y, 30), "the chef heads back to the stove");
+  assert.ok(until(state, () => !chef.carrying.length && Math.round(chef.walker.x) === 1, 30), "the chef heads back to the stoves");
+  // While dishes cook the chef moves between stations along the chef row, and still brings every dish to the pass.
+  const visited = new Set(), rows = new Set(layout.chefSpots.map(tile => `${tile.x},${tile.y}`));
+  let readied = 0;
+  for (let t = 0; t < 90; t += 0.05) {
+    for (const customer of state.customers) actOnCustomer(state, customer.id);
+    const before = state.orders.filter(item => item.state === "ready").length;
+    update(state, 0.05);
+    if (state.orders.filter(item => item.state === "ready").length > before) readied++;
+    const tile = `${Math.round(chef.walker.x)},${Math.round(chef.walker.y)}`;
+    if (!chef.walker.path.length) { assert.ok(rows.has(tile) || tile === `${layout.chefPass.x},${layout.chefPass.y}`, `the chef stays in the kitchen (at ${tile})`); visited.add(tile); }
+  }
+  assert.ok(visited.size >= 3, `the chef works several stations (${visited.size})`);
+  assert.ok(readied >= 2, "dishes keep reaching the pass");
   assert.ok(layout.pass.x === 2);
 });
 
 test("every building, at every size, works: routes to the counter, capsules, break room and out of the kitchen", () => {
   for (const building of BUILDINGS.map(item => item.id)) for (let size = 10; size <= 20; size++) {
-    const layout = planFor(size, { building }), items = defaultItems(building), blocked = blockedTiles(items, layout);
+    const layout = planFor(size, { building }), items = defaultItems(building, size), blocked = blockedTiles(items, layout);
     const label = `${building} ${size}`, street = { x: layout.lane, y: layout.door.y };
     assert.equal(layoutProblem(items, layout), null, label);
     for (const goal of [layout.pickup, layout.capsuleSpot, layout.breakDoor, ...items.map(seatOf)]) assert.ok(route(street, [goal], blocked, layout), `${label}: street → ${JSON.stringify(goal)}`);

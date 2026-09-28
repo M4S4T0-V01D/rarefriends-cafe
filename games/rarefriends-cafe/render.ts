@@ -3,8 +3,8 @@ import type { GenerationSprites } from "@rarefriends/friendsdk/sprites";
 import { FLOORS, WALLPAPERS, catalogItem, dishById, isRug, isTable, shopById, workerLevel, type DishId, type DishShape, type ItemKind, type Shop } from "./data.ts";
 import { CAPSULE_ID, DIR_FACING, eventActive, ambience, dayProgress, manager, memberOf, plan, tables, type CafeState, type Customer, type Facing, type Passerby, type StaffWho, type Worker } from "./engine.ts";
 import type { GuestArt } from "./guests.ts";
-import { behindWalls, drawProp, outsideProps, paintGround } from "./world.ts";
-import { type Neighbour, FACING, buildingById, depthOf, turnView, viewDir, viewTurn, cameraFor, fromKey, key, project, seatOf, seatsOf, toWorld, unproject, type Camera, type Dir, type Item, type Placement, type Tile } from "./layout.ts";
+import { bead, behindWalls, drawProp, outsideProps, paintGround } from "./world.ts";
+import { type Neighbour, FACING, buildingById, depthOf, turnView, viewDir, viewTurn, cameraFor, fromKey, inside, key, project, seatOf, seatsOf, toWorld, unproject, type Camera, type Dir, type Item, type Placement, type Tile } from "./layout.ts";
 
 export const VIEW = { width: 960, height: 640 } as const;
 /** The player's zoom and pan (in view pixels), on top of the camera that frames the shop. */
@@ -138,6 +138,34 @@ const wallSlope = (wall: Wall) => { const a = wallPoint(wall, 0, 0), b = wallPoi
 function onPlane(ctx: CanvasRenderingContext2D, at: Point, from: Point, dir: Point) {
   const a = project(from.x, from.y), b = project(from.x + dir.x, from.y + dir.y), sign = b.x >= a.x ? 1 : -1;
   ctx.translate(at.x, at.y); ctx.transform(sign * (b.x - a.x) / 33, sign * (b.y - a.y) / 33, 0, 1, 0, 0);
+}
+
+/** The building's outline, tile by tile: each floor tile edge that faces outside (the street or the L's patio, the U's courtyard). */
+type Edge = { tile: Tile; side: Side; a: Point; b: Point; outer: boolean };
+const SIDE_STEPS: readonly (readonly [Side, number, number])[] = [["west", -1, 0], ["north", 0, -1], ["east", 1, 0], ["south", 0, 1]];
+function buildingEdges(layout: ReturnType<typeof plan>): Edge[] {
+  const edges: Edge[] = [];
+  for (let y = 0; y < layout.d; y++) for (let x = 0; x < layout.w; x++) {
+    if (!inside({ x, y }, layout)) continue;
+    for (const [side, dx, dy] of SIDE_STEPS) {
+      if (inside({ x: x + dx, y: y + dy }, layout)) continue;
+      const a = dx ? { x: dx / 2, y: -0.5 } : { x: -0.5, y: dy / 2 }, b = dx ? { x: dx / 2, y: 0.5 } : { x: 0.5, y: dy / 2 };
+      const outer = side === "west" ? x === 0 : side === "north" ? y === 0 : side === "east" ? x === layout.w - 1 : y === layout.d - 1;
+      edges.push({ tile: { x, y }, side, a, b, outer });
+    }
+  }
+  return edges;
+}
+/** Stretches of a rectangle side where the building stands, as [first, last] grid coordinates along it. */
+function wallSpans(layout: ReturnType<typeof plan>, side: Side): [number, number][] {
+  const length = side === "west" || side === "east" ? layout.d : layout.w, spans: [number, number][] = [];
+  for (let t = 0; t < length; t++) {
+    const tile = side === "west" ? { x: 0, y: t } : side === "north" ? { x: t, y: 0 } : side === "east" ? { x: layout.w - 1, y: t } : { x: t, y: layout.d - 1 };
+    if (!inside(tile, layout)) continue;
+    const last = spans[spans.length - 1];
+    if (last && last[1] === t - 1) last[1] = t; else spans.push([t, t]);
+  }
+  return spans;
 }
 
 /** Paint a wallpaper pattern over a whole wall. */
@@ -347,20 +375,31 @@ function paintBackdrop(state: CafeState, scale: number, camera: Camera) {
   const kitchen = new Set([...layout.kitchenFloor, ...layout.stoves, layout.kitchenDoor].map(key)), lounge = new Set(layout.breakFloor.map(key));
   for (let y = 0; y < DEEP; y++) for (let x = 0; x < WIDE; x++) {
     const tile = key({ x, y });
+    if (layout.cut.has(tile)) { paintFloorTile(ctx, "sidewalk", x, y, []); continue; }
     paintFloorTile(ctx, kitchen.has(tile) ? "kitchen" : lounge.has(tile) ? "lounge" : floor.id, x, y, floor.colors);
   }
   ctx.strokeStyle = C.line; ctx.lineWidth = 0.6;
-  for (let t = -0.5; t <= WIDE - 0.5; t += 1) line(ctx, project(t, -0.5), project(t, DEEP - 0.5));
-  for (let t = -0.5; t <= DEEP - 0.5; t += 1) line(ctx, project(-0.5, t), project(WIDE - 0.5, t));
-  poly(ctx, [project(-0.5, -0.5), project(WIDE - 0.5, -0.5), project(WIDE - 0.5, DEEP - 0.5), project(-0.5, DEEP - 0.5)], "rgba(0,0,0,0)", INK);
+  for (let y = 0; y < DEEP; y++) for (let x = 0; x < WIDE; x++) if (!layout.cut.has(key({ x, y }))) {
+    line(ctx, project(x - 0.5, y - 0.5), project(x + 0.5, y - 0.5)); line(ctx, project(x - 0.5, y - 0.5), project(x - 0.5, y + 0.5));
+  }
+  ctx.lineWidth = 1; ctx.strokeStyle = INK;
+  for (const edge of buildingEdges(layout)) line(ctx, project(edge.tile.x + edge.a.x, edge.tile.y + edge.a.y), project(edge.tile.x + edge.b.x, edge.tile.y + edge.b.y));
   return canvas;
 }
 /** One back wall with everything that hangs on it. Positions along a wall are grid coordinates (x or y). */
 function paintWall(ctx: CanvasRenderingContext2D, state: CafeState, layout: ReturnType<typeof plan>, side: Side, paper: { id: string; colors: readonly string[] }, level: number, shop: Shop) {
-  const wall = wallOf(layout, side), { w: WIDE, d: DEEP } = layout;
-  wallpaper(ctx, paper.id, wall, paper.colors);
+  const wall = wallOf(layout, side), { w: WIDE, d: DEEP } = layout, spans = wallSpans(layout, side);
   /** A point on this wall at grid coordinate `c` along it. */
   const on = (c: number, h: number, out = 0) => wallPoint(wall, c + 0.5, h, out);
+  // Only where the building stands along this side (an L or U leaves gaps): clip to those stretches of the wall.
+  ctx.save();
+  if (layout.notch) {
+    ctx.beginPath();
+    for (const [first, last] of spans) { const a = on(first - 0.5, 0).x, b = on(last + 0.5, 0).x; ctx.rect(Math.min(a, b) - 0.5, -4000, Math.abs(b - a) + 1, 8000); }
+    ctx.clip();
+  }
+  const within = (from: number, to: number) => spans.some(([first, last]) => from >= first - 0.5 && to <= last + 0.5);
+  wallpaper(ctx, paper.id, wall, paper.colors);
   const text = (c: number, h: number, draw: () => void) => { ctx.save(); onPlane(ctx, on(c, h), wall.start, wall.dir); draw(); ctx.restore(); };
   const frame = (c: number, h: number, color: string) => text(c, h, () => {
     ctx.fillStyle = C.light; ctx.fillRect(-15, -22, 30, 26); ctx.strokeStyle = INK; ctx.lineWidth = 1.5; ctx.strokeRect(-15, -22, 30, 26);
@@ -369,6 +408,7 @@ function paintWall(ctx: CanvasRenderingContext2D, state: CafeState, layout: Retu
   const windows = (from: number, to: number, skip?: number) => {
     for (let start = from; start + 2.2 <= to; start += 3) {
       if (skip !== undefined && skip > start - 1.2 && skip < start + 3.4) continue;
+      if (!within(start - 0.2, start + 2.4)) continue;
       const span = 2.2, lo = 50, hi = 112, at = (c: number, h: number, out = 0) => on(c, h, out);
       poly(ctx, [at(start, lo), at(start + span, lo), at(start + span, hi), at(start, hi)], "#c9d2da", INK);
       ctx.strokeStyle = INK; line(ctx, at(start + span / 2, lo), at(start + span / 2, hi)); line(ctx, at(start, (lo + hi) / 2), at(start + span, (lo + hi) / 2));
@@ -377,23 +417,36 @@ function paintWall(ctx: CanvasRenderingContext2D, state: CafeState, layout: Retu
   };
   const hood = () => {
     const end = layout.kitchenLength;
+    // A tiled splashback over the worktops, and a rail of hanging utensils.
+    poly(ctx, [on(-0.5, 34), on(end - 0.5, 34), on(end - 0.5, 92), on(-0.5, 92)], "#eef0f2", INK);
+    ctx.strokeStyle = "rgba(22,22,22,.12)";
+    for (let h = 34, row = 0; h < 92; h += 7, row++) { line(ctx, on(-0.5, h), on(end - 0.5, h)); for (let t = -0.5 + (row % 2) * 0.17; t < end - 0.5; t += 0.34) line(ctx, on(t, h), on(t, h + 7)); }
+    ctx.strokeStyle = INK; ctx.lineWidth = 2; line(ctx, on(0.8, 84), on(end - 0.9, 84)); ctx.lineWidth = 1;
+    for (let t = 1.1, i = 0; t < end - 1; t += 0.45, i++) {
+      const hook = on(t, 84), kind = i % 4;
+      ctx.strokeStyle = INK; ctx.fillStyle = kind === 3 ? "#3b3a38" : "#c9ccd0";
+      if (kind === 0) { line(ctx, hook, { x: hook.x, y: hook.y + 16 }); ctx.beginPath(); ctx.arc(hook.x, hook.y + 19, 3.5, 0, Math.PI); ctx.fill(); ctx.stroke(); }
+      else if (kind === 1) { line(ctx, hook, { x: hook.x, y: hook.y + 12 }); ctx.fillRect(hook.x - 2.5, hook.y + 12, 5, 7); ctx.strokeRect(hook.x - 2.5, hook.y + 12, 5, 7); }
+      else if (kind === 2) { ctx.fillStyle = "#9c8672"; ctx.fillRect(hook.x - 1, hook.y, 2, 9); ctx.fillStyle = "#c9ccd0"; ctx.beginPath(); ctx.ellipse(hook.x, hook.y + 15, 3, 6, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); }
+      else { line(ctx, hook, { x: hook.x, y: hook.y + 6 }); ctx.beginPath(); ctx.arc(hook.x, hook.y + 14, 7, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); }
+    }
     poly(ctx, [on(0, 96), on(end, 96), on(end, 104, -0.35), on(0, 104, -0.35)], "#a9a6a0", INK);
     for (let t = 0.6; t < end - 0.4; t += 0.8) {
       const p = on(t, 116, -0.12), color = [C.rose, C.sage, C.butter, C.blue][Math.floor(t) % 4];
       ctx.fillStyle = color; ctx.fillRect(p.x - 5, p.y - 14, 10, 14); ctx.strokeStyle = INK; ctx.strokeRect(p.x - 5, p.y - 14, 10, 14);
     }
   };
-  const back = layout.kitchenSide === "back";
+  const back = layout.kitchenSide === "back", court = layout.building === "ushape";
   if (side === "north") {
-    // The shop sign and menu board: over the dining room, or beside a back-wall kitchen.
-    const signAt = back ? layout.kitchenLength + 0.6 : 3.1;
+    // The shop sign and menu board: over the dining room, beside a back-wall kitchen, or on the U's east wing.
+    const signAt = court ? layout.notch!.x1 + 0.9 : back ? layout.kitchenLength + 0.6 : 3.1;
     poly(ctx, [on(signAt, 60), on(signAt + 2.8, 60), on(signAt + 2.8, 110), on(signAt, 110)], "#2c2c2b", INK);
     ctx.save(); ctx.strokeStyle = "rgba(247,245,240,.55)"; ctx.lineWidth = 1.2;
     for (let row = 0; row < 4; row++) line(ctx, on(signAt + 0.4, 98 - row * 10), on(signAt + 1.9 + (row % 2) * 0.5, 98 - row * 10));
     ctx.restore();
     poly(ctx, [on(signAt - 0.2, 114), on(signAt + 3, 114), on(signAt + 3, 130), on(signAt - 0.2, 130)], C.light, INK);
     text(signAt + 1.4, 118, () => { ctx.fillStyle = INK; ctx.font = "bold 11px ui-monospace, monospace"; ctx.textAlign = "center"; ctx.fillText(shop.sign, 0, 0); });
-    if (back) hood(); else windows(6.8, WIDE - 1.2);
+    if (court) windows(-0.2, layout.notch!.x0 - 0.3); else if (back) hood(); else windows(6.8, WIDE - 1.2);
     if (level >= 4 && !back) frame(WIDE - 1.6, 94, C.lavender);
   } else if (side === "west") {
     if (back) windows(3.3, DEEP - 4.2); else hood();
@@ -416,6 +469,7 @@ function paintWall(ctx: CanvasRenderingContext2D, state: CafeState, layout: Retu
     windows(3.8, WIDE - 0.8);
     if (level >= 2) frame(2, 70, shop.accent);
   }
+  ctx.restore();
 }
 
 // ---------- Dish icons ----------
@@ -1215,7 +1269,14 @@ function drawStation(ctx: CanvasRenderingContext2D, shop: Shop, top: Point, tile
 /** The counter is the kitchen's wall: the pass (ready dishes + bell), the shop's station, the register and service ware. */
 function drawCounter(ctx: CanvasRenderingContext2D, tile: Tile, scene: Scene) {
   const { state, now, reducedMotion } = scene, shop = shopById(state.shop), layout = plan(state);
-  box(ctx, tile.x, tile.y, 1, 1, 36, "#6a6864", C.dark, "#4d4c49");
+  box(ctx, tile.x, tile.y, 0.94, 0.94, 32, "#6a6864", C.dark, "#4d4c49");
+  box(ctx, tile.x, tile.y, 1, 1, 4, "#cdb593", "#a38b6c", "#b9a07f", 32);
+  const dir: Dir = layout.kitchenSide === "left" ? 1 : 0;
+  if (facesViewer(dir)) onFace(ctx, tile, dir, 0, 0.47, 0, () => {
+    ctx.strokeStyle = "rgba(247,245,240,.18)"; ctx.lineWidth = 1;
+    ctx.strokeRect(-12.5, -28, 25, 22); ctx.strokeRect(-9.5, -25, 19, 16);
+    ctx.fillStyle = "rgba(0,0,0,.25)"; ctx.fillRect(-15, -4, 30, 4);
+  });
   const top = project(tile.x, tile.y, 36), offset = layout.kitchenSide === "left" ? tile.y - layout.pass.y : tile.x - layout.pass.x;
   if (offset === 0) {
     const ready = state.orders.filter(order => order.state === "ready");
@@ -1236,17 +1297,102 @@ function drawCounter(ctx: CanvasRenderingContext2D, tile: Tile, scene: Scene) {
   } else if (Math.abs(offset) % 2 === 1) { ctx.fillStyle = C.sage; ctx.beginPath(); ctx.arc(top.x, top.y - 12, 7, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = INK; ctx.stroke(); box(ctx, tile.x, tile.y, 0.3, 0.3, 9, "#b6a594", "#8c7d6e", "#a19080", 36); }
   else { for (const dx of [-7, 0, 7]) { ctx.fillStyle = C.light; ctx.fillRect(top.x + dx - 3, top.y - 9, 6, 8); ctx.strokeStyle = INK; ctx.strokeRect(top.x + dx - 3, top.y - 9, 6, 8); } }
 }
-/** Kitchen appliances along the back wall: a tall fridge, then stoves, prep tops and a sink. */
-function drawStove(ctx: CanvasRenderingContext2D, tile: Tile, index: number, busy: boolean, now: number, reducedMotion: boolean) {
-  if (index === 0) { box(ctx, tile.x, tile.y, 0.9, 0.9, 88, "#e6e3dc", "#b9b6af", "#cfccc5"); return; }
-  if (index % 3 === 2) { box(ctx, tile.x, tile.y, 0.9, 1, 34, "#bdbab3", "#8e8b85", "#a5a29c"); const top = project(tile.x, tile.y, 34); ctx.fillStyle = "#afbccb"; ctx.beginPath(); ctx.ellipse(top.x, top.y, 9, 4, 0, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = INK; ctx.stroke(); return; }
-  box(ctx, tile.x, tile.y, 0.9, 1, 34, "#8f8c86", "#6b6964", "#7d7a75");
-  const top = project(tile.x, tile.y, 34);
-  ctx.strokeStyle = INK;
-  for (const dy of [-4, 4]) { ctx.beginPath(); ctx.ellipse(top.x + dy * 1.6, top.y + dy * 0.2, 6, 2.5, 0, 0, Math.PI * 2); ctx.stroke(); }
-  if (busy && index % 3 === 1) {
-    const flicker = reducedMotion ? 0 : Math.sin(now / 90 + tile.y) * 1.5;
-    ctx.fillStyle = "rgba(227,201,160,.9)"; ctx.beginPath(); ctx.ellipse(top.x - 6, top.y - 1, 4, 1.6 + flicker * 0.2, 0, 0, Math.PI * 2); ctx.fill();
+/** Rising curls of steam above a point. */
+function steamAt(ctx: CanvasRenderingContext2D, at: Point, now: number, reducedMotion: boolean, width = 6) {
+  ctx.strokeStyle = "rgba(120,120,120,.4)"; ctx.lineWidth = 1.8;
+  for (let i = 0; i < 3; i++) {
+    const t = reducedMotion ? 0.5 : (now / 1000 + i / 3) % 1, x = at.x - width + i * width;
+    ctx.globalAlpha = 1 - t * 0.7;
+    ctx.beginPath(); ctx.moveTo(x, at.y - t * 16); ctx.quadraticCurveTo(x + 4, at.y - 6 - t * 16, x, at.y - 12 - t * 16); ctx.stroke();
+  }
+  ctx.globalAlpha = 1; ctx.lineWidth = 1;
+}
+/** Cabinet doors with little knobs across a unit's front, from floor to `h`. */
+function cabinetFront(ctx: CanvasRenderingContext2D, tile: Tile, dir: Dir, v: number, h: number, doors = 2) {
+  if (!facesViewer(dir)) return;
+  onFace(ctx, tile, dir, 0, v, 0, () => {
+    const w = 28 / doors;
+    ctx.strokeStyle = "rgba(22,22,22,.45)"; ctx.lineWidth = 0.9;
+    for (let i = 0; i < doors; i++) {
+      const x = -14 + i * w;
+      ctx.strokeRect(x + 1.5, -h + 3, w - 3, h - 6);
+      ctx.fillStyle = C.dark; ctx.fillRect(x + (i % 2 ? 3.5 : w - 5.5), -h * 0.62, 2, 5);
+    }
+  });
+}
+/**
+ * Kitchen appliances along the back wall, their fronts toward the chef row (`dir`): a two-door fridge, then cooking ranges
+ * with pots and pans, broken up by a sink and a prep top.
+ */
+function drawStove(ctx: CanvasRenderingContext2D, tile: Tile, index: number, dir: Dir, busy: boolean, now: number, reducedMotion: boolean) {
+  const front = facesViewer(dir), top = (u: number, v: number, lift = 34) => local(tile, dir, u, v, lift);
+  if (index === 0) {
+    box(ctx, tile.x, tile.y, 0.9, 0.9, 88, "#eeebe5", "#c2bfb8", "#d8d5ce");
+    if (front) onFace(ctx, tile, dir, 0, 0.45, 0, () => {
+      ctx.strokeStyle = "rgba(22,22,22,.5)"; ctx.lineWidth = 1; line(ctx, { x: -14, y: -60 }, { x: 14, y: -60 });
+      ctx.fillStyle = "#9e9b95"; ctx.fillRect(8, -82, 2.5, 16); ctx.fillRect(8, -54, 2.5, 26);
+      ctx.fillStyle = C.butter; ctx.fillRect(-9, -50, 8, 9); ctx.strokeStyle = "rgba(22,22,22,.35)"; ctx.strokeRect(-9, -50, 8, 9);
+      ctx.fillStyle = C.rose; ctx.beginPath(); ctx.arc(-5, -52, 1.8, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = C.sage; ctx.beginPath(); ctx.arc(-3, -38, 2.2, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "rgba(22,22,22,.25)"; for (let i = 0; i < 4; i++) ctx.fillRect(-10 + i * 5, -6, 3, 1.5);
+    });
+    return;
+  }
+  if (index % 3 === 2) {
+    // A sink or a prep top: cabinets under a pale worktop.
+    box(ctx, tile.x, tile.y, 0.9, 1, 31, "#cfccc5", "#a9a6a0", "#bdbab3");
+    box(ctx, tile.x, tile.y, 0.94, 1.02, 3, "#ecebe6", "#c7c4bd", "#d9d6cf", 31);
+    cabinetFront(ctx, tile, dir, 0.45, 31);
+    if (Math.floor(index / 3) % 2 === 0) {
+      poly(ctx, [top(-0.3, -0.25), top(0.3, -0.25), top(0.3, 0.25), top(-0.3, 0.25)], "#9fabbb", INK);
+      poly(ctx, [top(-0.25, -0.2), top(0.25, -0.2), top(0.25, 0.05), top(-0.25, 0.05)], "rgba(247,245,240,.35)");
+      const base = top(0, -0.38), spout = top(0, -0.1, 46);
+      ctx.strokeStyle = INK; ctx.lineWidth = 3.2; ctx.beginPath(); ctx.moveTo(base.x, base.y); ctx.lineTo(base.x, spout.y - 4); ctx.quadraticCurveTo(base.x, spout.y - 9, spout.x, spout.y); ctx.stroke();
+      ctx.strokeStyle = "#c9ccd0"; ctx.lineWidth = 1.6; ctx.stroke(); ctx.lineWidth = 1;
+      if (busy && !reducedMotion) { ctx.strokeStyle = "rgba(175,188,203,.8)"; line(ctx, { x: spout.x, y: spout.y + 1 }, { x: spout.x, y: spout.y + 6 + (now / 60) % 4 }); }
+    } else {
+      poly(ctx, [top(-0.3, -0.2, 35), top(0.3, -0.2, 35), top(0.3, 0.2, 35), top(-0.3, 0.2, 35)], "#c9ab85", INK);
+      bead(ctx, top(-0.12, -0.05, 38), 3.2, "#c98f8f"); bead(ctx, top(0.08, 0.05, 37), 2.6, "#b4c3ab");
+      ctx.strokeStyle = INK; ctx.lineWidth = 1.6; line(ctx, top(0.05, -0.15, 36), top(0.25, 0.1, 36)); ctx.lineWidth = 1;
+      ctx.fillStyle = "#b4c3ab"; for (let i = 0; i < 3; i++) { const p = top(-0.2 + i * 0.07, 0.12, 36); ctx.fillRect(p.x, p.y - 1, 2.5, 1.5); }
+    }
+    return;
+  }
+  // A range: enamel body, oven door with a window, knobs, and a dark cooktop with four burners.
+  box(ctx, tile.x, tile.y, 0.9, 1, 31, "#d9d6cf", "#aeaba5", "#c4c1ba");
+  box(ctx, tile.x, tile.y, 0.92, 1.02, 3, "#4d4c49", "#353432", "#41403d", 31);
+  if (front) onFace(ctx, tile, dir, 0, 0.45, 0, () => {
+    ctx.fillStyle = "#e9e7e2"; ctx.strokeStyle = INK; ctx.lineWidth = 1; ctx.fillRect(-12, -23, 24, 19); ctx.strokeRect(-12, -23, 24, 19);
+    ctx.fillStyle = busy ? "#7a5c48" : "#4d4c49"; ctx.fillRect(-8, -18, 16, 9);
+    if (busy) { ctx.fillStyle = "rgba(227,201,160,.55)"; ctx.fillRect(-8, -12, 16, 3); }
+    ctx.fillStyle = "#9e9b95"; ctx.fillRect(-9, -21.5, 18, 1.8);
+    for (let i = 0; i < 4; i++) { ctx.fillStyle = C.dark; ctx.beginPath(); ctx.arc(-10.5 + i * 7, -27, 1.8, 0, Math.PI * 2); ctx.fill(); }
+  });
+  const cooking = busy && index % 3 === 1;
+  for (const [u, v] of [[-0.2, -0.22], [0.2, -0.22], [-0.2, 0.2], [0.2, 0.2]]) {
+    const p = top(u, v); ctx.strokeStyle = "#8e8b85"; ctx.beginPath(); ctx.ellipse(p.x, p.y, 5.5, 2.6, 0, 0, Math.PI * 2); ctx.stroke();
+  }
+  if (index % 3 === 1) {
+    // A stockpot on the back burner, lid rattling and steaming while something cooks.
+    const p = top(-0.05, -0.1), rattle = cooking && !reducedMotion ? Math.sin(now / 70) * 0.8 : 0;
+    if (cooking) { ctx.fillStyle = "rgba(227,160,120,.85)"; ctx.beginPath(); ctx.ellipse(p.x, p.y + 1, 8, 2.4, 0, 0, Math.PI * 2); ctx.fill(); }
+    ctx.fillStyle = "#c9ccd0"; ctx.strokeStyle = INK; ctx.beginPath(); ctx.moveTo(p.x - 9, p.y - 14); ctx.lineTo(p.x - 9, p.y); ctx.ellipse(p.x, p.y, 9, 3.5, 0, Math.PI, 0, true); ctx.lineTo(p.x + 9, p.y - 14); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "#b3b8bd"; ctx.fillRect(p.x + 1, p.y - 14, 8, 14);
+    ctx.fillStyle = "#e6e8ea"; ctx.beginPath(); ctx.ellipse(p.x, p.y - 14 + rattle, 9.5, 3.6, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = C.dark; ctx.fillRect(p.x - 2, p.y - 19 + rattle, 4, 3);
+    for (const s of [-1, 1]) { ctx.fillStyle = C.dark; ctx.fillRect(p.x + s * 10.5 - 1.5, p.y - 10, 3, 2.5); }
+    if (cooking) steamAt(ctx, { x: p.x, y: p.y - 22 }, now, reducedMotion);
+  } else {
+    // A frying pan on the front burner, sizzling while busy.
+    const p = top(0.08, 0.15, 35);
+    if (busy) { ctx.fillStyle = "rgba(227,160,120,.85)"; ctx.beginPath(); ctx.ellipse(p.x, p.y + 1, 7, 2, 0, 0, Math.PI * 2); ctx.fill(); }
+    const handle = top(0.08, 0.55, 36); ctx.strokeStyle = INK; ctx.lineWidth = 3; line(ctx, p, handle); ctx.strokeStyle = "#6d5a4c"; ctx.lineWidth = 1.8; line(ctx, top(0.08, 0.35, 36), handle); ctx.lineWidth = 1;
+    ctx.fillStyle = "#3b3a38"; ctx.strokeStyle = INK; ctx.beginPath(); ctx.ellipse(p.x, p.y - 1.5, 9, 3.8, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    if (busy) {
+      ctx.fillStyle = C.amber; ctx.beginPath(); ctx.ellipse(p.x - 2, p.y - 2, 3.5, 1.6, 0, 0, Math.PI * 2); ctx.ellipse(p.x + 3, p.y - 1.2, 2.5, 1.2, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "rgba(247,245,240,.85)";
+      for (let i = 0; i < 4; i++) { const t = reducedMotion ? 0.3 : (now / 260 + i * 0.27) % 1; ctx.fillRect(p.x - 6 + i * 4, p.y - 4 - Math.sin(t * Math.PI) * 7, 1.4, 1.4); }
+    }
   }
 }
 /** Interior half-height walls between the kitchen, the break room and the dining room. */
@@ -1552,7 +1698,8 @@ export function renderScene(ctx: CanvasRenderingContext2D, scene: Scene, pixelSc
   const layers: Layer[] = [];
   const add = (depth: number, order: number, draw: () => void) => layers.push({ depth, order, draw });
   const cooking = state.orders.some(order => order.state === "cooking");
-  layout.stoves.forEach((tile, index) => add(depthOf(tile.x, tile.y), 0, () => drawStove(ctx, tile, index, cooking, now, reducedMotion)));
+  const applianceDir: Dir = layout.kitchenSide === "left" ? 1 : 0;
+  layout.stoves.forEach((tile, index) => add(depthOf(tile.x, tile.y), 0, () => drawStove(ctx, tile, index, applianceDir, cooking, now, reducedMotion)));
   for (const tile of layout.counter) add(depthOf(tile.x, tile.y), 0, () => drawCounter(ctx, tile, scene));
   const trim = buildingById(layout.building).trim;
   for (const wall of layout.walls) add(depthOf(wall.x, wall.y), 0, () => drawWall(ctx, wall, wall.along, wall.low ? 34 : 70, trim));
@@ -1566,16 +1713,13 @@ export function renderScene(ctx: CanvasRenderingContext2D, scene: Scene, pixelSc
     ctx.globalAlpha = 0.65; drawCapsuleMachine(ctx, machineGhost, machineGhost.dir, now, true); ctx.globalAlpha = 1;
   });
   // Low front walls on the two sides facing the viewer (the door stays open in the street wall).
+  // Walls round the L's patio and the U's courtyard are low too, whichever way the view is turned.
   const backs = backSides();
-  for (const side of ["west", "north", "east", "south"] as const) {
-    if (backs.includes(side)) continue;
-    const along = side === "west" || side === "east" ? layout.d : layout.w;
-    for (let t = 0; t < along; t++) {
-      const tile = side === "west" ? { x: 0, y: t } : side === "east" ? { x: layout.w - 1, y: t } : side === "north" ? { x: t, y: 0 } : { x: t, y: layout.d - 1 };
-      if (side === "east" && t === layout.door.y) continue;
-      const out = side === "west" ? { x: -0.44, y: 0 } : side === "east" ? { x: 0.44, y: 0 } : side === "north" ? { x: 0, y: -0.44 } : { x: 0, y: 0.44 };
-      add(depthOf(tile.x + out.x, tile.y + out.y) + 0.05, 3, () => drawFrontWall(ctx, tile, side, trim));
-    }
+  for (const { tile, side, outer } of buildingEdges(layout)) {
+    if (outer && backs.includes(side)) continue;
+    if (side === "east" && outer && tile.y === layout.door.y) continue;
+    const out = side === "west" ? { x: -0.44, y: 0 } : side === "east" ? { x: 0.44, y: 0 } : side === "north" ? { x: 0, y: -0.44 } : { x: 0, y: 0.44 };
+    add(depthOf(tile.x + out.x, tile.y + out.y) + 0.05, 3, () => drawFrontWall(ctx, tile, side, trim));
   }
   if (!backs.includes("east")) add(depthOf(layout.w - 0.3, layout.door.y) + 0.1, 3, () => drawDoor(ctx, layout, shop.accent));
   const awnings = [C.rose, C.sage, C.butter, C.blue, C.lavender];
