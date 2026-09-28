@@ -192,7 +192,7 @@ export function MusicControls({ prefs, collected, onChange }: { prefs: Prefs; co
 
 /** Furniture is split into tables, rugs and décor tabs (all "items" underneath). */
 export type Shelf = "tables" | "rugs" | "decor";
-export type BuildTool = { tab: "items" | "walls" | "floors" | "outside" | "building" | "music"; shelf: Shelf; mode: "place" | "move" | "sell"; kind: ItemKind; dir: Dir };
+export type BuildTool = { tab: "items" | "walls" | "floors" | "outside" | "building" | "music"; shelf: Shelf; mode: "place" | "move" | "turn" | "sell"; kind: ItemKind; dir: Dir };
 const shelfOf = (kind: ItemKind): Shelf => isTable(kind) ? "tables" : isRug(kind) ? "rugs" : "decor";
 /** Screen arrow and words for each facing, in R order (a quarter turn clockwise each). */
 export const DIR_LABELS = [["↙", "front-left"], ["↘", "front-right"], ["↗", "back-right"], ["↖", "back-left"]] as const;
@@ -221,8 +221,8 @@ export function BuildBar({ state, tool, onTool, onFinish, onDone, message, onPre
     </div>
     <div className="cafe-build-row">
       {tool.tab === "items" ? <>
-        {(["move", "sell"] as const).map(mode => <button type="button" key={mode} aria-pressed={tool.mode === mode} onClick={() => onTool({ ...tool, mode })}>
-          <span>{mode === "move" ? "✥ Move" : "✕ Sell"}<small>{mode === "move" ? "tap item, then tile" : "50% refund"}</small></span></button>)}
+        {(["move", "turn", "sell"] as const).map(mode => <button type="button" key={mode} aria-pressed={tool.mode === mode} onClick={() => onTool({ ...tool, mode })}>
+          <span>{mode === "move" ? "✥ Move" : mode === "turn" ? "⟳ Turn" : "✕ Sell"}<small>{mode === "move" ? "tap item, then tile" : mode === "turn" ? "tap an item to turn it" : "50% refund"}</small></span></button>)}
         <button type="button" onClick={() => onTool({ ...tool, dir: turned(tool.dir) })} aria-label={`Rotate (R), now facing ${DIR_LABELS[tool.dir][1]}`}><span>⟳ Rotate {DIR_LABELS[tool.dir][0]}<small>R · Shift+R back</small></span></button>
         {CATALOG.filter(item => shelfOf(item.kind) === tool.shelf && (item.tier === undefined || (state.collection.has(item.kind) && !state.items.some(placed => placed.kind === item.kind)))).map(item =>
           <button type="button" key={item.kind} aria-pressed={tool.mode === "place" && tool.kind === item.kind} disabled={state.beans < item.cost} className={item.tier !== undefined ? "cafe-exclusive" : undefined}
@@ -243,4 +243,4 @@ export function BuildBar({ state, tool, onTool, onFinish, onDone, message, onPre
     </div>
   </div>;
 }
-export const toolLabel = (tool: BuildTool) => tool.mode === "place" ? `Placing ${catalogItem(tool.kind).name}` : tool.mode === "move" ? "Move" : "Sell";
+export const toolLabel = (tool: BuildTool) => tool.mode === "place" ? `Placing ${catalogItem(tool.kind).name}` : tool.mode === "move" ? "Move" : tool.mode === "turn" ? "Turn: tap any item (or the capsule machine) to turn it a quarter" : "Sell";

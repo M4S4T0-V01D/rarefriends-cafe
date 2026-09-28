@@ -9,11 +9,13 @@
 
 - **Your Friend is the manager.** The Friend you select appears with its canonical on-chain sprite and a gameplay perk from its Generations family.
 - **Your other Friends are the staff.** Every other eligible Friend in your wallet can work as a waiter, chef or promoter. Their tier comes from their on-chain generation (Gen 1 is best, Gen 6 the lowest), and they level up as they work, earning a point per level for **speed, stamina or skill**. Chefs carry each dish from the stove to the pass. When staff get tired, you send them to the break room.
-- **The street is alive.** Friends stroll past, and some walk in through your door. Promoters on the sidewalk, ambience and your rating bring in more.
-- **Make it yours.** Pick a café, seafood restaurant, pastry shop, burger diner or Asian noodle house, and a **building**: a corner café, a long diner, a townhouse with its kitchen on the back wall, or a café with a front parlour. Arrange 20 kinds of furniture and décor on the tile grid, **turning each piece four ways**. Move the capsule machine, choose from 12 wallpapers and 12 floors, and expand 2 × 2 at a time.
-- **A slow, cosy climb.** Five-minute days, 15 café levels, and eight upgrade tracks to spend Beans on: window sign, running shoes, comfy cushions, tip jar, break-room coffee, dishwasher, fancy plating and a big serving tray.
-- **It sounds alive too.** Sixteen procedural jazz tracks (swing, bossa, jazz waltz and lo-fi; pick them in build mode), a coffee-ready chime, a door bell, and Friends who chirp, sigh and yawn.
-- **$RAREFRIENDS capsules.** Rare Capsules cost (simulated) RF. Each one holds a secret recipe, which you keep for a boost or redeem for RF, plus one of 8 RF-exclusive collectibles for your shop.
+- **The street is alive, and so is the world around it.** Friends stroll down a long street and round the corner, and some walk in through your door. Dress the world beyond your walls with one of eight sceneries, from a cottage garden to a night market. Neighbouring shops line a long street, with Friends coming and going through their doors. **Drag** to look around, **scroll or pinch** to zoom, and **turn the whole view** a quarter at a time.
+- **Groups come in together.** Tables for one, two and four: a party sits down together and one tap takes the whole table's order.
+- **Make it yours.** Pick a café, seafood restaurant, pastry shop, burger diner or Asian noodle house, and a **building**: a corner café, a long diner, a townhouse with its kitchen on the back wall, or a café with a front parlour. Arrange 40 kinds of furniture and décor, from a little cactus to a grand piano, a koi pond and a mini carousel, **turning any piece four ways** (even after it's placed). Move the capsule machine, choose from 12 wallpapers and 12 floors, and expand ten times, up to 20 × 20.
+- **A slow, cosy climb.** Five-minute days, 15 café levels, twelve dishes per shop, twelve upgrade tracks, manager skill points every level, worker attribute points, and three **daily challenges**. **Random events** keep days different: a food critic, a celebrity Friend, a tour bus, a rain shower, a lunch rush or a kitchen hiccup.
+- **It sounds alive too.** Sixteen procedural tracks (swing, bossa, jazz waltz and lo-fi) playing eleven composed melodies in song form, a coffee-ready chime, a door bell, and Friends who chirp, sigh and yawn.
+- **$RAREFRIENDS capsules.** Rare Capsules cost (simulated) RF. Each one holds a secret recipe, which you keep for a boost or redeem for RF, plus one of 8 RF-exclusive collectibles for your shop. Capsules also pay for **RF boosts** (tireless staff, a perfect-service day, a street festival, a golden hour) and **RF sceneries** (seaside, snowy village, cherry blossom lane, night market).
+- **Comfy to play:** pause any time (⏸ / Esc), purchases ask first, dark mode, and an in-game update log.
 - **Progress saves per wallet**, and each day's report card is ready to **post on X**, tagged *@RareFriendsNFT #RareFriends #RareFriendsCafe*.
 
 | | |
@@ -26,13 +28,17 @@
 
 ## Screenshots
 
-| Choose your shop | Four buildings | Staff: tiers, levels, attribute points |
+| The world outside (zoomed out) | Four buildings | Staff: tiers, levels, attribute points |
 | --- | --- | --- |
-| ![Shop picker](docs/shop-picker.png) | ![Building picker in build mode](docs/buildings.png) | ![Staff panel](docs/staff.png) |
-| **Build mode: 20 pieces, four ways each** | **Eight upgrade tracks** | **Sixteen jazz tracks** |
-| ![Build mode](docs/build.png) | ![Shop upgrades](docs/upgrades.png) | ![Music tab](docs/music.png) |
-| **Your owned Friend cooking** | **Rare Capsule Machine** | |
-| ![Owned Friend #3412 in the kitchen](docs/owned-chef.png) | ![Capsule machine](docs/capsule-machine.png) | |
+| ![Zoomed out over a cherry blossom lane](docs/world.png) | ![Building picker in build mode](docs/buildings.png) | ![Staff panel](docs/staff.png) |
+| **Build mode: Tables, Rugs, Décor, Turn** | **Upgrades** | **Your manager's skills** |
+| ![Build mode](docs/build.png) | ![Shop upgrades](docs/upgrades.png) | ![Manager skill points](docs/manager.png) |
+| **RF boosts and sceneries** | **Buy only when you mean it** | **Dark mode** |
+| ![Boosts tab](docs/boosts.png) | ![Purchase confirmation](docs/confirm.png) | ![Dark mode](docs/dark.png) |
+| **The view turned a quarter** | | |
+| ![The café seen from another side](docs/turned.png) | | |
+| **Choose your shop** | **Your owned Friend cooking** | **Rare Capsule Machine** |
+| ![Shop picker](docs/shop-picker.png) | ![Owned Friend #3412 in the kitchen](docs/owned-chef.png) | ![Capsule machine](docs/capsule-machine.png) |
 | **Five capsules opened** | **RF-exclusive collection** | **Saved per wallet** |
 | ![Capsule results](docs/capsules-opened.png) | ![Collection](docs/collection.png) | ![Welcome back](docs/welcome-back.png) |
 
@@ -42,11 +48,11 @@
 
 ## How it plays
 
-1. **Choose your shop** and open for the day. Friends walk the street; some come in and sit down.
-2. **Tap a guest** (or press their table number) to take the order. When the counter bell rings, **tap the counter**, and your manager picks up and delivers.
-3. Fast service earns **tips in Beans**. Spend them on dishes, kitchen upgrades, the eight shop upgrades, staff slots, furniture, designs and expansions.
+1. **Choose your shop** and your building, and open for the day. Friends walk the street; some come in and sit down, alone or as a party.
+2. **Tap a guest** (or press their table number) to take the whole table's order. When the counter bell rings, **tap the counter**, and your manager picks up and delivers.
+3. Fast service earns **tips in Beans**. Spend them on dishes, kitchen upgrades, the shop upgrades, staff slots, furniture, designs, sceneries and expansions. Finish the day's three **challenges** for bonus Beans, and make the most of random events.
 4. **Staff:** give your Friends a role. **Waiters** serve, **chefs** cook in the kitchen, and **promoters** work the sidewalk. They level up as they work; spend each level's point on speed, stamina or skill. When one shows a *zzz*, **tap them** (or press **T**) to send them to the break room for 15–30 s.
-5. **Build (B):** place, move and sell furniture and turn it four ways (**R**, **Shift+R** back). Move the capsule machine, pick wallpaper, floors, music and your building (between days), and place your RF exclusives.
+5. **Build (B):** place, move, turn and sell furniture (**R**, **Shift+R** back, or the **Turn** tool on anything placed). Move the capsule machine, pick wallpaper, floors, the scenery outside, music and your building (between days), and place your RF exclusives.
 6. At closing you get a **day summary** and **day card**: **Post to X**, **Copy picture** or **Save picture**. Your shop saves for your wallet.
 7. **Rare Capsule Machine:** buy ×1 or ×5 and turn the crank. You get recipes (kept for bonuses or redeemed for RF) and exclusives such as the Chrome Jukebox, which unlocks a jazz track, or the Golden Friend Statue of your manager.
 
@@ -66,7 +72,8 @@ manager in gold.
 - **RF sink:** a Rare Capsule costs 1 RF and returns 0.88 RF in expected value. 12% of each purchase stays with the game as prize stake. Buying ×5 is supported.
 - **Keep or redeem:** recipes keep a fixed RF value with no expiry, but only boost your shop while you keep them. This fits the SDK's backing model: each capsule reserves 5 RF.
 - **Collectibles:** every capsule also grants one of 8 RF-exclusive items. They add ambience, and the Jukebox and Telescope unlock music tracks. They are saved with your shop and carry no RF value, so they need no prize reserve. Duplicates turn into Beans.
-- **Two currencies:** Beans are earn-only, so the game is fun without spending. RF gives access to specials, VIP guests and exclusives. It's a boost, not a paywall.
+- **RF boosts and sceneries, paid with capsules:** SDK v0.1.2 has no generic "spend RF on an upgrade" action, so boosts and RF sceneries are paid with capsules you bought with RF. They still open and settle through the SDK (you keep or redeem their recipes), but give the boost or scenery instead of a collectible. Boosts: *Tireless crew* (2 capsules, staff don't tire for 3 days), *Perfect service* (2, no unhappy guests for a day), *Street festival* (3, twice the passers-by for 2 days), *Golden hour* (3, dishes pay 25% more for 2 days). Sceneries: *Seaside* and *Snowy village* (3), *Cherry blossom lane* (4), *Night market* (5), kept for good.
+- **Two currencies:** Beans are earn-only, so the game is fun without spending. RF gives access to specials, VIP guests, exclusives, boosts and sceneries. It's a boost, not a paywall.
 - **Holding more Friends pays off in game:** owned staff outperform guests, and better generations outperform worse ones.
 
 **Future integrations** (not in the SDK v0.1.2 API):
@@ -101,11 +108,13 @@ each push to `main`.
 
 ```sh
 npm run typecheck      # tsc strict (game + host)
-npm test               # 37 engine tests: plan and routing (all four buildings at every size), street walk-ins,
-                       # service loop, day cycle, placement and four-way rotation, the moving capsule machine,
-                       # chefs carrying dishes, expansions, building switches, upgrades, generation tiers, worker XP
-                       # and attribute points, roles, fatigue and breaks, saves and migration, capsule collectibles,
-                       # music unlocks, X post text, the slower economy and the capsule economy table
+npm test               # 46 engine tests: plan and routing (all four buildings at every size), street and corner
+                       # walk-ins, service loop, group tables ordering together, day cycle, placement and four-way
+                       # rotation, the moving capsule machine, chefs carrying dishes, expansions and staff slots,
+                       # building switches, upgrades, manager skills, RF boosts, sceneries, daily challenges,
+                       # random events, late-game content, generation tiers, worker XP and attribute points,
+                       # roles, fatigue and breaks, saves and migration, capsule collectibles, melodies, music
+                       # unlocks, X post text, the slower economy and the capsule economy table
 npm run check          # friendsdk check
 npm run test:browser   # SDK mock-wallet browser runs:
                        #  • 960 px: shop pick, keyboard service, build (pointer + keyboard), floor + music tabs, staff,

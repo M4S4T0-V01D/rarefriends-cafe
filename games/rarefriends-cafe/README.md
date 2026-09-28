@@ -16,18 +16,23 @@ See [the root README](../../README.md#how-the-host-extends-the-sdk).
 | Tap / click the counter | Pick up every ready dish (up to your carry limit). Carried dishes are delivered automatically. |
 | Tap a staff Friend | Tired (*zzz*): send them to the break room. Otherwise, show their level and energy. |
 | Tap the floor · the capsule machine | Walk there · open the **Rare Capsule Machine** |
-| WASD / arrow keys · E / Space / Enter | Walk tile by tile · act on whatever is next to you |
+| Drag · scroll / pinch · arrow keys · + / − · ⤢ | Move the view · zoom · pan · zoom · reset the view |
+| ⟲ ⟳ · [ ] · right-drag | Turn the view a quarter (walls, furniture and Friends turn with it; WASD and the build cursor follow the view) |
+| WASD · E / Space / Enter | Walk tile by tile · act on whatever is next to you |
 | 1–9, 0 · C · X · T · B | Table 1–10 · pick up · clear task list · send the most tired Friend on a break · build mode |
-| **Build mode:** tap a tile, or arrows + Enter | Place the selected item. **Move**: tap an item (or the capsule machine), then a tile. **Sell**: tap an item. |
-| R · Shift+R · Delete · Esc | Turn the item a quarter clockwise · back · sell the item under the cursor · leave build mode |
+| ⏸ · Esc · P | Pause (Esc again resumes) |
+| **Build mode:** tap a tile, or arrows / WASD + Enter | Place the selected item (Beans purchases ask first). **Move**: tap an item (or the capsule machine), then a tile. **Turn**: tap any placed item to turn it a quarter. **Sell**: tap an item. |
+| R · Shift+R · Delete · Esc | Turn the item you're placing or moving · back · sell the item under the cursor · leave build mode |
 
-Tasks queue up with numbered markers. The shop pauses while a menu, build mode or a runtime confirmation is open.
+Tasks queue up with numbered markers. The shop pauses while paused, while a menu or build mode is open, or during a runtime confirmation.
+Settings has **dark mode** (auto, light or dark), **Ask before spending Beans**, and **What's new** (the update log).
 Sound starts on your first tap. The **♪** button mutes everything. Settings and Build → **Music** have the track
 picker, music and effects toggles, and volume. **Reduce motion** is in Settings and follows the system setting.
 
 ## The shop
 
-- **Plan:** the **kitchen** is a room against a back wall, closed off by the **counter**, which is its wall: guests order at the pass. A **break room** with a sofa sits in the front-left corner behind its own door. Every other tile is the dining room, your grid. Outside the front wall run a **sidewalk and street**.
+- **Plan:** the **kitchen** is a room against a back wall, closed off by the **counter**, which is its wall: guests order at the pass. A **break room** with a sofa sits in the front-left corner behind its own door. Every other tile is the dining room, your grid. Outside, a long **street** runs past the door to the edge of the world, the **sidewalk** wraps round the building's other front, and a second sidewalk runs across the road. Rows of **neighbouring shops** (bakery, books, flowers, tea house and more) line the streets: you can't go in, but Friends come out of their doors and pop into them. A shop standing between you and the café turns see-through.
+- **The world outside:** Build → **Outside** dresses the ground beyond the walls and sidewalks. *Quiet lot* (free), *Cottage garden* (☕ 1,200, +2 ambience), *City park* (☕ 2,600, +3) and *Pine woods* (☕ 4,200, +4) cost Beans. *Seaside* and *Snowy village* (3 capsules, +4), *Cherry blossom lane* (4, +5) and *Night market* (5, +6) are paid with RF capsules in Capsules → Boosts. Owned sceneries switch for free.
 - **Buildings:** pick one at setup; change it in Build → **Building** between days (furniture that no longer fits is refunded).
 
 | Building | Size at start | Layout |
@@ -37,32 +42,35 @@ picker, music and effects toggles, and volume. **Reduce motion** is in Settings 
 | Townhouse | 10 × 10 | Kitchen on the back wall beside the sign, across the room from the break room. |
 | Café with parlour | 10 × 12 | Like the corner café, two tiles deeper. A half wall with planters closes off a front parlour, reached through one opening by the door, far from the pass. |
 
-- **Expansion:** grow the shop **2 × 2 at a time** (10 → 12 → 14 → 16 wide). Costs are 400 / 900 / 1,600 Beans at levels 4 / 7 / 10, and you can expand only between days. The kitchen counter lengthens and the camera zooms to fit. Furniture that would land on a reserved tile is refunded in full.
-- **Capsule machine:** starts in the back corner by the window. In Build → **Move**, tap it, then a tile; **R** turns the side you use it from (the crank shows which).
+- **Expansion:** ten expansions, each one tile longer on both sides (10 → 20 wide) and each adding a free staff slot (up to 10). Costs are 300 / 500 / 750 / 1,000 / 1,300 / 1,650 / 2,050 / 2,500 / 3,000 / 3,600 Beans at levels 3–10, 12 and 14, between days only. The kitchen counter lengthens. Furniture that would land on a reserved tile is refunded in full.
+- **Capsule machine:** starts in the back corner by the window. In Build → **Move**, tap it, then a tile; **R** (or **Turn**) turns the side you use it from (the crank shows which).
 - **Shops:** choose one before your first day. All five play alike, with their own menu, dish art, kitchen station, sign and awning colour.
 
-| Shop | Menu (slots 1–7) · capsule specials |
+| Shop | Menu (slots 1–7) · capsule specials · late-game signatures |
 | --- | --- |
-| RareFriends Cafe (coffee & sweets) | Espresso, Latte ♡, Matcha Latte, Strawberry Mochi, Fluffy Pancakes, Omurice, Cloud Parfait · Silver Latte, Moonlight Parfait |
-| Tide & Shell (seafood) | Clam Chowder, Fish & Chips, Grilled Squid, Shrimp Tempura, Oyster Plate, Lobster Roll, Seafood Paella · Silver Pearl Oysters, Moonlight Bouillabaisse |
-| Flour Moon (pastry) | Croissant, Cinnamon Roll, Macarons, Strawberry Shortcake, Éclair, Mille-feuille, Lemon Tart · Silver Soufflé, Moonlight Mont Blanc |
-| Patty Friends (burgers) | Fries, Milkshake, Classic Burger, Cheeseburger, Onion Rings, Double Stack, Friend Deluxe · Silver Smash, Moonlight Melt |
-| Lantern Noodle House (Asian) | Green Tea, Gyoza, Onigiri, Miso Ramen, Sushi Set, Bao Buns, Katsu Curry · Silver Tempura Udon, Moonlight Bento |
+| RareFriends Cafe (coffee & sweets) | Espresso, Latte ♡, Matcha Latte, Strawberry Mochi, Fluffy Pancakes, Omurice, Cloud Parfait · Silver Latte, Moonlight Parfait · Honey Butter Toast, Strawberry Crêpe Cake, Latte Art Flight |
+| Tide & Shell (seafood) | Clam Chowder, Fish & Chips, Grilled Squid, Shrimp Tempura, Oyster Plate, Lobster Roll, Seafood Paella · Silver Pearl Oysters, Moonlight Bouillabaisse · Grilled Lobster, Crab Pot, Grand Seafood Tower |
+| Flour Moon (pastry) | Croissant, Cinnamon Roll, Macarons, Strawberry Shortcake, Éclair, Mille-feuille, Lemon Tart · Silver Soufflé, Moonlight Mont Blanc · Opera Cake, Macaron Tower, Gold-Leaf Éclair |
+| Patty Friends (burgers) | Fries, Milkshake, Classic Burger, Cheeseburger, Onion Rings, Double Stack, Friend Deluxe · Silver Smash, Moonlight Melt · Loaded Nachos, Truffle Burger, Tower of Friendship |
+| Lantern Noodle House (Asian) | Green Tea, Gyoza, Onigiri, Miso Ramen, Sushi Set, Bao Buns, Katsu Curry · Silver Tempura Udon, Moonlight Bento · Peking Duck, Omakase Box, Dragon Ramen |
 
-| Menu slot | 1 | 2 | 3 | 4 | 5 | 6 | 7 | Silver | Moonlight |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Price (Beans) | 5 | 7 | 9 | 12 | 16 | 23 | 29 | 35 | 55 |
-| Cook time | 3 s | 4 s | 5 s | 6 s | 8 s | 10 s | 9 s | 6 s | 11 s |
-| Unlock | start | start | Lv 2 · 60 | Lv 3 · 120 | Lv 5 · 200 | Lv 7 · 350 | Lv 9 · 500 | kept Silver Recipe | kept Moonlight Recipe |
+| Menu slot | 1 | 2 | 3 | 4 | 5 | 6 | 7 | Silver | Moonlight | 10 | 11 | 12 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Price (Beans) | 5 | 7 | 9 | 12 | 16 | 23 | 29 | 35 | 55 | 38 | 48 | 62 |
+| Cook time | 3 s | 4 s | 5 s | 6 s | 8 s | 10 s | 9 s | 6 s | 11 s | 11 s | 12 s | 14 s |
+| Unlock | start | start | Lv 2 · 60 | Lv 3 · 120 | Lv 5 · 200 | Lv 7 · 350 | Lv 9 · 500 | kept Silver Recipe | kept Moonlight Recipe | Lv 11 · 900 | Lv 13 · 1,500 | Lv 15 · 2,400 |
 
 ## A day of service
 
 - A day lasts **5 minutes** (08:00–20:00 on the shop clock). After closing, guests already inside finish, then a summary and day card appear.
-- **The street:** a Friend walks by about every 1.6 s. At your door, each one steps in with a **34% base chance**. Ambience (+10% per level), rating (+8% per star above 3), the Hollow perk (×1.15) and promoters (+12% × promoter power each) raise it, capped at 90%. A table must be free. Guests leave back onto the street.
+- **The street:** a Friend walks by about every 1.6 s. At your door, each one steps in with a **34% base chance**. Ambience (+10% per level), rating (+8% per star above 3), the Hollow perk (×1.15), the window sign and neon storefront, and promoters (+12% × promoter power each) raise it, capped at 90%. A table must be free. Guests leave back onto the street.
+- **Parties:** a table for two usually seats a pair; a table for four seats two to four friends. The party orders together once everyone has sat down (one tap), and one tap on a ready dish fetches the whole table's.
+- **Daily challenges:** three a day, picked by the day number, from: serve N guests, serve N happy guests, earn N Beans, earn N in tips, welcome N walk-ins, serve N at group tables, no unhappy guest all day, close with ★ 4.5+. Targets grow with the day; each pays ☕ 40 + 6 × day (up to 400) and 6 XP.
+- **Random events** (from day two, most days, partway through): *Food critic* (serve them happily for +0.3 rating and ☕ 80; if they leave unhappy, −0.4), *Celebrity Friend* (☕ 150 and +0.15 rating), *Tour bus* (a minute of passers-by galore), *Rain shower* (90 s: fewer walkers, +30% patience), *Lunch rush* (90 s: +20% tips), *Kitchen hiccup* (45 s: cooking 25% slower).
 - **Patience:** 18 s to order, 34 s for food (+6% per ambience level). If it runs out, the guest leaves unhappy and the rating drops.
 - **Payment** = price × (1 + tip), with Fancy plating raising the price. Tip = 20% × remaining patience + 2% per ambience level + House Secret bonus + tip jar + the serving waiter's skill. Rating is a rolling average (5 happy, 4 slow, 1 left).
-- **Shop XP:** +1 per guest served, +1 if happy, +2 for a Genesis VIP. **15 levels** (15 / 40 / 75 / 120 / 180 / 255 / 345 / 450 / 575 / 720 / 885 / 1,070 / 1,275 / 1,500 XP). Levels unlock dishes, more tables (3 + level, up to 16), staff slots, expansions and upgrades.
-- **Kitchen:** 1 dish at a time, plus 1 per working chef. Station levels (70 / 150 / 260 / 420 / 650 Beans) cut cook time 12% each. A chef carries each cooked dish from the stove to the pass; with no chef, dishes appear on the pass. You carry 2 dishes (3 with the Cellular perk, +1 with the big tray).
+- **Shop XP:** +1 per guest served, +1 if happy, +2 for a Genesis VIP. **15 levels** (15 / 40 / 75 / 120 / 180 / 255 / 345 / 450 / 575 / 720 / 885 / 1,070 / 1,275 / 1,500 XP). Levels unlock dishes, more tables (5 at level 1, +7 a level, up to 100), staff slots, expansions and upgrades. Every level past the first also gives your **manager a skill point** (Upgrades → You): *Quick feet* (+8% walk, ×3), *Steady hands* (+1 dish carried, ×2), *Snappy service* (−20% order/serve time, ×2), *Charm* (+4% tips on dishes you serve, ×3), *Calm presence* (+5% patience, ×3), *Leadership* (staff +5% speed and −5% fatigue, ×3).
+- **Kitchen:** 1 dish at a time, plus 1 per working chef and per Second station level. Station levels (70 / 150 / 260 / 420 / 650 Beans) cut cook time 12% each. A chef carries each cooked dish from the stove to the pass; with no chef, dishes appear on the pass. You carry 2 dishes (3 with the Cellular perk, +1 with the big tray).
 
 ## Shop upgrades
 
@@ -70,18 +78,34 @@ Bought one level at a time in Upgrades → **Shop**:
 
 | Upgrade | Per level | Beans (café level) |
 | --- | --- | --- |
-| Window sign | +6% walk-ins | 90 (2) · 240 (5) · 520 (8) |
+| Window sign | +6% walk-ins | 90 (2) · 300 (5) · 1,000 (8) |
 | Running shoes | you walk 8% faster | 110 (2) · 300 (6) |
-| Comfy cushions | guests wait 8% longer | 140 (3) · 340 (6) · 700 (9) |
-| Tip jar | +5% tips | 160 (3) · 380 (6) · 780 (10) |
+| Comfy cushions | guests wait 8% longer | 140 (3) · 450 (6) · 1,300 (9) |
+| Tip jar | +5% tips | 160 (3) · 500 (6) · 1,500 (10) |
 | Break-room coffee | staff tire 12% slower, rest 20% faster | 200 (4) · 480 (8) |
 | Dishwasher | guests finish eating 20% sooner | 240 (4) · 560 (8) |
-| Fancy plating | dishes sell for 6% more | 300 (5) · 700 (9) · 1,400 (12) |
-| Big serving tray | you carry one more dish | 1,000 (11) |
+| Fancy plating | dishes sell for 6% more | 300 (5) · 900 (9) · 2,400 (12) |
+| Big serving tray | you carry one more dish | 2,500 (11) |
+| Staff training | staff move 5% faster | 700 (7) · 1,600 (10) · 3,200 (13) |
+| Chef's hats | dishes cook 6% faster | 900 (8) · 2,000 (11) · 4,000 (14) |
+| Neon storefront | +10% walk-ins | 1,400 (10) · 3,200 (14) |
+| Second station | one more dish cooks at a time | 2,800 (12) · 6,000 (15) |
+
+## RF boosts
+
+Capsules → **Boosts**. Paid with capsules bought with (simulated) RF: they open and settle into recipes through the SDK as
+usual, but give the boost instead of a collectible. Boosts count shop days, including one in progress; buying again adds days.
+
+| Boost | Capsules | Days | Effect |
+| --- | --- | --- | --- |
+| Tireless crew | 2 | 3 | Staff don't tire at all |
+| Perfect service | 2 | 1 | No guest leaves unhappy; after closing, unserved guests head home content |
+| Street festival | 3 | 2 | Twice as many Friends walk down the street |
+| Golden hour | 3 | 2 | Every dish pays 25% more |
 
 ## Staff
 
-- **Slots:** start with 1. More cost 120 / 280 / 520 / 900 Beans at levels 2 / 4 / 6 / 9, up to **5**. Fill each slot with **one of your own Friends** (other eligible Generations NFTs in the wallet, shown with their canonical sprite and token number) or one of six guest applicants.
+- **Slots:** start with 1, up to **10**. Each expansion adds one free; the rest cost 120 / 280 / 520 / 900 / 1,300 / 1,800 / 2,400 / 3,100 / 4,000 Beans at levels 2 / 4 / 6 / 9 / 10–14. Fill each slot with **one of your own Friends** (other eligible Generations NFTs in the wallet, shown with their canonical sprite and token number) or one of six guest applicants.
 - **Roles:** **Waiters** take orders and deliver on their own. **Chefs** work the kitchen: each adds a cooking slot and cuts cook time by 6% × (power − 0.5), with a 35% cap. **Promoters** stand on the sidewalk and pull passers-by in.
 - **Generation tier** (from the Friend's on-chain `generation`; Gen 1 is the highest, Gen 6 the lowest):
 
@@ -97,7 +121,7 @@ Bought one level at a time in Upgrades → **Shop**:
 
 | Item | Cost | Ambience | Notes |
 | --- | --- | --- | --- |
-| Table & chair | 60 | – | Seats one guest; the chair can go on any side of the table. |
+| Table & chair · Table for two · Table for four | 60 · 110 · 190 | – · – · +1 | One chair on any side · a chair either side · a chair on every side (parties order together) |
 | Little cactus · Potted monstera · Coat rack | 25 · 35 · 40 | +1 each | |
 | A-frame menu board · Flower stand | 55 · 65 | +1 each | The board reads MENU on the front, OPEN on the back |
 | Faded rose rug · Sage runner · Braided round rug | 45 · 55 · 80 | +1 · +1 · +2 | Rugs are walkable; furniture can stand on them |
@@ -106,14 +130,18 @@ Bought one level at a time in Upgrades → **Shop**:
 | Record player · Cake display · Lavender loveseat | 150 · 160 · 180 | +3 each | |
 | Grandfather clock · Arcade cabinet | 200 · 220 | +3 each | Swinging pendulum; a blinking screen |
 | Fish tank · Upright piano | 240 · 260 | +4 each | |
+| Antique globe · Bonsai · Giant teddy bear | 380 · 520 · 650 | +3 · +3 · +4 | Mid-game |
+| Dessert trolley · Crystal candelabra · Golden harp | 750 · 950 · 1,100 | +4 · +5 · +5 | |
+| Stone fireplace · Grand piano · Neon RF sign | 1,300 · 1,600 · 1,800 | +6 · +7 · +7 | A crackling fire; the lid up; a pink glow |
+| Koi pond · Mini carousel | 2,200 · 2,800 | +8 · +10 | The end-game centrepieces |
 | **RF exclusives** (from capsules) | free | +3 to +8 | Each placed once; see below |
 
-- **Rotation:** every item turns four ways (**R**, **Shift+R** back, or the Rotate button, whose arrow shows the facing). Fronts, backs and sides are drawn: turn a bookshelf to the wall and you see its back.
+- **Tabs:** Tables, Rugs and Décor. **Rotation:** every item turns four ways (**R**, **Shift+R** back, or the Rotate button, whose arrow shows the facing), and the **Turn** tool turns anything already placed. Fronts, backs and sides are drawn: turn a bookshelf to the wall and you see its back; even round pieces show their facing (a tablecloth's vase, a rug's heart, a pond's lily pad).
 
 - Move is free and Sell refunds 50%. You always keep one table, and a table with a guest can't move. A placement is refused if it would stop guests reaching any chair, or staff reaching any table, the counter, the capsule machine or the break room.
-- **Wallpapers (12):** plain, faded stripes 60 (+1), sage gingham 70 (+1), polka dots 90 (+1), subway tile 110 (+1), white brick 140 (+2), butter florals 150 (+2), wood panelling 180 (+2), lavender chevron 200 (+2), dusty-blue damask 240 (+3), rose scallops 280 (+3), starry night 340 (+4).
-- **Floors (12):** grey checker, strawberry checker 70 (+1), oak planks 80 (+1), tatami mats 110 (+1), sage hex 120 (+1), slate flagstones 140 (+2), terrazzo 150 (+2), parquet squares 170 (+2), herringbone 190 (+2), lavender carpet 210 (+2), rose marble 260 (+3), blue mosaic 300 (+4). Once bought, a design is free to switch back to.
-- **Ambience level** 1–5 at 2 / 5 / 9 / 14 / 20 points. It raises tips, patience and walk-ins, and hangs framed art, paper lanterns (level 3) and a moon chandelier (level 5).
+- **Wallpapers (12):** plain, faded stripes 60 (+1), sage gingham 70 (+1), polka dots 90 (+1), subway tile 110 (+1), white brick 140 (+2), butter florals 150 (+2), wood panelling 180 (+2), lavender chevron 200 (+2), dusty-blue damask 520 (+3), rose scallops 680 (+3), starry night 950 (+4).
+- **Floors (12):** grey checker, strawberry checker 70 (+1), oak planks 80 (+1), tatami mats 110 (+1), sage hex 120 (+1), slate flagstones 140 (+2), terrazzo 150 (+2), parquet squares 170 (+2), herringbone 190 (+2), lavender carpet 210 (+2), rose marble 560 (+3), blue mosaic 900 (+4). Once bought, a design is free to switch back to.
+- **Ambience level** 1–5 at 3 / 8 / 15 / 24 / 36 points (décor, wallpaper, floor and scenery). It raises tips, patience and walk-ins, and hangs framed art, paper lanterns (level 3) and a moon chandelier (level 5).
 - **Music** tab: pick the jazz track and set volume (see Audio).
 
 ## Manager family perks

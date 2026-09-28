@@ -3,7 +3,7 @@
  * Props behind the back walls are painted into the backdrop (the walls hide their feet); the rest join the depth-sorted scene.
  */
 import type { SceneryId } from "./data.ts";
-import { project, type Plan } from "./layout.ts";
+import { project, turnView, type Plan } from "./layout.ts";
 import { box, line, poly, shadow } from "./render.ts";
 
 type Point = { x: number; y: number };
@@ -33,12 +33,13 @@ const hash = (x: number, y: number, salt = 0) => {
 };
 
 /** The world's extent around the shop, in tiles. */
-export const worldBounds = (layout: Plan) => ({ x0: layout.sideStart - 9, x1: layout.lane + 12, y0: layout.laneStart - 6, y1: layout.laneEnd + 8 });
+export const worldBounds = (layout: Plan) => ({ x0: layout.sideStart - 1, x1: layout.farLane + 9, y0: layout.laneStart - 1, y1: layout.laneEnd + 1 });
 /** Tiles taken by the building, the sidewalks and the road (plus a margin), where no prop may stand. */
 function reserved(layout: Plan, x: number, y: number) {
   if (x >= -1 && x <= layout.w && y >= -1 && y <= layout.d) return true;
-  if (x >= layout.w - 1 && x <= layout.lane + 3 && y >= layout.laneStart - 1 && y <= layout.laneEnd + 1) return true;
-  return y >= layout.d - 1 && y <= layout.side + 1 && x >= layout.sideStart - 1 && x <= layout.lane + 3;
+  if (x >= layout.w - 1 && x <= layout.farLane + 0.5 && y >= layout.laneStart - 1 && y <= layout.laneEnd + 1) return true;
+  if (y >= layout.d - 1 && y <= layout.side + 1 && x >= layout.sideStart - 1 && x <= layout.lane + 3) return true;
+  return layout.neighbours.some(n => x >= n.x0 - 1 && x <= n.x1 + 1 && y >= n.y0 - 1 && y <= n.y1 + 1);
 }
 const cache = new Map<string, Prop[]>();
 export function outsideProps(layout: Plan, scenery: SceneryId): Prop[] {
@@ -48,7 +49,7 @@ export function outsideProps(layout: Plan, scenery: SceneryId): Prop[] {
   props = [];
   const bounds = worldBounds(layout), weights = PROPS[scenery], total = weights.reduce((sum, [, weight]) => sum + weight, 0);
   for (let y = bounds.y0; y <= bounds.y1; y++) for (let x = bounds.x0; x <= bounds.x1; x++) {
-    if (reserved(layout, x, y) || (scenery === "beach" && x > layout.lane + 5)) continue;
+    if (reserved(layout, x, y) || (scenery === "beach" && x > layout.farLane + 6)) continue;
     const near = Math.min(Math.abs(x - layout.w / 2), Math.abs(y - layout.d / 2)) < 8;
     if (hash(x, y, 1) > (near ? 0.2 : 0.13)) continue;
     let roll = hash(x, y, 2) * total, kind = weights[0][0];
@@ -59,7 +60,10 @@ export function outsideProps(layout: Plan, scenery: SceneryId): Prop[] {
   return props;
 }
 /** Props hidden behind the back walls go into the backdrop. */
-export const behindWalls = (prop: Prop) => prop.x < -0.5 || prop.y < -0.5;
+export function behindWalls(prop: Prop, layout: Plan) {
+  const a = turnView(-0.5, -0.5), b = turnView(layout.w - 0.5, layout.d - 0.5), p = turnView(prop.x, prop.y);
+  return p.x < Math.min(a.x, b.x) || p.y < Math.min(a.y, b.y);
+}
 
 /** The ground: the scenery's texture over the whole world, with the sea along the far side at the seaside. */
 export function paintGround(ctx: CanvasRenderingContext2D, layout: Plan, scenery: SceneryId) {
@@ -75,7 +79,7 @@ export function paintGround(ctx: CanvasRenderingContext2D, layout: Plan, scenery
     if (scenery === "market" && h > 0.7) { ctx.strokeStyle = "rgba(0,0,0,.18)"; line(ctx, project(x, y), project(x + 1, y)); }
   }
   if (scenery === "beach") {
-    const sea = layout.lane + 6;
+    const sea = layout.farLane + 7;
     poly(ctx, [project(sea, bounds.y0), project(bounds.x1, bounds.y0), project(bounds.x1, bounds.y1), project(sea, bounds.y1)], "#afc3cf");
     ctx.strokeStyle = "rgba(247,245,240,.8)"; ctx.lineWidth = 1.5;
     for (let t = 0; t < 4; t++) for (let y = bounds.y0; y < bounds.y1; y += 2) {
@@ -85,7 +89,7 @@ export function paintGround(ctx: CanvasRenderingContext2D, layout: Plan, scenery
     ctx.lineWidth = 1;
     poly(ctx, [project(sea - 0.3, bounds.y0), project(sea, bounds.y0), project(sea, bounds.y1), project(sea - 0.3, bounds.y1)], "#f7f5f0");
   }
-  if (scenery === "park") pond(ctx, layout.sideStart + 2, layout.side + 4, 1.6);
+  if (scenery === "park") pond(ctx, -4, layout.side + 9, 1.6);
 }
 function pond(ctx: CanvasRenderingContext2D, x: number, y: number, r: number) {
   const c = project(x, y);

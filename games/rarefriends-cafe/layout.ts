@@ -56,8 +56,36 @@ export type Plan = Readonly<{
   chefSpots: readonly Tile[]; restSpots: readonly Tile[]; promoterSpots: readonly Tile[];
   /** The street: the sidewalk runs down the door side (x = w … lane) and, as `side`, along the building's other front (y = d, d + 1) out to `sideStart`. */
   lane: number; laneStart: number; laneEnd: number; side: number; sideStart: number;
+  /** A sidewalk across the road, and the neighbouring shops: closed to you, but Friends come and go through their doors. */
+  farLane: number; neighbours: readonly Neighbour[];
 }>;
+/**
+ * A neighbouring building: footprint x0–x1 × y0–y1 (inclusive tiles), its door in the wall facing a sidewalk, and the
+ * sidewalk tile in front of the door. `row` says which sidewalk it faces.
+ */
+export type Neighbour = Readonly<{ x0: number; y0: number; x1: number; y1: number; door: Tile; approach: Tile; row: "far" | "side" | "up"; name: string; style: number }>;
+const NEIGHBOUR_NAMES = ["BAKERY", "BOOKS", "FLOWERS", "TEA HOUSE", "RECORDS", "LAUNDRY", "TOYS", "PHARMACY", "BARBER", "GALLERY", "POST", "ARCADE"] as const;
 
+/** Shops across the road (doors facing it), along the side street, and up the street beside the café. */
+function neighboursFor(w: number, d: number): Neighbour[] {
+  const list: Neighbour[] = [];
+  let index = 0;
+  const name = () => NEIGHBOUR_NAMES[(index++ + w) % NEIGHBOUR_NAMES.length];
+  const lane = w + 1, far = w + 4, side = d + 1;
+  for (let y0 = -15; y0 + 5 <= d + 14; y0 += 7) {
+    const door = { x: far + 1, y: y0 + 3 };
+    list.push({ x0: far + 1, y0, x1: far + 5, y1: y0 + 5, door, approach: { x: far, y: door.y }, row: "far", name: name(), style: index });
+  }
+  for (let x0 = -15; x0 + 5 <= w - 2; x0 += 7) {
+    const door = { x: x0 + 3, y: side + 1 };
+    list.push({ x0, y0: side + 1, x1: x0 + 5, y1: side + 5, door, approach: { x: door.x, y: side }, row: "side", name: name(), style: index });
+  }
+  for (let y0 = -15; y0 + 4 <= -3; y0 += 6) {
+    const door = { x: w - 1, y: y0 + 2 };
+    list.push({ x0: w - 5, y0, x1: w - 1, y1: y0 + 4, door, approach: { x: lane - 1, y: door.y }, row: "up", name: name(), style: index });
+  }
+  return list;
+}
 const range = (from: number, to: number) => Array.from({ length: Math.max(0, to - from) }, (_, index) => from + index);
 const cache = new Map<string, Plan>();
 export function planFor(size: number, options: { building?: BuildingId; capsule?: Placement | null } = {}): Plan {
@@ -109,7 +137,8 @@ export function planFor(size: number, options: { building?: BuildingId; capsule?
     chefSpots: [...chefRow.filter((_, index) => index % 2 === 0), ...chefRow.filter((_, index) => index % 2 === 1)],
     restSpots: breakRows.flatMap(y => [{ x: 1, y }, { x: 0, y }]).filter(tile => !(tile.x === 0 && tile.y === d - 3)),
     promoterSpots: [2, -2, 4, -4, 6, -6, 3, -3, 5, -5].map(offset => ({ x: w, y: door.y + offset })).filter(tile => tile.y >= -2 && tile.y <= d + 1),
-    lane: w + 1, laneStart: -8, laneEnd: d + 7, side: d + 1, sideStart: -8,
+    lane: w + 1, laneStart: -16, laneEnd: d + 14, side: d + 1, sideStart: -16,
+    farLane: w + 4, neighbours: neighboursFor(w, d),
   });
   cache.set(id, plan);
   return plan;
@@ -243,22 +272,45 @@ export function placementProblem(items: readonly Item[], candidate: Omit<Item, "
   return layoutProblem([...others, { ...candidate, id: -1 }], plan);
 }
 
-/** World-space projection of a (fractional) grid point; lift raises it on screen. */
+/**
+ * The view can be turned a quarter at a time (0–3). The whole world is drawn turned about the grid origin:
+ * turn 1 maps a grid vector (x, y) to (y, −x), so a facing `dir` shows as `dir + turn`.
+ */
+export type Turn = 0 | 1 | 2 | 3;
+export const viewTurn = { r: 0 as Turn };
+export function turnView(x: number, y: number): { x: number; y: number } {
+  const r = viewTurn.r;
+  return r === 0 ? { x, y } : r === 1 ? { x: y, y: -x } : r === 2 ? { x: -x, y: -y } : { x: -y, y: x };
+}
+export function unturnView(x: number, y: number): { x: number; y: number } {
+  const r = viewTurn.r;
+  return r === 0 ? { x, y } : r === 1 ? { x: -y, y: x } : r === 2 ? { x: -x, y: -y } : { x: y, y: -x };
+}
+/** How a world facing looks in the turned view. */
+export const viewDir = (dir: Dir) => ((dir + viewTurn.r) % 4) as Dir;
+/** Painter's-order depth of a world point in the turned view (larger is nearer the viewer). */
+export const depthOf = (x: number, y: number) => { const p = turnView(x, y); return p.x + p.y; };
+/** A world direction step for a direction pressed on screen (WASD, arrows) in the turned view. */
+export const worldStep = (dx: number, dy: number) => { const p = unturnView(dx, dy); return { dx: Math.round(p.x), dy: Math.round(p.y) }; };
+
+/** World-space projection of a (fractional) grid point, through the view's turn; lift raises it on screen. */
 export function project(x: number, y: number, lift = 0) {
-  return { x: ORIGIN_X + (x - y) * TILE_W / 2, y: ORIGIN_Y + (x + y) * TILE_H / 2 - lift };
+  const p = turnView(x, y);
+  return { x: ORIGIN_X + (p.x - p.y) * TILE_W / 2, y: ORIGIN_Y + (p.x + p.y) * TILE_H / 2 - lift };
 }
 export function unproject(sx: number, sy: number) {
   const a = (sx - ORIGIN_X) / (TILE_W / 2), b = (sy - ORIGIN_Y) / (TILE_H / 2);
-  return { x: (a + b) / 2, y: (b - a) / 2 };
+  return unturnView((a + b) / 2, (b - a) / 2);
 }
 
 /** Camera that fits the building, its walls and the street into the 960 × 640 view (with room for the HUD). */
 export type Camera = Readonly<{ zoom: number; x: number; y: number }>;
 export function cameraFor(shop: number | Plan): Camera {
   const plan = typeof shop === "number" ? planFor(shop) : shop;
-  // Frame the building and the street beside it; the rest of the world is there to zoom out and pan to.
-  const points = [project(-0.5, -0.5, 150), project(plan.lane + 2.5, -3.5), project(plan.lane + 2.5, plan.d + 2.5),
-    project(-0.5, plan.d - 0.5), project(plan.w - 0.5, plan.d + 0.5)];
+  // Frame the building (walls up to their tops) and the street beside it, from whichever side the view is turned;
+  // the rest of the world is there to zoom out and pan to.
+  const corners = [[-0.5, -0.5], [plan.w - 0.5, -0.5], [plan.w - 0.5, plan.d - 0.5], [-0.5, plan.d - 0.5], [plan.lane + 2.5, -3.5], [plan.lane + 2.5, plan.d + 2.5]] as const;
+  const points = corners.flatMap(([x, y]) => [project(x, y, 0), project(x, y, 150)]);
   const left = Math.min(...points.map(p => p.x)), right = Math.max(...points.map(p => p.x));
   const top = Math.min(...points.map(p => p.y)), bottom = Math.max(...points.map(p => p.y));
   const zoom = Math.min(1, 940 / (right - left), 560 / (bottom - top));

@@ -13,8 +13,9 @@ execFileSync("node", ["scripts/build-preview.mjs", "--outdir", dir], { stdio: "i
 const types = { ".html": "text/html", ".js": "text/javascript", ".png": "image/png" };
 const server = createServer(async (request, response) => {
   const file = path.join(dir, request.url.split("?")[0].replace(/^\/preview\/?/, "/").replace(/\/$/, "/index.html"));
-  try { response.writeHead(200, { "content-type": types[path.extname(file)] ?? "application/octet-stream" }); response.end(await readFile(file)); }
-  catch { response.writeHead(404); response.end(); }
+  let body;
+  try { body = await readFile(file); } catch { response.writeHead(404); response.end(); return; }
+  response.writeHead(200, { "content-type": types[path.extname(file)] ?? "application/octet-stream" }); response.end(body);
 });
 await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
 const browser = await chromium.launch({ args: ["--autoplay-policy=document-user-activation-required"] });

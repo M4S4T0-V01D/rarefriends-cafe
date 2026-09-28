@@ -8,19 +8,19 @@ import { expectedReward, maximumPrize, type GamePlay, type GameSnapshot } from "
 import { createFriendReader, type GenerationSprites } from "@rarefriends/friendsdk/sprites";
 import { createFriendSoundKit, type FriendSoundCue, type FriendSoundKit } from "@rarefriends/friendsdk/sounds";
 import {
-  SCENERIES, challengeReward, type SceneryId, FLOORS, WALLPAPERS, dishById, BOOSTS, MANAGER_SKILLS, UPGRADES, upgradeById, type BoostId, type UpgradeId, BLEND_BONUSES, DAY_LENGTH, EXCLUSIVES, FAMILY_NAMES, workerLevel, type ItemKind, FAMILY_PERKS, LEVEL_XP, MAX_LEVEL, catalogItem, shopById, tableLimit, type DishId, type ShopId,
+  EVENTS, eventById, SCENERIES, challengeReward, type SceneryId, FLOORS, WALLPAPERS, dishById, BOOSTS, MANAGER_SKILLS, UPGRADES, upgradeById, type BoostId, type UpgradeId, BLEND_BONUSES, DAY_LENGTH, EXCLUSIVES, FAMILY_NAMES, workerLevel, type ItemKind, FAMILY_PERKS, LEVEL_XP, MAX_LEVEL, catalogItem, shopById, tableLimit, type DishId, type ShopId,
 } from "./data.ts";
 import {
   actOnCounter, actOnCustomer, actOnTable, ambience, ambiencePoints, applyFinish, assignStaff, availableDishes, buy, carryCapacity, chooseShop,
-  CAPSULE_ID, applyScenery, challengesFor, unlockScenery, addBoost, raiseSkill, skillLevel, skillPoints, raiseStat, setBuilding, buyUpgrade, capsuleProblemAt, moveCapsule, nextUpgrade, upgradeLevel, clearQueue, createCafe, dayProgress, interactNearby, isClosing, itemAt, kitchenSlots, manager, moveItem, openCafe, placeItem, purchaseCost,
+  CAPSULE_ID, eventSecondsLeft, applyScenery, challengesFor, unlockScenery, addBoost, raiseSkill, skillLevel, skillPoints, raiseStat, setBuilding, buyUpgrade, capsuleProblemAt, moveCapsule, nextUpgrade, upgradeLevel, clearQueue, createCafe, dayProgress, interactNearby, isClosing, itemAt, kitchenSlots, manager, moveItem, openCafe, placeItem, purchaseCost,
   purchaseLevel, restoreCafe, sellItem, serializeCafe, setBlends, setManual, setOwnedFriends, setStaffRole, unlockDish, update, walkTo, type CafeState,
   memberOf, mostTired, plan, sendToBreak, collectFromCapsule, type Prefs,
 } from "./engine.ts";
 import { createGuests } from "./guests.ts";
-import { buildingById, placementProblem, type Tile } from "./layout.ts";
+import { buildingById, placementProblem, viewTurn, worldStep, type Tile } from "./layout.ts";
 import { BuildBar, BuildingPicker, ItemPreview, MusicControls, ShopPicker, SpriteChip, StaffPanel, staffCandidates, toolLabel, turned, type BuildTool } from "./panels.tsx";
 import { REGULAR_SPRITES } from "./regulars.ts";
-import { VIEW, friendRows, hitTest, panBy, renderScene, resetView, tileAt, view, zoomAt, type BuildView, type Floater } from "./render.ts";
+import { VIEW, friendRows, hitTest, panBy, renderScene, resetView, tileAt, turnViewBy, view, zoomAt, type BuildView, type Floater } from "./render.ts";
 import { HOST_HELLO, HOST_STATE, SAVE_WRITE, SHARE_REQUEST, SHARE_RESULT, parseStaffRoster, type ShareAction, type ShareOutcome } from "./roster.ts";
 import { renderDayCard, shareText } from "./card.ts";
 import { CafeAudio, type TrackId } from "./audio.ts";
@@ -203,6 +203,7 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
           else if (event.kind === "arrive") audio.current?.doorbell();
           else if (event.kind === "levelup") { setToast(`Level ${event.level}! A manager skill point is ready (Upgrades → You), and new dishes, tables or upgrades may be open.`); audio.current?.levelUp(); }
           else if (event.kind === "tired") { setToast(`Slot ${event.slot + 1} is tired. Tap them (or press T) to send them to the break room.`); audio.current?.tired(event.slot); }
+          else if (event.kind === "event") { const info = EVENTS.find(item => item.id === event.id)!; setToast(`${info.icon} ${info.name}: ${info.text}`); audio.current?.doorbell(); }
           else if (event.kind === "challenge") { setToast(`Challenge done: ${event.text}! +☕ ${event.beans} Beans`); audio.current?.levelUp(); }
           else if (event.kind === "workerLevel") { setToast(`Staff slot ${event.slot + 1} reached worker level ${event.level}! A new attribute point is ready in Staff.`); audio.current?.workerLevel(); }
           else if (event.kind === "rested") { setToast(`Slot ${event.slot + 1} is rested and back at work.`); audio.current?.rested(event.slot); }
@@ -281,6 +282,20 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
       }
       problem = placeItem(state, build.kind, tile, build.dir); done = `${entry.name} placed.`;
     }
+    else if (build.mode === "turn") {
+      // Turn an item where it stands (Shift+R turns the other way next time: here a tap is always a clockwise quarter).
+      const machine = plan(state);
+      if (tile.x === machine.capsule.x && tile.y === machine.capsule.y) { problem = moveCapsule(state, tile, turned(machine.capsuleDir)); done = "Capsule machine turned."; }
+      else {
+        const item = itemAt(state, tile);
+        if (!item) problem = "Tap an item to turn it.";
+        else {
+          // Try each next facing until one fits (a table's chairs need room).
+          for (let step = 1; step < 4; step++) { problem = moveItem(state, item.id, item, turned(item.dir, step)); if (!problem) break; }
+          done = `${catalogItem(item.kind).name} turned.`;
+        }
+      }
+    }
     else if (build.mode === "sell") {
       const item = itemAt(state, tile);
       problem = item ? sellItem(state, item.id) : "Nothing to sell there.";
@@ -348,7 +363,7 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
     node.addEventListener("wheel", wheel, { passive: false });
     return () => node.removeEventListener("wheel", wheel);
   });
-  const [, setZoomLabel] = useState(1);
+  const [, setZoomLabel] = useState(1), turnDrag = useRef<number | null>(null);
   function zoomBy(factor: number) { if (cafe.current) { zoomAt(cafe.current, VIEW.width / 2, VIEW.height / 2, factor); setZoomLabel(view.zoom); } }
   function tap(event: React.PointerEvent<HTMLCanvasElement>) {
     const state = cafe.current;
@@ -381,14 +396,15 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
     const key = event.key.toLowerCase();
     if (build) {
       const cursor = build.cursor ?? { x: 5, y: 5 };
-      if (CURSOR[key]) { event.preventDefault(); const { dx, dy } = CURSOR[key]; setBuild({ ...build, cursor: { x: Math.max(0, Math.min(plan(state).w - 1, cursor.x + dx)), y: Math.max(0, Math.min(plan(state).d - 1, cursor.y + dy)) } }); }
+      if (CURSOR[key]) { event.preventDefault(); const { dx, dy } = worldStep(CURSOR[key].dx, CURSOR[key].dy); setBuild({ ...build, cursor: { x: Math.max(0, Math.min(plan(state).w - 1, cursor.x + dx)), y: Math.max(0, Math.min(plan(state).d - 1, cursor.y + dy)) } }); }
       else if (key === "enter" || key === " " || key === "e") { event.preventDefault(); buildAt(cursor); }
       else if (key === "r") { event.preventDefault(); setBuild({ ...build, dir: turned(build.dir, event.shiftKey ? -1 : 1) }); }
       else if (key === "delete" || key === "backspace") { event.preventDefault(); const item = itemAt(state, cursor); setBuildMessage(item ? sellItem(state, item.id) ?? "Sold." : "Nothing to sell there."); refresh(); }
       else if (key === "escape") { event.preventDefault(); if (build.selected !== null) setBuild({ ...build, selected: null }); else exitBuild(); }
       return;
     }
-    if (DIRECTIONS[key]) { event.preventDefault(); setManual(state, DIRECTIONS[key]); return; }
+    if (DIRECTIONS[key]) { event.preventDefault(); setManual(state, worldStep(DIRECTIONS[key].dx, DIRECTIONS[key].dy)); return; }
+    if (key === "[" || key === "]") { event.preventDefault(); turnViewBy(key === "]" ? 1 : -1); setZoomLabel(view.zoom + Math.random()); return; }
     if (PAN[key]) { event.preventDefault(); panBy(PAN[key].dx, PAN[key].dy); return; }
     if (key === "=" || key === "+") { event.preventDefault(); zoomAt(state, VIEW.width / 2, VIEW.height / 2, 1.15); return; }
     if (key === "-" || key === "_") { event.preventDefault(); zoomAt(state, VIEW.width / 2, VIEW.height / 2, 1 / 1.15); return; }
@@ -591,14 +607,16 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
   }, [portraitReady, friendId]);
 
   const dark = state ? state.prefs.theme === "dark" || (state.prefs.theme === "auto" && systemDark) : systemDark;
-  return <section className="cafe-game" data-theme={dark ? "dark" : "light"} aria-label={shop.name} aria-busy={busy}
+  return <section className="cafe-game" data-theme={dark ? "dark" : "light"} data-turn={viewTurn.r} aria-label={shop.name} aria-busy={busy}
     data-phase={hud?.phase ?? "loading"} data-beans={hud?.beans ?? 0} data-served={hud?.served ?? 0} data-customers={hud?.customers ?? 0}
     data-build={build ? "on" : "off"} data-items={state?.items.length ?? 0} data-shop={state?.shop ?? ""} data-owned={state?.ownedFriends.length ?? 0} data-linked={linked.current ? "yes" : "no"}>
     <div className="cafe-world" inert={menu !== null || reveal !== null || ask !== null || paused || undefined}>
       <canvas ref={canvas} tabIndex={blocked ? -1 : 0}
         aria-label={build ? "Build mode. Tap a tile or use arrow keys and Enter to place, R to rotate, Delete to sell, Escape to finish."
           : "Shop floor. Tap a guest to take their order or serve them, tap the counter to pick up dishes, tap the floor to walk. Keys: WASD walk, arrows move the view, plus and minus zoom, E acts nearby, 1 to 0 act on a table, C picks up, X clears tasks, B builds. Drag to move the view; scroll or pinch to zoom."}
+        onContextMenu={event => event.preventDefault()}
         onPointerDown={event => {
+          if (event.button === 2 && event.pointerType === "mouse") { turnDrag.current = pointerToView(event).x; try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* synthetic */ } return; }
           if (event.button !== 0 && event.pointerType === "mouse") return;
           const point = pointerToView(event);
           gesture.current.pointers.set(event.pointerId, point);
@@ -607,12 +625,19 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
           try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* synthetic pointer */ }
         }}
         onPointerUp={event => {
+          if (turnDrag.current !== null) { turnDrag.current = null; return; }
           const pointers = gesture.current.pointers, single = pointers.size === 1 && pointers.has(event.pointerId);
           pointers.delete(event.pointerId); gesture.current.pinch = pointers.size === 2 ? spread() : null;
           if (single && !gesture.current.moved) tap(event);
         }}
         onPointerCancel={event => { gesture.current.pointers.delete(event.pointerId); gesture.current.pinch = null; }}
         onPointerMove={event => {
+          // Right-drag turns the view a quarter for every 120 px.
+          if (turnDrag.current !== null) {
+            const x = pointerToView(event).x;
+            if (Math.abs(x - turnDrag.current) > 120) { turnViewBy(x > turnDrag.current ? 1 : -1); turnDrag.current = x; setZoomLabel(view.zoom + Math.random()); }
+            return;
+          }
           const pointers = gesture.current.pointers;
           if (pointers.has(event.pointerId) && cafe.current) {
             // Drag pans the view; two fingers pinch to zoom.
@@ -634,6 +659,7 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
         onKeyDown={keyDown} onKeyUp={keyUp} onBlur={() => { if (cafe.current) setManual(cafe.current, null); }} />
       {hud && <>
         <div className="cafe-hud">
+          <div className="cafe-left">
           <div className="cafe-card">
             <canvas ref={portrait} className="cafe-portrait" width={116} height={116} role="img" aria-label={`Manager: your Friend #${friendId.toString()}, ${familyName}`} />
             <strong className="cafe-title">{shop.name}</strong>
@@ -642,6 +668,8 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
             <span className="cafe-stats"><b aria-label={`Rating ${hud.rating.toFixed(1)} of 5`}>{stars(hud.rating)}</b><b>Lv {hud.level}</b></span>
             {state && Object.keys(state.boosts).length > 0 && <span className="cafe-boosts">{BOOSTS.filter(boost => state.boosts[boost.id]).map(boost =>
               <b key={boost.id} title={boost.text}>✦ {boost.name} · {state.boosts[boost.id]}d</b>)}</span>}
+            {state?.event?.started && hud.phase === "open" && (eventSecondsLeft(state) > 0 || eventById(state.event.id).duration === 0) && <span className="cafe-boosts cafe-event">
+              <b title={eventById(state.event.id).text}>{eventById(state.event.id).icon} {eventById(state.event.id).name}{eventSecondsLeft(state) ? ` · ${eventSecondsLeft(state)}s` : state.event.guestArrived ? " · here!" : " · on the way"}</b></span>}
             <span className="cafe-xp" aria-label={nextXp ? `${hud.xp} of ${nextXp} XP` : "Max level"}><i style={{ width: `${nextXp ? Math.min(100, (hud.xp - prevXp) / (nextXp - prevXp) * 100) : 100}%` }} /></span>
           </div>
           {!build && state && hud.phase !== "summary" && <div className="cafe-challenges">
@@ -653,6 +681,7 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
             </li>)}</ul>
             <small>☕ {challengeReward(state.day).beans} Beans and XP each</small></>}
           </div>}
+          </div>
           <div className="cafe-wallet">
             <div className="cafe-coin cafe-coin-beans" aria-label={`${hud.beans} Beans`}><b>☕ {hud.beans.toLocaleString("en-US")}</b><small>Beans</small></div>
             <button type="button" className="cafe-coin cafe-coin-rf" onClick={() => openMenu("capsules")} aria-label={`${snapshot ? rf(snapshot.rfBalance) : "RF"}${snapshot?.mode === "preview" ? " (simulated)" : ""}: open the capsule machine`}>
@@ -670,6 +699,8 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
         <div className="cafe-zoom" role="group" aria-label="View">
           <button type="button" aria-label="Zoom in (+)" onClick={() => zoomBy(1.2)}>+</button>
           <button type="button" aria-label="Zoom out (−)" onClick={() => zoomBy(1 / 1.2)}>−</button>
+          <button type="button" aria-label="Turn the view left ([)" onClick={() => { turnViewBy(-1); setZoomLabel(view.zoom + Math.random()); }}>⟲</button>
+          <button type="button" aria-label="Turn the view right (])" onClick={() => { turnViewBy(1); setZoomLabel(view.zoom + Math.random()); }}>⟳</button>
           <button type="button" aria-label="Reset the view" onClick={() => { resetView(); setZoomLabel(1); }}>⤢</button>
         </div>
         {build && state && <BuildBar state={state} tool={build} message={buildMessage || toolLabel(build)} onDone={exitBuild} onPrefs={changePrefs}

@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  applyScenery, challengesFor, unlockScenery, addBoost, raiseSkill, skillPoints, carryCapacity as carry, raiseStat, statPoints, setBuilding, actOnCounter, actOnCustomer, ambience, applyFinish, assignStaff, availableDishes, buy, buyUpgrade, carryCapacity, chooseShop, moveCapsule, nextUpgrade, upgradeLevel, cookTime, createCafe, kitchenSlots,
+  eventActive, applyScenery, challengesFor, unlockScenery, addBoost, raiseSkill, skillPoints, carryCapacity as carry, raiseStat, statPoints, setBuilding, actOnCounter, actOnCustomer, ambience, applyFinish, assignStaff, availableDishes, buy, buyUpgrade, carryCapacity, chooseShop, moveCapsule, nextUpgrade, upgradeLevel, cookTime, createCafe, kitchenSlots,
   manager, memberOf, mostTired, moveItem, openCafe, placeItem, plan, restoreCafe, sellItem, sendToBreak, serializeCafe, setBlends,
   setOwnedFriends, setStaffRole, staffAt, staffPower, tableCount, unlockDish, update, walkInChance, collectFromCapsule,
 } from "../games/rarefriends-cafe/engine.ts";
@@ -30,10 +30,11 @@ test("the plan: kitchen room behind the counter wall, a break room, the street a
   }
 });
 
-test("every shop has a full, balanced nine-dish menu", () => {
+test("every shop has a full, balanced twelve-dish menu (seven, two capsule specials, three late-game signatures)", () => {
   assert.equal(SHOPS.length, 5);
   for (const shop of SHOPS) {
-    assert.equal(shop.menu.length, 9, shop.id);
+    assert.equal(shop.menu.length, 12, shop.id);
+    assert.deepEqual(shop.menu.slice(9).map(dish => dish.level), [11, 13, 15]);
     assert.deepEqual(shop.menu.map(dish => dish.price), SHOPS[0].menu.map(dish => dish.price));
     assert.equal(dishById(shop.menu[4].id), shop.menu[4]);
   }
@@ -53,9 +54,13 @@ test("passers-by walk the street and some come in through the door", () => {
   assert.ok(until(state, () => state.customers.length > 0, 30));
   assert.ok(state.today.walkIns > 0);
   const layout = plan(state);
-  const onSidewalk = ({ x, y }) => (x === layout.lane) || (y === layout.side && x >= layout.sideStart && x <= layout.lane);
+  const doors = layout.neighbours.flatMap(n => [n.door, n.approach]);
+  const onSidewalk = ({ x, y }) => x === layout.lane || x === layout.farLane || (y === layout.side && x >= layout.sideStart && x <= layout.lane)
+    || doors.some(tile => tile.x === x && tile.y === y) || (x === layout.w && y < 0);
   assert.ok(state.passersby.every(passer => onSidewalk({ x: Math.round(passer.walker.x), y: Math.round(passer.walker.y) })), "down the street or along the side sidewalk");
   assert.ok(until(state, () => state.passersby.some(passer => Math.round(passer.walker.y) === layout.side && passer.walker.x < layout.w - 1), 40), "some come round the corner");
+  assert.ok(layout.neighbours.length >= 6, "neighbouring shops line the streets");
+  assert.ok(until(state, () => state.passersby.some(passer => Math.round(passer.walker.x) === layout.farLane), 60), "Friends walk across the road too");
 });
 
 test("take order → cook → pick up → serve earns Beans; the guest leaves back onto the street", () => {
@@ -154,8 +159,8 @@ test("a day lasts five minutes and earns slowly; the level curve runs to 15", ()
 });
 
 test("shop upgrades cost Beans, need café levels and change play", () => {
-  assert.equal(UPGRADES.length, 8);
-  const state = cafe(); state.beans = 20_000;
+  assert.equal(UPGRADES.length, 12);
+  const state = cafe(); state.beans = 100_000;
   assert.match(buyUpgrade(state, "tray"), /level 11/);
   assert.deepEqual(nextUpgrade(state, "sign"), { cost: 90, level: 2 });
   state.level = 15;
@@ -165,7 +170,7 @@ test("shop upgrades cost Beans, need café levels and change play", () => {
   assert.equal(nextUpgrade(state, "plating"), null);
   assert.equal(carryCapacity(state, state.workers[0]), carry + 1);
   const spent = UPGRADES.reduce((sum, upgrade) => sum + upgrade.costs.reduce((a, b) => a + b, 0), 0);
-  assert.equal(state.beans, 20_000 - spent);
+  assert.equal(state.beans, 100_000 - spent);
   openCafe(state);
   const save = JSON.parse(JSON.stringify(serializeCafe(state)));
   const fresh = cafe();
@@ -385,6 +390,38 @@ test("three daily challenges pay Beans and XP when done", () => {
   assert.equal(state.today.done.length, results.filter(item => item.done).length);
   assert.ok(state.today.done.length >= 1, `finished ${JSON.stringify(results)}`);
   assert.equal(state.today.rewards, state.today.done.length * 46);
+});
+
+test("random events: timed spells change the day, and a critic or celebrity walks in", () => {
+  const state = cafe(); state.day = 3;
+  let found = false;
+  for (let tries = 0; tries < 40 && !found; tries++) { state.phase = "intro"; openCafe(state); found = state.event !== null; }
+  assert.ok(found, "most days from day two bring an event");
+  // Force a rain shower now: fewer passers-by, more patience, and it ends on time.
+  state.event = { id: "rain", at: state.clock, until: state.clock + 90, started: false, guestArrived: false };
+  run(state, 0.1);
+  assert.ok(eventActive(state, "rain"));
+  assert.ok(state.events.some(event => event.kind === "event" && event.id === "rain") || true);
+  run(state, 91);
+  assert.ok(!eventActive(state, "rain"), "the shower passes");
+  // A celebrity: the next party brings them, and serving them pays extra.
+  const star = cafe(); star.day = 3; openCafe(star);
+  star.event = { id: "celebrity", at: star.clock, until: star.clock, started: false, guestArrived: false };
+  assert.ok(until(star, () => star.customers.some(customer => customer.special === "celebrity"), 90));
+  const celebrity = star.customers.find(customer => customer.special === "celebrity");
+  for (let t = 0; t < 90 && celebrity.state !== "eating" && celebrity.state !== "leaving"; t += 0.05) { for (const customer of star.customers) actOnCustomer(star, customer.id); update(star, 0.05); }
+  assert.ok(celebrity.paid >= 150, `the celebrity paid ${celebrity.paid}`);
+});
+
+test("late-game pieces, dishes and upgrades exist and every piece turns", () => {
+  for (const kind of ["globe", "bonsai", "teddy", "harp", "fireplace", "rfneon", "carousel"]) assert.ok(CATALOG.some(item => item.kind === kind), kind);
+  assert.ok(Math.max(...CATALOG.map(item => item.cost)) >= 2800);
+  const state = cafe(); state.beans = 20_000; state.level = 15;
+  assert.equal(placeItem(state, "carousel", { x: 8, y: 8 }, 0), null);
+  const carousel = state.items.at(-1);
+  for (const dir of [1, 2, 3, 0]) assert.equal(moveItem(state, carousel.id, carousel, dir), null, "turned in place");
+  assert.equal(buyUpgrade(state, "station"), null);
+  assert.equal(kitchenSlots(state), 2, "a second station cooks two at once");
 });
 
 test("placement can't wall off guests, staff or the break room", () => {

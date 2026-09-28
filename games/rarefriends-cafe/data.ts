@@ -4,7 +4,7 @@ export type ShopId = "cafe" | "seafood" | "pastry" | "burger" | "asian";
 export type DishShape =
   | "cup" | "latte" | "tall" | "bowl" | "noodles" | "plate" | "fish" | "fries" | "skewer" | "dumplings" | "sushi"
   | "burger" | "bread" | "croissant" | "cake" | "macaron" | "shells" | "pan" | "rice" | "mochi" | "pancakes" | "omurice" | "parfait";
-/** A dish id is `<shop>:<menu index>`; indexes 7 and 8 are the capsule specials. */
+/** A dish id is `<shop>:<menu index>`; indexes 7 and 8 are the capsule specials, 9–11 the late-game signatures. */
 export type DishId = `${ShopId}:${number}`;
 export type Dish = Readonly<{
   id: DishId; name: string; price: number; cook: number; unlockCost: number; level: number;
@@ -19,6 +19,8 @@ const TIERS = [
   { price: 16, cook: 8, unlockCost: 200, level: 5 }, { price: 23, cook: 10, unlockCost: 350, level: 7 },
   { price: 29, cook: 9, unlockCost: 500, level: 9 },
   { price: 35, cook: 6, unlockCost: 0, level: 1, blend: 1 }, { price: 55, cook: 11, unlockCost: 0, level: 1, blend: 2 },
+  // Late-game signatures.
+  { price: 38, cook: 11, unlockCost: 900, level: 11 }, { price: 48, cook: 12, unlockCost: 1500, level: 13 }, { price: 62, cook: 14, unlockCost: 2400, level: 15 },
 ] as const;
 type MenuRow = readonly [name: string, shape: DishShape, color: string, accent: string];
 
@@ -37,26 +39,31 @@ export const SHOPS: readonly Shop[] = [
     ["Strawberry Mochi", "mochi", "#d9b3b3", "#b4c3ab"], ["Fluffy Pancakes", "pancakes", "#dccb9c", "#e2d7ad"],
     ["Omurice (ketchup heart)", "omurice", "#e2d49e", "#c98f8f"], ["Cloud Parfait", "parfait", "#c5bdd6", "#f3f0f8"],
     ["Silver Latte", "latte", "#b9bfc6", "#ffffff"], ["Moonlight Parfait", "parfait", "#9fabc2", "#e9e3c4"],
+    ["Honey Butter Toast", "bread", "#e2c98e", "#f6f0dc"], ["Strawberry Crêpe Cake", "cake", "#f3e4e2", "#d49d9d"], ["Latte Art Flight", "latte", "#c9b08f", "#f7f5f0"],
   ]),
   shop("seafood", "Tide & Shell", "Seafood restaurant", "SEAFOOD", "Chowder, fish & chips and a lobster roll by the window.", "tank", "#afbccb", [
     ["Clam Chowder", "bowl", "#e8e1cf", "#b8a894"], ["Fish & Chips", "fish", "#dccb9c", "#e2d7ad"], ["Grilled Squid", "skewer", "#d9c3b0", "#8f8a84"],
     ["Shrimp Tempura", "fries", "#e2cfa0", "#d8a79c"], ["Oyster Plate", "shells", "#cfd3d6", "#f4f1ea"], ["Lobster Roll", "bread", "#dcc39a", "#d49d93"],
     ["Seafood Paella", "pan", "#e2c98e", "#c98f8f"], ["Silver Pearl Oysters", "shells", "#b9bfc6", "#ffffff"], ["Moonlight Bouillabaisse", "bowl", "#c9a58f", "#9fabc2"],
+    ["Grilled Lobster", "fish", "#d49d93", "#e2cf98"], ["Crab Pot", "pan", "#d9a79c", "#f1e3c2"], ["Grand Seafood Tower", "shells", "#cfd3d6", "#d49d93"],
   ]),
   shop("pastry", "Flour Moon", "Pastry shop", "PÂTISSERIE", "Croissants, macarons and strawberry shortcake.", "oven", "#e2d7ad", [
     ["Croissant", "croissant", "#dcc39a", "#b89b73"], ["Cinnamon Roll", "bread", "#cfb08f", "#f1e8d8"], ["Macarons", "macaron", "#d8b6b4", "#b4c3ab"],
     ["Strawberry Shortcake", "cake", "#f3eee6", "#d49d9d"], ["Éclair", "bread", "#8f7563", "#e2d7ad"], ["Mille-feuille", "cake", "#e7dcc4", "#c6bed4"],
     ["Lemon Tart", "pan", "#e8dc9e", "#f6f0dc"], ["Silver Soufflé", "tall", "#dcd6cc", "#ffffff"], ["Moonlight Mont Blanc", "cake", "#b3a08b", "#9fabc2"],
+    ["Opera Cake", "cake", "#6f5a4c", "#e2d49e"], ["Macaron Tower", "macaron", "#c6bed4", "#e8cfd0"], ["Gold-Leaf Éclair", "bread", "#8f7563", "#e2d49e"],
   ]),
   shop("burger", "Patty Friends", "Burger diner", "DINER", "Smash burgers, onion rings and thick shakes.", "grill", "#d9a79c", [
     ["Fries", "fries", "#e2cf98", "#c98f8f"], ["Milkshake", "tall", "#e8cfd0", "#f6eeee"], ["Classic Burger", "burger", "#b98d6c", "#b4c3ab"],
     ["Cheeseburger", "burger", "#b98d6c", "#e6cd7a"], ["Onion Rings", "shells", "#d9bd8a", "#f1e3c2"], ["Double Stack", "burger", "#8f6a52", "#e6cd7a"],
     ["Friend Deluxe", "burger", "#a07a5e", "#c98f8f"], ["Silver Smash", "burger", "#9fa6ad", "#ffffff"], ["Moonlight Melt", "burger", "#8a93a8", "#e9e3c4"],
+    ["Loaded Nachos", "fries", "#e2cf98", "#b4c3ab"], ["Truffle Burger", "burger", "#6f5a4c", "#e2d7ad"], ["Tower of Friendship", "burger", "#8f6a52", "#c6bed4"],
   ]),
   shop("asian", "Lantern Noodle House", "Asian kitchen", "NOODLES", "Ramen, gyoza, sushi and steamed bao.", "steamer", "#b4c3ab", [
     ["Green Tea", "cup", "#a9b99a", "#eef1e6"], ["Gyoza", "dumplings", "#e8dcc2", "#b89b73"], ["Onigiri", "rice", "#f6f3ec", "#3b3a38"],
     ["Miso Ramen", "noodles", "#d9c28f", "#c98f8f"], ["Sushi Set", "sushi", "#f3eee6", "#d8a79c"], ["Bao Buns", "dumplings", "#f4efe6", "#b4c3ab"],
     ["Katsu Curry", "plate", "#c9a26f", "#e2cf98"], ["Silver Tempura Udon", "noodles", "#c9ccd0", "#ffffff"], ["Moonlight Bento", "rice", "#9fabc2", "#e9e3c4"],
+    ["Peking Duck", "plate", "#b98d6c", "#e8dcc2"], ["Omakase Box", "sushi", "#f3eee6", "#c98f8f"], ["Dragon Ramen", "noodles", "#d9a79c", "#c98f8f"],
   ]),
 ];
 export const shopById = (id: ShopId) => SHOPS.find(item => item.id === id)!;
@@ -126,7 +133,7 @@ export const EXPAND_COSTS = [300, 500, 750, 1000, 1300, 1650, 2050, 2500, 3000, 
 export const EXPAND_LEVELS = [3, 4, 5, 6, 7, 8, 9, 10, 12, 14] as const;
 
 // ---------- Shop upgrades ----------
-export type UpgradeId = "sign" | "shoes" | "chairs" | "tipjar" | "breakroom" | "dishwasher" | "plating" | "tray";
+export type UpgradeId = "sign" | "shoes" | "chairs" | "tipjar" | "breakroom" | "dishwasher" | "plating" | "tray" | "training" | "chefhat" | "neon" | "station";
 /** Beans upgrades bought one level at a time; `levels` is the café level each step needs. */
 export type Upgrade = Readonly<{ id: UpgradeId; name: string; text: string; costs: readonly number[]; levels: readonly number[] }>;
 export const UPGRADES: readonly Upgrade[] = [
@@ -138,6 +145,11 @@ export const UPGRADES: readonly Upgrade[] = [
   { id: "dishwasher", name: "Dishwasher", text: "Guests finish eating 20% sooner per level, freeing tables.", costs: [240, 560], levels: [4, 8] },
   { id: "plating", name: "Fancy plating", text: "Every dish sells for 6% more per level.", costs: [300, 900, 2400], levels: [5, 9, 12] },
   { id: "tray", name: "Big serving tray", text: "You carry one more dish.", costs: [2500], levels: [11] },
+  // Late game.
+  { id: "training", name: "Staff training", text: "Staff move 5% faster per level.", costs: [700, 1600, 3200], levels: [7, 10, 13] },
+  { id: "chefhat", name: "Chef's hats", text: "Dishes cook 6% faster per level.", costs: [900, 2000, 4000], levels: [8, 11, 14] },
+  { id: "neon", name: "Neon storefront", text: "+10% walk-ins per level.", costs: [1400, 3200], levels: [10, 14] },
+  { id: "station", name: "Second station", text: "One more dish cooks at a time, per level.", costs: [2800, 6000], levels: [12, 15] },
 ];
 export const upgradeById = (id: UpgradeId) => UPGRADES.find(item => item.id === id)!;
 
@@ -170,7 +182,7 @@ export const BOOSTS: readonly { id: BoostId; name: string; text: string; capsule
 export type ExclusiveId = "luckycat" | "gumball" | "crane" | "jukebox" | "fountain" | "telescope" | "starlamp" | "statue";
 export type RugKind = "rug" | "runner" | "roundrug";
 export type ItemKind = "table" | "tabletwo" | "tablefour" | "plant" | "lamp" | "shelf" | "record" | "piano" | RugKind
-  | "candelabra" | "dessertcart" | "grandpiano" | "koipond" | "cactus" | "coatrack" | "chalkboard" | "flowers" | "armchair" | "catbed" | "birdcage" | "cakecase" | "sofa" | "clock" | "arcade" | "aquarium" | ExclusiveId;
+  | "candelabra" | "dessertcart" | "grandpiano" | "koipond" | "globe" | "bonsai" | "teddy" | "harp" | "fireplace" | "rfneon" | "carousel" | "cactus" | "coatrack" | "chalkboard" | "flowers" | "armchair" | "catbed" | "birdcage" | "cakecase" | "sofa" | "clock" | "arcade" | "aquarium" | ExclusiveId;
 /**
  * `tier` marks an RF exclusive: collected from Rare Recipe Capsules (0 House Secret … 3 Golden Recipe), then placed for free.
  * Items that don't block are rugs: flat, walkable, and furniture can stand on them.
@@ -201,11 +213,19 @@ export const CATALOG: readonly CatalogItem[] = [
   { kind: "arcade", name: "Arcade cabinet", cost: 220, ambience: 3, blocks: true, text: "+3 ambience" },
   { kind: "aquarium", name: "Fish tank", cost: 240, ambience: 4, blocks: true, text: "+4 ambience" },
   { kind: "piano", name: "Upright piano", cost: 260, ambience: 4, blocks: true, text: "+4 ambience" },
+  // Mid-game pieces.
+  { kind: "globe", name: "Antique globe", cost: 380, ambience: 3, blocks: true, text: "+3 ambience · it turns, slowly" },
+  { kind: "bonsai", name: "Bonsai", cost: 520, ambience: 3, blocks: true, text: "+3 ambience · a patient little tree" },
+  { kind: "teddy", name: "Giant teddy bear", cost: 650, ambience: 4, blocks: true, text: "+4 ambience · for hugs" },
   // Luxury pieces for a well-off café.
   { kind: "dessertcart", name: "Dessert trolley", cost: 750, ambience: 4, blocks: true, text: "+4 ambience · three tiers of cakes" },
   { kind: "candelabra", name: "Crystal candelabra", cost: 950, ambience: 5, blocks: true, text: "+5 ambience · twinkling crystals" },
   { kind: "grandpiano", name: "Grand piano", cost: 1600, ambience: 7, blocks: true, text: "+7 ambience · lid up, candles lit" },
   { kind: "koipond", name: "Koi pond", cost: 2200, ambience: 8, blocks: true, text: "+8 ambience · koi circling a lily pad" },
+  { kind: "harp", name: "Golden harp", cost: 1100, ambience: 5, blocks: true, text: "+5 ambience" },
+  { kind: "fireplace", name: "Stone fireplace", cost: 1300, ambience: 6, blocks: true, text: "+6 ambience · a crackling fire" },
+  { kind: "rfneon", name: "Neon RF sign", cost: 1800, ambience: 7, blocks: true, text: "+7 ambience · glows pink" },
+  { kind: "carousel", name: "Mini carousel", cost: 2800, ambience: 10, blocks: true, text: "+10 ambience · the centrepiece of a legendary café" },
   // RF exclusives: only from Rare Recipe Capsules. Each can be placed once, for free.
   { kind: "luckycat", name: "Lucky Cat", cost: 0, ambience: 3, blocks: true, text: "RF exclusive · waves in guests", tier: 0 },
   { kind: "gumball", name: "Gumball Machine", cost: 0, ambience: 3, blocks: true, text: "RF exclusive · faded pastel gumballs", tier: 0 },
@@ -274,6 +294,19 @@ export const SCENERIES: readonly Scenery[] = [
   { id: "market", name: "Night market", text: "Striped stalls under strings of lanterns.", cost: 0, capsules: 5, ambience: 6 },
 ];
 export const sceneryById = (id: string) => SCENERIES.find(item => item.id === id) ?? SCENERIES[0];
+
+// ---------- Random events ----------
+/** Most days, something happens partway through: `duration` 0 means a special guest rather than a timed spell. */
+export type EventId = "critic" | "bus" | "rain" | "rush" | "celebrity" | "hiccup";
+export const EVENTS: readonly { id: EventId; name: string; icon: string; text: string; duration: number }[] = [
+  { id: "critic", name: "Food critic", icon: "✎", text: "A food critic is coming in. Serve them happily for a big rating boost and a ☕ 80 tip.", duration: 0 },
+  { id: "celebrity", name: "Celebrity Friend", icon: "★", text: "A famous Friend is on the way! Serve them for ☕ 150 and a rating bump.", duration: 0 },
+  { id: "bus", name: "Tour bus", icon: "»", text: "A tour bus stops outside: passers-by come thick and fast for a minute.", duration: 60 },
+  { id: "rain", name: "Rain shower", icon: "☂", text: "Rain for 90 s: fewer passers-by, but guests inside are extra patient.", duration: 90 },
+  { id: "rush", name: "Lunch rush", icon: "✦", text: "Lunch rush for 90 s: guests tip 20% more.", duration: 90 },
+  { id: "hiccup", name: "Kitchen hiccup", icon: "!", text: "The stove sulks: cooking is 25% slower for 45 s.", duration: 45 },
+];
+export const eventById = (id: EventId) => EVENTS.find(item => item.id === id)!;
 
 // ---------- Daily challenges ----------
 /** Three challenges a day, picked from these by the day number; each pays Beans and shop XP when done. */

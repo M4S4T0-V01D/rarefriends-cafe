@@ -3,6 +3,19 @@ export type Release = Readonly<{ version: string; date: string; title: string; n
 
 export const CHANGELOG: readonly Release[] = [
   {
+    version: "1.5", date: "2026-09-28", title: "Turn the view, a neighbourhood, random events and a longer climb",
+    notes: [
+      "Turn the whole view a quarter at a time: ⟲ ⟳ buttons, [ and ], or right-drag. Walls, furniture, Friends and the street all turn with it, and WASD keeps walking the way you look.",
+      "A neighbourhood: the street and sidewalks run to the edge of the world, with a sidewalk across the road and rows of neighbouring shops. Friends come out of their doors and pop into them; shops between you and the café turn see-through.",
+      "Random events most days: a food critic, a celebrity Friend, a tour bus, rain showers, a lunch rush or a kitchen hiccup.",
+      "Build → ⟳ Turn: tap any placed item (or the capsule machine) to turn it where it stands. Every piece now looks different each way it faces.",
+      "Seven new pieces for the mid and late game: antique globe, bonsai, giant teddy bear, golden harp, stone fireplace, neon RF sign and a mini carousel.",
+      "Three late-game dishes for every shop (levels 11, 13 and 15).",
+      "Four more upgrade tracks: staff training, chef's hats, neon storefront and a second station.",
+      "Fixes: role buttons in the staff screen now show which is picked in dark mode; the challenges list sits under your card.",
+    ],
+  },
+  {
     version: "1.4", date: "2026-09-28", title: "A world outside, a camera and daily challenges",
     notes: [
       "The world around the shop: pick a scenery in Build → Outside. Quiet lot, cottage garden, city park and pine woods cost Beans; seaside, snowy village, cherry blossom lane and night market are paid with RF capsules (Capsules → Boosts).",

@@ -250,11 +250,16 @@
 .cafe-zoom button { min-height: 30px; width: 34px; padding: 0; font-size: 16px; background: var(--card); }
 .cafe-game[data-build="on"] .cafe-zoom { bottom: 150px; }
 @media (max-width: 640px) { .cafe-zoom { right: 4px; bottom: 36px; } .cafe-zoom button { min-height: 24px; width: 26px; font-size: 12px; } .cafe-game[data-build="on"] .cafe-zoom { bottom: 96px; } }
-.cafe-challenges { position: absolute; top: 132px; left: 12px; max-width: 260px; padding: 6px 10px; background: var(--card); border: 1.5px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); font-size: 11px; pointer-events: auto; }
+.cafe-left { display: grid; gap: 8px; align-content: start; justify-items: start; }
+.cafe-challenges { max-width: 260px; padding: 6px 10px; background: var(--card); border: 1.5px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); font-size: 11px; pointer-events: auto; }
 .cafe-game .cafe-challenges > button { min-height: 0; padding: 0; border: 0; box-shadow: none; background: none; font-weight: 700; font-size: 11px; }
 .cafe-challenges ul { list-style: none; margin: 4px 0 2px; padding: 0; display: grid; gap: 2px; }
 .cafe-challenges li { display: flex; justify-content: space-between; gap: 8px; }
 .cafe-challenges li small, .cafe-challenges > small { color: var(--muted); font-size: 10px; }
 .cafe-done { color: #5f7a55; }
 .cafe-game[data-theme="dark"] .cafe-done { color: #a9c49c; }
-@media (max-width: 640px) { .cafe-challenges { top: 62px; left: 4px; max-width: 170px; padding: 3px 6px; font-size: 8px; } .cafe-game .cafe-challenges > button { font-size: 8px; } .cafe-challenges li small, .cafe-challenges > small { font-size: 7px; } }
+@media (max-width: 640px) { .cafe-left { gap: 4px; } .cafe-challenges { max-width: 170px; padding: 3px 6px; font-size: 8px; } .cafe-game .cafe-challenges > button { font-size: 8px; } .cafe-challenges li small, .cafe-challenges > small { font-size: 7px; } }
+/* Selected roles, tabs, radios and toggles keep their inverted highlight in dark mode. */
+.cafe-game[data-theme="dark"] .rf-frame-menu button[aria-checked="true"], .cafe-game[data-theme="dark"] .rf-frame-menu button[aria-pressed="true"],
+.cafe-game[data-theme="dark"] .rf-frame-menu button[aria-selected="true"], .cafe-game[data-theme="dark"] .cafe-build button[aria-selected="true"],
+.cafe-game[data-theme="dark"] .cafe-build button[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }

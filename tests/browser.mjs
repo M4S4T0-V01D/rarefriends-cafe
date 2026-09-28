@@ -131,6 +131,16 @@ await testGame(game, {
     await frame.getByRole("button", { name: /^Close Rare Capsule Machine/ }).click();
     await frame.getByText(/Perfect service · 1d/).waitFor();
 
+    // The view turns a quarter at a time and back, and the shop keeps running.
+    await frame.locator("canvas[tabindex]").focus();
+    await page.keyboard.press("]");
+    assert.equal(await attr(frame, "turn"), "1");
+    await frame.getByRole("button", { name: "Turn the view right (])" }).click();
+    assert.equal(await attr(frame, "turn"), "2");
+    await page.waitForTimeout(600); await shot(page, "desktop-turned");
+    await frame.getByRole("button", { name: "Reset the view" }).click();
+    assert.equal(await attr(frame, "turn"), "0");
+
     // Pause: Esc pauses and Esc resumes.
     await frame.locator("canvas[tabindex]").focus();
     await page.keyboard.press("Escape");
