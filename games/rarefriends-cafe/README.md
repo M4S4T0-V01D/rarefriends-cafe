@@ -18,8 +18,8 @@ See [the root README](../../README.md#how-the-host-extends-the-sdk).
 | Tap the floor · the capsule machine | Walk there · open the **Rare Capsule Machine** |
 | WASD / arrow keys · E / Space / Enter | Walk tile by tile · act on whatever is next to you |
 | 1–9, 0 · C · X · T · B | Table 1–10 · pick up · clear task list · send the most tired Friend on a break · build mode |
-| **Build mode:** tap a tile, or arrows + Enter | Place the selected item. **Move**: tap an item, then a tile. **Sell**: tap an item. |
-| R · Delete · Esc | Rotate the chair · sell the item under the cursor · leave build mode |
+| **Build mode:** tap a tile, or arrows + Enter | Place the selected item. **Move**: tap an item (or the capsule machine), then a tile. **Sell**: tap an item. |
+| R · Shift+R · Delete · Esc | Turn the item a quarter clockwise · back · sell the item under the cursor · leave build mode |
 
 Tasks queue up with numbered markers. The shop pauses while a menu, build mode or a runtime confirmation is open.
 Sound starts on your first tap. The **♪** button mutes everything. Settings and Build → **Music** have the track
@@ -27,8 +27,18 @@ picker, music and effects toggles, and volume. **Reduce motion** is in Settings 
 
 ## The shop
 
-- **Plan:** the building is 10 × 10 tiles at first. The **kitchen** is a room along the back wall, closed off by the **counter**, which is its wall: guests order at the pass. A **break room** with a sofa sits behind it, joined to the kitchen by a door and to the dining room by its own door. The dining room is your tile grid. Outside the front wall run a **sidewalk and street**.
-- **Expansion:** grow the shop **2 × 2 at a time**: 10 → 12 → 14 → 16. Costs are 400 / 900 / 1,600 Beans at levels 3 / 5 / 7, and you can expand only between days. The kitchen counter lengthens and the camera zooms to fit. Furniture that would land on a reserved tile is refunded in full.
+- **Plan:** the **kitchen** is a room against a back wall, closed off by the **counter**, which is its wall: guests order at the pass. A **break room** with a sofa sits in the front-left corner behind its own door. Every other tile is the dining room, your grid. Outside the front wall run a **sidewalk and street**.
+- **Buildings:** pick one at setup; change it in Build → **Building** between days (furniture that no longer fits is refunded).
+
+| Building | Size at start | Layout |
+| --- | --- | --- |
+| Corner café | 10 × 10 | Kitchen along the left wall, with a door straight into the break room. |
+| Long diner | 10 × 14 | Four tiles longer on the street, door in the middle. A short kitchen opens into a dining nook; the break room is at the far end. |
+| Townhouse | 10 × 10 | Kitchen on the back wall beside the sign, across the room from the break room. |
+| Café with parlour | 10 × 12 | Like the corner café, two tiles deeper. A half wall with planters closes off a front parlour, reached through one opening by the door, far from the pass. |
+
+- **Expansion:** grow the shop **2 × 2 at a time** (10 → 12 → 14 → 16 wide). Costs are 400 / 900 / 1,600 Beans at levels 4 / 7 / 10, and you can expand only between days. The kitchen counter lengthens and the camera zooms to fit. Furniture that would land on a reserved tile is refunded in full.
+- **Capsule machine:** starts in the back corner by the window. In Build → **Move**, tap it, then a tile; **R** turns the side you use it from (the crank shows which).
 - **Shops:** choose one before your first day. All five play alike, with their own menu, dish art, kitchen station, sign and awning colour.
 
 | Shop | Menu (slots 1–7) · capsule specials |
@@ -41,22 +51,37 @@ picker, music and effects toggles, and volume. **Reduce motion** is in Settings 
 
 | Menu slot | 1 | 2 | 3 | 4 | 5 | 6 | 7 | Silver | Moonlight |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Price (Beans) | 8 | 12 | 16 | 20 | 28 | 40 | 50 | 60 | 95 |
+| Price (Beans) | 5 | 7 | 9 | 12 | 16 | 23 | 29 | 35 | 55 |
 | Cook time | 3 s | 4 s | 5 s | 6 s | 8 s | 10 s | 9 s | 6 s | 11 s |
-| Unlock | start | start | Lv 2 · 60 | Lv 3 · 120 | Lv 4 · 200 | Lv 5 · 350 | Lv 6 · 500 | kept Silver Recipe | kept Moonlight Recipe |
+| Unlock | start | start | Lv 2 · 60 | Lv 3 · 120 | Lv 5 · 200 | Lv 7 · 350 | Lv 9 · 500 | kept Silver Recipe | kept Moonlight Recipe |
 
 ## A day of service
 
-- A day lasts **150 s** (08:00–20:00 on the shop clock). After closing, guests already inside finish, then a summary and day card appear.
+- A day lasts **5 minutes** (08:00–20:00 on the shop clock). After closing, guests already inside finish, then a summary and day card appear.
 - **The street:** a Friend walks by about every 1.6 s. At your door, each one steps in with a **34% base chance**. Ambience (+10% per level), rating (+8% per star above 3), the Hollow perk (×1.15) and promoters (+12% × promoter power each) raise it, capped at 90%. A table must be free. Guests leave back onto the street.
 - **Patience:** 18 s to order, 34 s for food (+6% per ambience level). If it runs out, the guest leaves unhappy and the rating drops.
-- **Payment** = price × (1 + tip). Tip = 30% × remaining patience + 3% per ambience level + House Secret bonus. Rating is a rolling average (5 happy, 4 slow, 1 left).
-- **Shop XP:** +1 per guest served, +1 if happy, +2 for a Genesis VIP. Levels unlock dishes, more tables (3 + level, up to 16), staff slots and expansions.
-- **Kitchen:** 1 dish at a time, plus 1 per working chef. Station levels (70 / 150 / 260 / 420 / 650 Beans) cut cook time 12% each. You carry 2 dishes (3 with the Cellular perk).
+- **Payment** = price × (1 + tip), with Fancy plating raising the price. Tip = 20% × remaining patience + 2% per ambience level + House Secret bonus + tip jar + the serving waiter's skill. Rating is a rolling average (5 happy, 4 slow, 1 left).
+- **Shop XP:** +1 per guest served, +1 if happy, +2 for a Genesis VIP. **15 levels** (15 / 40 / 75 / 120 / 180 / 255 / 345 / 450 / 575 / 720 / 885 / 1,070 / 1,275 / 1,500 XP). Levels unlock dishes, more tables (3 + level, up to 16), staff slots, expansions and upgrades.
+- **Kitchen:** 1 dish at a time, plus 1 per working chef. Station levels (70 / 150 / 260 / 420 / 650 Beans) cut cook time 12% each. A chef carries each cooked dish from the stove to the pass; with no chef, dishes appear on the pass. You carry 2 dishes (3 with the Cellular perk, +1 with the big tray).
+
+## Shop upgrades
+
+Bought one level at a time in Upgrades → **Shop**:
+
+| Upgrade | Per level | Beans (café level) |
+| --- | --- | --- |
+| Window sign | +6% walk-ins | 90 (2) · 240 (5) · 520 (8) |
+| Running shoes | you walk 8% faster | 110 (2) · 300 (6) |
+| Comfy cushions | guests wait 8% longer | 140 (3) · 340 (6) · 700 (9) |
+| Tip jar | +5% tips | 160 (3) · 380 (6) · 780 (10) |
+| Break-room coffee | staff tire 12% slower, rest 20% faster | 200 (4) · 480 (8) |
+| Dishwasher | guests finish eating 20% sooner | 240 (4) · 560 (8) |
+| Fancy plating | dishes sell for 6% more | 300 (5) · 700 (9) · 1,400 (12) |
+| Big serving tray | you carry one more dish | 1,000 (11) |
 
 ## Staff
 
-- **Slots:** start with 1. More cost 120 / 280 / 520 / 900 Beans at levels 2 / 3 / 5 / 7, up to **5**. Fill each slot with **one of your own Friends** (other eligible Generations NFTs in the wallet, shown with their canonical sprite and token number) or one of six guest applicants.
+- **Slots:** start with 1. More cost 120 / 280 / 520 / 900 Beans at levels 2 / 4 / 6 / 9, up to **5**. Fill each slot with **one of your own Friends** (other eligible Generations NFTs in the wallet, shown with their canonical sprite and token number) or one of six guest applicants.
 - **Roles:** **Waiters** take orders and deliver on their own. **Chefs** work the kitchen: each adds a cooking slot and cuts cook time by 6% × (power − 0.5), with a 35% cap. **Promoters** stand on the sidewalk and pull passers-by in.
 - **Generation tier** (from the Friend's on-chain `generation`; Gen 1 is the highest, Gen 6 the lowest):
 
@@ -65,20 +90,29 @@ picker, music and effects toggles, and volume. **Reduce motion** is in Settings 
 | Power | ×1.30 | ×1.25 | ×1.20 | ×1.15 | ×1.10 | ×1.05 | ×1.00 |
 
 - **Worker levels 1–10:** +1 worker XP per order taken, dish served, dish cooked or guest brought in. Levels need 10 / 25 / 45 / 70 / 100 / 140 / 190 / 250 / 320 XP. Each level adds 4% power and 4% fatigue relief. Power scales walking speed, chef speed and promoter pull. Waiters carry 2 dishes at Gen 1–3 or worker level 5+.
+- **Attribute points:** each worker level past the first earns a point to spend in the Staff tab, up to 5 per attribute. **Speed** +6% walking speed; **Stamina** tires 8% slower; **Skill** depends on the role: chefs cook 4% faster, waiters earn +3% tips on dishes they serve, promoters pull 8% harder. Points stay with the Friend when their role changes.
 - **Fatigue:** +4 per waiter task, +3 per dish cooked, +0.3 per second on the sidewalk. At 70 a worker is **tired** (15% slower, *zzz* bubble); at 100 they are **exhausted** and stop. Tap them (or press T) and they walk to the break room for **15 s rested … 30 s exhausted** (15 + 15 × fatigue ÷ 100), then return with full energy. Everyone starts each day rested.
 
 ## Build mode
 
 | Item | Cost | Ambience | Notes |
 | --- | --- | --- | --- |
-| Table & chair | 60 | – | Seats one guest; the chair sits behind the table; R flips it. |
-| Potted monstera · Faded rose rug | 35 · 45 | +1 · +1 | The rug is walkable |
-| Paper floor lamp · Bookshelf | 70 · 90 | +2 · +2 | |
-| Record player · Upright piano | 150 · 260 | +3 · +4 | |
+| Table & chair | 60 | – | Seats one guest; the chair can go on any side of the table. |
+| Little cactus · Potted monstera · Coat rack | 25 · 35 · 40 | +1 each | |
+| A-frame menu board · Flower stand | 55 · 65 | +1 each | The board reads MENU on the front, OPEN on the back |
+| Faded rose rug · Sage runner · Braided round rug | 45 · 55 · 80 | +1 · +1 · +2 | Rugs are walkable; furniture can stand on them |
+| Paper floor lamp · Bookshelf · Velvet armchair | 70 · 90 · 110 | +2 each | |
+| Sleepy cat · Birdcage | 130 · 140 | +2 each | A cat asleep in its basket; a canary that hops on its perch |
+| Record player · Cake display · Lavender loveseat | 150 · 160 · 180 | +3 each | |
+| Grandfather clock · Arcade cabinet | 200 · 220 | +3 each | Swinging pendulum; a blinking screen |
+| Fish tank · Upright piano | 240 · 260 | +4 each | |
 | **RF exclusives** (from capsules) | free | +3 to +8 | Each placed once; see below |
 
+- **Rotation:** every item turns four ways (**R**, **Shift+R** back, or the Rotate button, whose arrow shows the facing). Fronts, backs and sides are drawn: turn a bookshelf to the wall and you see its back.
+
 - Move is free and Sell refunds 50%. You always keep one table, and a table with a guest can't move. A placement is refused if it would stop guests reaching any chair, or staff reaching any table, the counter, the capsule machine or the break room.
-- **Wallpapers:** plain, faded stripes 60 (+1), polka dots 90 (+1), white brick 140 (+2), wood panelling 180 (+2), dusty-blue damask 240 (+3). **Floors:** grey checker, oak planks 80 (+1), sage hex 120 (+1), terrazzo 150 (+2), herringbone 190 (+2), rose marble 260 (+3). Once bought, a design is free to switch back to.
+- **Wallpapers (12):** plain, faded stripes 60 (+1), sage gingham 70 (+1), polka dots 90 (+1), subway tile 110 (+1), white brick 140 (+2), butter florals 150 (+2), wood panelling 180 (+2), lavender chevron 200 (+2), dusty-blue damask 240 (+3), rose scallops 280 (+3), starry night 340 (+4).
+- **Floors (12):** grey checker, strawberry checker 70 (+1), oak planks 80 (+1), tatami mats 110 (+1), sage hex 120 (+1), slate flagstones 140 (+2), terrazzo 150 (+2), parquet squares 170 (+2), herringbone 190 (+2), lavender carpet 210 (+2), rose marble 260 (+3), blue mosaic 300 (+4). Once bought, a design is free to switch back to.
 - **Ambience level** 1–5 at 2 / 5 / 9 / 14 / 20 points. It raises tips, patience and walk-ins, and hangs framed art, paper lanterns (level 3) and a moon chandelier (level 5).
 - **Music** tab: pick the jazz track and set volume (see Audio).
 
@@ -115,19 +149,20 @@ picture** and **Save picture** are also offered. The post links to https://raref
 ## Saving
 
 Progress saves automatically every few seconds and at closing, **per wallet address** on this device. The save covers
-shop, day, Beans, levels, rating, dishes, station, size, furniture, designs, staff (with worker XP), collectibles and
-audio preferences. A closed day resumes at the next day. Saves are validated on load; older saves migrate, and
+shop, day, Beans, levels, rating, dishes, station, size, building, furniture (with facing), the capsule machine's spot,
+designs, upgrades, staff (with worker XP and attribute points), collectibles and audio preferences. A closed day resumes at the next day. Saves are validated on load; older saves migrate, and
 furniture that no longer fits is refunded.
 
 ## Audio
 
 All music and sound effects are synthesized with WebAudio in the sandbox; there are no audio files.
-- **Tracks:** *Café au Lait* (warm swing), *Rainy Window* (slow minor), *Sunday Stroll* (bright swing), *Street Bossa* (bossa nova), *Neon Nights* (Chrome Jukebox) and *Midnight Moon* (Moon Telescope). Each has electric-piano comping, a walking bass, brushed drums and vibraphone phrases.
+- **Tracks (16):** *Café au Lait* (warm swing), *Rainy Window* (slow minor), *Sunday Stroll* (bright swing), *Street Bossa* (bossa nova), *Neon Nights* (Chrome Jukebox), *Midnight Moon* (Moon Telescope), *Morning Pour-Over* (lo-fi), *Sugar Waltz* (jazz waltz), *Tide Pool* (seaside bossa), *Pastry Case Blues* (12-bar shuffle), *Lantern Glow* (lo-fi), *Rooftop Bounce* (up-tempo bebop), *Paper Cranes* (gentle waltz), *Night Bus Home* (minor lo-fi), *Samba de Café* (quick bossa) and *Last Order* (closing-time ballad).
+- **Styles:** swing tracks walk the bass under electric-piano comping and brushed drums; bossa plays a dotted bass with rim clave; waltzes are in 3/4; lo-fi holds one chord a bar over a lazy kick and snare with a little vinyl crackle. Vibraphone phrases drift over all of them.
 - **Mix:** a gentle compressor keeps the mix loud enough for laptop and phone speakers without clipping. Audio starts on any tap, click or key; on iPhone it plays as media, so the ringer switch doesn't mute it (iOS 17+).
 - **Sound effects:** a station-specific ready sound (espresso steam, bubbling tank, oven ding, grill sizzle, steamer) with a bell; a door bell for walk-ins; guest chirps and coins when they pay; grumbles when they leave; staff sighs when tired and trills when rested; melodies for level-ups and closing; thunks, cranks and pops for building and capsules. UI cues come from the FriendSDK sound kit.
 
 ## Art and credits
 
-- Scenery, rooms, street, furniture, RF exclusives, 23 dish icon shapes, wallpapers and floors are canvas code in this directory. There are no image files.
+- Scenery, the four buildings, street, furniture (drawn in four facings), RF exclusives, 23 dish icon shapes, wallpapers and floors are canvas code in this directory. There are no image files.
 - The manager and your owned staff use their **canonical Generations sprites** (the SDK's `createFriendReader`). Regulars #7730 and #3412 use canonical frames from FriendSDK v0.1.2 `examples/fishing/sample-sprites.ts`.
 - Guest Friends are original procedural 16 × 16 one-bit masks, one archetype per family. Rare Friends artwork is used under FriendSDK [NOTICE.md](https://github.com/spokesz/friendsdk/blob/v0.1.2/NOTICE.md).

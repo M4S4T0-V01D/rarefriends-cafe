@@ -222,7 +222,10 @@ export function BuildBar({ state, tool, onTool, onFinish, onDone, message, onPre
           <button type="button" key={item.kind} aria-pressed={tool.mode === "place" && tool.kind === item.kind} disabled={state.beans < item.cost} className={item.tier !== undefined ? "cafe-exclusive" : undefined}
             onClick={() => onTool({ ...tool, mode: "place", kind: item.kind })}><span>{item.name}<small>{item.tier !== undefined ? "RF exclusive · free" : `☕ ${item.cost}`}{item.ambience ? ` · +${item.ambience}` : ""}</small></span></button>)}
       </> : tool.tab === "walls" ? finishes("wallpaper", WALLPAPERS) : tool.tab === "floors" ? finishes("floor", FLOORS)
-        : tool.tab === "building" ? <BuildingPicker value={state.building} size={state.size} onChange={onBuilding} disabled={state.phase === "open"} />
+        : tool.tab === "building" ? <>
+          {state.phase === "open" && <p className="cafe-build-note">Change buildings between days. Misfit furniture is refunded.</p>}
+          <BuildingPicker value={state.building} size={state.size} onChange={onBuilding} disabled={state.phase === "open"} />
+        </>
         : <MusicControls prefs={state.prefs} collected={state.collection} onChange={onPrefs} />}
     </div>
   </div>;

@@ -102,10 +102,11 @@
 .cafe-buildings button[aria-checked="true"] { background: #fff; outline: 2px solid var(--ink); outline-offset: 1px; }
 .cafe-buildings small { display: block; color: var(--muted); font-size: 10px; }
 .cafe-buildings strong + small { display: inline; }
-.cafe-plan { flex: none; width: 90px; height: 52px; }
+.cafe-plan, .cafe-world canvas.cafe-plan { flex: none; width: 90px; height: 52px; cursor: inherit; }
+.cafe-build-note { flex: none; align-self: center; margin: 0; font-size: 11px; max-width: 130px; }
 .cafe-build-row .cafe-buildings { display: flex; margin: 0; }
 .cafe-build-row .cafe-buildings button { flex: none; width: 250px; }
-@media (max-width: 640px) { .cafe-buildings { grid-template-columns: 1fr; gap: 4px; } .cafe-buildings small { font-size: 8px; } .cafe-plan { width: 60px; height: 35px; } .cafe-build-row .cafe-buildings button { width: 190px; } }
+@media (max-width: 640px) { .cafe-buildings { grid-template-columns: 1fr; gap: 4px; } .cafe-buildings small { font-size: 8px; } .cafe-plan, .cafe-world canvas.cafe-plan { width: 60px; height: 35px; } .cafe-build-row .cafe-buildings button { width: 190px; } }
 .cafe-dishes { width: 120px; height: 40px; }
 
 /* Staff */
@@ -207,3 +208,4 @@
 .cafe-stats small { flex-basis: 100%; color: var(--muted); font-size: 10px; }
 .cafe-stats button { box-shadow: none; padding: 2px 7px; font-size: 11px; }
 .cafe-stats b { font-weight: normal; letter-spacing: 1px; }
+.cafe-buildings button[aria-checked="true"] small { color: inherit; opacity: .8; }
