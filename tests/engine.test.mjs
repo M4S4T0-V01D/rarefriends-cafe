@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  addBoost, raiseSkill, skillPoints, carryCapacity as carry, raiseStat, statPoints, setBuilding, actOnCounter, actOnCustomer, ambience, applyFinish, assignStaff, availableDishes, buy, buyUpgrade, carryCapacity, chooseShop, moveCapsule, nextUpgrade, upgradeLevel, cookTime, createCafe, kitchenSlots,
+  applyScenery, challengesFor, unlockScenery, addBoost, raiseSkill, skillPoints, carryCapacity as carry, raiseStat, statPoints, setBuilding, actOnCounter, actOnCustomer, ambience, applyFinish, assignStaff, availableDishes, buy, buyUpgrade, carryCapacity, chooseShop, moveCapsule, nextUpgrade, upgradeLevel, cookTime, createCafe, kitchenSlots,
   manager, memberOf, mostTired, moveItem, openCafe, placeItem, plan, restoreCafe, sellItem, sendToBreak, serializeCafe, setBlends,
   setOwnedFriends, setStaffRole, staffAt, staffPower, tableCount, unlockDish, update, walkInChance, collectFromCapsule,
 } from "../games/rarefriends-cafe/engine.ts";
@@ -53,7 +53,9 @@ test("passers-by walk the street and some come in through the door", () => {
   assert.ok(until(state, () => state.customers.length > 0, 30));
   assert.ok(state.today.walkIns > 0);
   const layout = plan(state);
-  assert.ok(state.passersby.every(passer => Math.round(passer.walker.x) === layout.lane));
+  const onSidewalk = ({ x, y }) => (x === layout.lane) || (y === layout.side && x >= layout.sideStart && x <= layout.lane);
+  assert.ok(state.passersby.every(passer => onSidewalk({ x: Math.round(passer.walker.x), y: Math.round(passer.walker.y) })), "down the street or along the side sidewalk");
+  assert.ok(until(state, () => state.passersby.some(passer => Math.round(passer.walker.y) === layout.side && passer.walker.x < layout.w - 1), 40), "some come round the corner");
 });
 
 test("take order → cook → pick up → serve earns Beans; the guest leaves back onto the street", () => {
@@ -347,6 +349,44 @@ test("tables for two and four seat parties who order together", () => {
   assert.equal(state.today.lost, 0);
 });
 
+test("sceneries dress the world outside: Beans ones are bought, RF ones come from capsules", () => {
+  const state = cafe(); state.beans = 5000;
+  assert.equal(state.scenery, "lot");
+  assert.match(applyScenery(state, "beach"), /capsules/);
+  const before = ambience(state);
+  assert.equal(applyScenery(state, "forest"), null);
+  assert.equal(state.beans, 5000 - 4200);
+  assert.equal(applyScenery(state, "lot"), null); assert.equal(applyScenery(state, "forest"), null);
+  assert.equal(state.beans, 800, "owned sceneries switch for free");
+  assert.ok(ambience(state) >= before);
+  unlockScenery(state, "market");
+  assert.equal(state.scenery, "market");
+  openCafe(state);
+  const save = JSON.parse(JSON.stringify(serializeCafe(state)));
+  const fresh = cafe();
+  assert.equal(restoreCafe(fresh, save), true);
+  assert.equal(fresh.scenery, "market"); assert.ok(fresh.sceneries.has("forest"));
+  assert.equal(restoreCafe(cafe(), { ...save, scenery: "beach" }), false, "can't wear a scenery you don't own");
+});
+
+test("three daily challenges pay Beans and XP when done", () => {
+  const state = cafe();
+  const today = challengesFor(state);
+  assert.equal(today.length, 3); assert.equal(new Set(today.map(item => item.id)).size, 3);
+  assert.ok(!today.some(item => item.id === "group"), "no group challenge without a group table");
+  state.day = 2; assert.notDeepEqual(challengesFor(state).map(item => item.id), today.map(item => item.id), "a new day, new challenges");
+  state.day = 1;
+  openCafe(state);
+  for (let t = 0; t < DAY_LENGTH + 120 && state.phase === "open"; t += 0.05) {
+    for (const customer of state.customers) actOnCustomer(state, customer.id);
+    update(state, 0.05);
+  }
+  const results = challengesFor(state);
+  assert.equal(state.today.done.length, results.filter(item => item.done).length);
+  assert.ok(state.today.done.length >= 1, `finished ${JSON.stringify(results)}`);
+  assert.equal(state.today.rewards, state.today.done.length * 46);
+});
+
 test("placement can't wall off guests, staff or the break room", () => {
   const layout = planFor(START_SIZE), items = [...DEFAULT_ITEMS];
   let problem = null;
@@ -363,7 +403,9 @@ test("décor, wallpaper and floors raise ambience, which draws more passers-by i
   assert.equal(applyFinish(state, "wallpaper", "damask"), null);
   assert.equal(applyFinish(state, "floor", "marble"), null);
   assert.equal(placeItem(state, "piano", { x: 9, y: 9 }), null);
-  assert.equal(ambience(state), 3);
+  assert.equal(ambience(state), 2, "10 points");
+  assert.equal(placeItem(state, "grandpiano", { x: 9, y: 7 }), null);
+  assert.equal(ambience(state), 3, "17 points: luxury décor counts for a lot");
   assert.ok(walkInChance(state) > before);
 });
 

@@ -8,11 +8,11 @@ import { expectedReward, maximumPrize, type GamePlay, type GameSnapshot } from "
 import { createFriendReader, type GenerationSprites } from "@rarefriends/friendsdk/sprites";
 import { createFriendSoundKit, type FriendSoundCue, type FriendSoundKit } from "@rarefriends/friendsdk/sounds";
 import {
-  FLOORS, WALLPAPERS, dishById, BOOSTS, MANAGER_SKILLS, UPGRADES, upgradeById, type BoostId, type UpgradeId, BLEND_BONUSES, DAY_LENGTH, EXCLUSIVES, FAMILY_NAMES, workerLevel, type ItemKind, FAMILY_PERKS, LEVEL_XP, MAX_LEVEL, catalogItem, shopById, tableLimit, type DishId, type ShopId,
+  SCENERIES, challengeReward, type SceneryId, FLOORS, WALLPAPERS, dishById, BOOSTS, MANAGER_SKILLS, UPGRADES, upgradeById, type BoostId, type UpgradeId, BLEND_BONUSES, DAY_LENGTH, EXCLUSIVES, FAMILY_NAMES, workerLevel, type ItemKind, FAMILY_PERKS, LEVEL_XP, MAX_LEVEL, catalogItem, shopById, tableLimit, type DishId, type ShopId,
 } from "./data.ts";
 import {
   actOnCounter, actOnCustomer, actOnTable, ambience, ambiencePoints, applyFinish, assignStaff, availableDishes, buy, carryCapacity, chooseShop,
-  CAPSULE_ID, addBoost, raiseSkill, skillLevel, skillPoints, raiseStat, setBuilding, buyUpgrade, capsuleProblemAt, moveCapsule, nextUpgrade, upgradeLevel, clearQueue, createCafe, dayProgress, interactNearby, isClosing, itemAt, kitchenSlots, manager, moveItem, openCafe, placeItem, purchaseCost,
+  CAPSULE_ID, applyScenery, challengesFor, unlockScenery, addBoost, raiseSkill, skillLevel, skillPoints, raiseStat, setBuilding, buyUpgrade, capsuleProblemAt, moveCapsule, nextUpgrade, upgradeLevel, clearQueue, createCafe, dayProgress, interactNearby, isClosing, itemAt, kitchenSlots, manager, moveItem, openCafe, placeItem, purchaseCost,
   purchaseLevel, restoreCafe, sellItem, serializeCafe, setBlends, setManual, setOwnedFriends, setStaffRole, unlockDish, update, walkTo, type CafeState,
   memberOf, mostTired, plan, sendToBreak, collectFromCapsule, type Prefs,
 } from "./engine.ts";
@@ -20,7 +20,7 @@ import { createGuests } from "./guests.ts";
 import { buildingById, placementProblem, type Tile } from "./layout.ts";
 import { BuildBar, BuildingPicker, ItemPreview, MusicControls, ShopPicker, SpriteChip, StaffPanel, staffCandidates, toolLabel, turned, type BuildTool } from "./panels.tsx";
 import { REGULAR_SPRITES } from "./regulars.ts";
-import { VIEW, friendRows, hitTest, renderScene, tileAt, type BuildView, type Floater } from "./render.ts";
+import { VIEW, friendRows, hitTest, panBy, renderScene, resetView, tileAt, view, zoomAt, type BuildView, type Floater } from "./render.ts";
 import { HOST_HELLO, HOST_STATE, SAVE_WRITE, SHARE_REQUEST, SHARE_RESULT, parseStaffRoster, type ShareAction, type ShareOutcome } from "./roster.ts";
 import { renderDayCard, shareText } from "./card.ts";
 import { CafeAudio, type TrackId } from "./audio.ts";
@@ -30,10 +30,12 @@ import "./style.css";
 
 const GUESTS = createGuests(18);
 const rf = (value: bigint) => `${formatGameAmount(value, 18)} RF`;
-const DIRECTIONS: Record<string, { dx: number; dy: number }> = {
-  w: { dx: 0, dy: -1 }, arrowup: { dx: 0, dy: -1 }, s: { dx: 0, dy: 1 }, arrowdown: { dx: 0, dy: 1 },
-  a: { dx: -1, dy: 0 }, arrowleft: { dx: -1, dy: 0 }, d: { dx: 1, dy: 0 }, arrowright: { dx: 1, dy: 0 },
+/** WASD walks the manager (and, in build mode, moves the cursor along with the arrows); arrows pan the view. */
+const DIRECTIONS: Record<string, { dx: number; dy: number }> = { w: { dx: 0, dy: -1 }, s: { dx: 0, dy: 1 }, a: { dx: -1, dy: 0 }, d: { dx: 1, dy: 0 } };
+const CURSOR: Record<string, { dx: number; dy: number }> = {
+  ...DIRECTIONS, arrowup: { dx: 0, dy: -1 }, arrowdown: { dx: 0, dy: 1 }, arrowleft: { dx: -1, dy: 0 }, arrowright: { dx: 1, dy: 0 },
 };
+const PAN: Record<string, { dx: number; dy: number }> = { arrowup: { dx: 0, dy: 60 }, arrowdown: { dx: 0, dy: -60 }, arrowleft: { dx: 60, dy: 0 }, arrowright: { dx: -60, dy: 0 } };
 type Menu = "upgrades" | "capsules" | "settings" | "help" | "pause" | "news" | null;
 /** A Beans purchase waiting for the player's OK. */
 type Ask = { title: string; cost: number; detail?: string; run: () => void };
@@ -70,7 +72,7 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
   const audio = useRef<CafeAudio | null>(null), [capsuleTab, setCapsuleTab] = useState<"machine" | "boosts" | "collection" | "recipes">("machine"), [spinning, setSpinning] = useState(false);
   const [snapshot, setSnapshot] = useState<GameSnapshot | null>(null), [busy, setBusy] = useState(false), [error, setError] = useState("");
   const [reveal, setReveal] = useState<CapsuleResult[] | null>(null), [, setTick] = useState(0);
-  const askButton = useRef<HTMLButtonElement>(null);
+  const askButton = useRef<HTMLButtonElement>(null), [showChallenges, setShowChallenges] = useState(true);
   const [ask, setAsk] = useState<Ask | null>(null), [systemDark, setSystemDark] = useState(() => typeof matchMedia === "function" && matchMedia("(prefers-color-scheme: dark)").matches);
   useEffect(() => {
     if (typeof matchMedia !== "function") return;
@@ -201,6 +203,7 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
           else if (event.kind === "arrive") audio.current?.doorbell();
           else if (event.kind === "levelup") { setToast(`Level ${event.level}! A manager skill point is ready (Upgrades → You), and new dishes, tables or upgrades may be open.`); audio.current?.levelUp(); }
           else if (event.kind === "tired") { setToast(`Slot ${event.slot + 1} is tired. Tap them (or press T) to send them to the break room.`); audio.current?.tired(event.slot); }
+          else if (event.kind === "challenge") { setToast(`Challenge done: ${event.text}! +☕ ${event.beans} Beans`); audio.current?.levelUp(); }
           else if (event.kind === "workerLevel") { setToast(`Staff slot ${event.slot + 1} reached worker level ${event.level}! A new attribute point is ready in Staff.`); audio.current?.workerLevel(); }
           else if (event.kind === "rested") { setToast(`Slot ${event.slot + 1} is rested and back at work.`); audio.current?.rested(event.slot); }
           else if (event.kind === "dayEnd") { audio.current?.closing(); saveNow(); }
@@ -329,6 +332,24 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
     const next = !muted; setMuted(next); sound.current?.setMuted(next); audio.current?.setMuted(next);
     if (!next) wakeAudio();
   }
+  /** Pointer gesture: a short press is a tap; a drag pans; two fingers pinch-zoom. */
+  const gesture = useRef({ pointers: new Map<number, { x: number; y: number }>(), start: { x: 0, y: 0 }, moved: false, pinch: null as number | null });
+  const spread = () => { const [a, b] = [...gesture.current.pointers.values()]; return a && b ? Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)) : 1; };
+  // The wheel zooms around the pointer (a native listener, so the page doesn't scroll).
+  useEffect(() => {
+    const node = canvas.current;
+    if (!node) return;
+    const wheel = (event: WheelEvent) => {
+      if (!cafe.current) return;
+      event.preventDefault();
+      const point = pointerToView(event);
+      zoomAt(cafe.current, point.x, point.y, Math.exp(-Math.max(-60, Math.min(60, event.deltaY)) * 0.004));
+    };
+    node.addEventListener("wheel", wheel, { passive: false });
+    return () => node.removeEventListener("wheel", wheel);
+  });
+  const [, setZoomLabel] = useState(1);
+  function zoomBy(factor: number) { if (cafe.current) { zoomAt(cafe.current, VIEW.width / 2, VIEW.height / 2, factor); setZoomLabel(view.zoom); } }
   function tap(event: React.PointerEvent<HTMLCanvasElement>) {
     const state = cafe.current;
     if (!state || blocked) return;
@@ -360,7 +381,7 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
     const key = event.key.toLowerCase();
     if (build) {
       const cursor = build.cursor ?? { x: 5, y: 5 };
-      if (DIRECTIONS[key]) { event.preventDefault(); const { dx, dy } = DIRECTIONS[key]; setBuild({ ...build, cursor: { x: Math.max(0, Math.min(plan(state).w - 1, cursor.x + dx)), y: Math.max(0, Math.min(plan(state).d - 1, cursor.y + dy)) } }); }
+      if (CURSOR[key]) { event.preventDefault(); const { dx, dy } = CURSOR[key]; setBuild({ ...build, cursor: { x: Math.max(0, Math.min(plan(state).w - 1, cursor.x + dx)), y: Math.max(0, Math.min(plan(state).d - 1, cursor.y + dy)) } }); }
       else if (key === "enter" || key === " " || key === "e") { event.preventDefault(); buildAt(cursor); }
       else if (key === "r") { event.preventDefault(); setBuild({ ...build, dir: turned(build.dir, event.shiftKey ? -1 : 1) }); }
       else if (key === "delete" || key === "backspace") { event.preventDefault(); const item = itemAt(state, cursor); setBuildMessage(item ? sellItem(state, item.id) ?? "Sold." : "Nothing to sell there."); refresh(); }
@@ -368,6 +389,9 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
       return;
     }
     if (DIRECTIONS[key]) { event.preventDefault(); setManual(state, DIRECTIONS[key]); return; }
+    if (PAN[key]) { event.preventDefault(); panBy(PAN[key].dx, PAN[key].dy); return; }
+    if (key === "=" || key === "+") { event.preventDefault(); zoomAt(state, VIEW.width / 2, VIEW.height / 2, 1.15); return; }
+    if (key === "-" || key === "_") { event.preventDefault(); zoomAt(state, VIEW.width / 2, VIEW.height / 2, 1 / 1.15); return; }
     if (event.repeat) return;
     if (/^[1-9]$/.test(key)) { event.preventDefault(); say(actOnTable(state, Number(key) - 1)); cue("select"); }
     else if (key === "0") { event.preventDefault(); say(actOnTable(state, 9)); cue("select"); }
@@ -519,6 +543,23 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
     }).finally(() => setSpinning(false));
   };
 
+  /** Unlock an RF scenery with capsules: they open and settle as usual, and pay for the scenery instead of collectibles. */
+  const buyScenery = (id: SceneryId) => {
+    const scenery = SCENERIES.find(item => item.id === id)!;
+    wakeAudio(); audio.current?.crank(); setSpinning(true);
+    return act(async () => {
+      const version = epoch.current, state = cafe.current;
+      const plays = await client.play(BigInt(scenery.capsules!)), results: CapsuleResult[] = [];
+      for (const play of plays) {
+        const settled = await client.settle(play.id);
+        if (settled.outcomeId !== null) results.push({ play: settled.id, outcomeId: settled.outcomeId, exclusive: null, beans: 0, redeemed: false, boost: scenery.name });
+      }
+      if (version !== epoch.current || !state || !results.length) return;
+      unlockScenery(state, id); audio.current?.levelUp(); cue("reveal-rare");
+      setReveal(results); setHud(readHud(state));
+    }).finally(() => setSpinning(false));
+  };
+
   const state = cafe.current;
   const shop = shopById(state && !state.started && state.phase === "intro" ? shopChoice : state?.shop ?? "cafe");
   const familyName = friend.current ? FAMILY_NAMES[friend.current.familyId] : "";
@@ -556,9 +597,34 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
     <div className="cafe-world" inert={menu !== null || reveal !== null || ask !== null || paused || undefined}>
       <canvas ref={canvas} tabIndex={blocked ? -1 : 0}
         aria-label={build ? "Build mode. Tap a tile or use arrow keys and Enter to place, R to rotate, Delete to sell, Escape to finish."
-          : "Shop floor. Tap a guest to take their order or serve them, tap the counter to pick up dishes, tap the floor to walk. Keys: WASD or arrows walk, E acts nearby, 1 to 0 act on a table, C picks up, X clears tasks, B builds."}
-        onPointerDown={tap}
+          : "Shop floor. Tap a guest to take their order or serve them, tap the counter to pick up dishes, tap the floor to walk. Keys: WASD walk, arrows move the view, plus and minus zoom, E acts nearby, 1 to 0 act on a table, C picks up, X clears tasks, B builds. Drag to move the view; scroll or pinch to zoom."}
+        onPointerDown={event => {
+          if (event.button !== 0 && event.pointerType === "mouse") return;
+          const point = pointerToView(event);
+          gesture.current.pointers.set(event.pointerId, point);
+          if (gesture.current.pointers.size === 1) { gesture.current.start = point; gesture.current.moved = false; }
+          gesture.current.pinch = gesture.current.pointers.size === 2 ? spread() : null;
+          try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* synthetic pointer */ }
+        }}
+        onPointerUp={event => {
+          const pointers = gesture.current.pointers, single = pointers.size === 1 && pointers.has(event.pointerId);
+          pointers.delete(event.pointerId); gesture.current.pinch = pointers.size === 2 ? spread() : null;
+          if (single && !gesture.current.moved) tap(event);
+        }}
+        onPointerCancel={event => { gesture.current.pointers.delete(event.pointerId); gesture.current.pinch = null; }}
         onPointerMove={event => {
+          const pointers = gesture.current.pointers;
+          if (pointers.has(event.pointerId) && cafe.current) {
+            // Drag pans the view; two fingers pinch to zoom.
+            const point = pointerToView(event), last = pointers.get(event.pointerId)!;
+            pointers.set(event.pointerId, point);
+            if (pointers.size === 2 && gesture.current.pinch) {
+              const next = spread(), [a, b] = [...pointers.values()];
+              zoomAt(cafe.current, (a.x + b.x) / 2, (a.y + b.y) / 2, next / gesture.current.pinch); gesture.current.pinch = next; gesture.current.moved = true; return;
+            }
+            if (!gesture.current.moved && Math.hypot(point.x - gesture.current.start.x, point.y - gesture.current.start.y) > 8) gesture.current.moved = true;
+            if (gesture.current.moved) { panBy(point.x - last.x, point.y - last.y); return; }
+          }
           if (event.pointerType !== "mouse" || !cafe.current) return;
           const point = pointerToView(event);
           if (build) { const tile = tileAt(cafe.current!, point.x, point.y); if (tile && (tile.x !== build.cursor?.x || tile.y !== build.cursor?.y)) setBuild({ ...build, cursor: tile }); return; }
@@ -578,6 +644,15 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
               <b key={boost.id} title={boost.text}>✦ {boost.name} · {state.boosts[boost.id]}d</b>)}</span>}
             <span className="cafe-xp" aria-label={nextXp ? `${hud.xp} of ${nextXp} XP` : "Max level"}><i style={{ width: `${nextXp ? Math.min(100, (hud.xp - prevXp) / (nextXp - prevXp) * 100) : 100}%` }} /></span>
           </div>
+          {!build && state && hud.phase !== "summary" && <div className="cafe-challenges">
+            <button type="button" aria-expanded={showChallenges} onClick={() => setShowChallenges(!showChallenges)}>
+              Today's challenges · {state.today.done.length}/3 {showChallenges ? "▴" : "▾"}</button>
+            {showChallenges && <><ul>{challengesFor(state).map(challenge => <li key={challenge.id} className={challenge.done ? "cafe-done" : undefined}>
+              <span>{challenge.done ? "✓" : "○"} {challenge.text}</span>
+              {challenge.target > 1 && !challenge.done && <small>{Math.min(challenge.progress, challenge.target)}/{challenge.target}</small>}
+            </li>)}</ul>
+            <small>☕ {challengeReward(state.day).beans} Beans and XP each</small></>}
+          </div>}
           <div className="cafe-wallet">
             <div className="cafe-coin cafe-coin-beans" aria-label={`${hud.beans} Beans`}><b>☕ {hud.beans.toLocaleString("en-US")}</b><small>Beans</small></div>
             <button type="button" className="cafe-coin cafe-coin-rf" onClick={() => openMenu("capsules")} aria-label={`${snapshot ? rf(snapshot.rfBalance) : "RF"}${snapshot?.mode === "preview" ? " (simulated)" : ""}: open the capsule machine`}>
@@ -592,8 +667,18 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
             <button type="button" aria-pressed={!muted} aria-label="Sound" title={muted ? "Sound off" : "Sound on"} onClick={toggleMute}>{muted ? "♪̸" : "♪"}</button>
           </div>}
         </div>
+        <div className="cafe-zoom" role="group" aria-label="View">
+          <button type="button" aria-label="Zoom in (+)" onClick={() => zoomBy(1.2)}>+</button>
+          <button type="button" aria-label="Zoom out (−)" onClick={() => zoomBy(1 / 1.2)}>−</button>
+          <button type="button" aria-label="Reset the view" onClick={() => { resetView(); setZoomLabel(1); }}>⤢</button>
+        </div>
         {build && state && <BuildBar state={state} tool={build} message={buildMessage || toolLabel(build)} onDone={exitBuild} onPrefs={changePrefs}
           onTool={next => { setBuild({ ...build, ...next, selected: next.mode === "move" ? build.selected : null }); setBuildMessage(next.tab === "items" ? toolLabel(next) : ""); }}
+          onScenery={id => {
+            const scenery = SCENERIES.find(item => item.id === id)!;
+            if (!state.sceneries.has(id) && scenery.capsules) { setBuild(null); setCapsuleTab("boosts"); setMenu("capsules"); return; }
+            confirmBuy(`${scenery.name} around the shop`, state.sceneries.has(id) ? 0 : scenery.cost, () => { const problem = applyScenery(state, id); setBuildMessage(problem ?? `${scenery.name} it is.`); if (!problem) cue("purchase"); setHud(readHud(state)); refresh(); });
+          }}
           onBuilding={id => confirmBuy(`Move into the ${buildingById(id).name.toLowerCase()}`, 0, () => { const problem = setBuilding(state, id); setBuildMessage(problem ?? `Moved into the ${buildingById(id).name.toLowerCase()}.`); if (!problem) cue("purchase"); setBuild({ ...build, selected: null, cursor: null }); setHud(readHud(state)); refresh(); },
             state.started && state.building !== id ? "Furniture that doesn't fit the new building is refunded in Beans." : undefined)}
           onFinish={(surface, id) => { const finish = (surface === "wallpaper" ? WALLPAPERS : FLOORS).find(item => item.id === id)!; confirmBuy(`${finish.name} ${surface}`, state.finishes.has(id) ? 0 : finish.cost, () => { const problem = applyFinish(state, surface, id); setBuildMessage(problem ?? `${surface === "wallpaper" ? "Wallpaper" : "Floor"} applied.`); if (!problem) cue("purchase"); setHud(readHud(state)); refresh(); }); }} />}
@@ -644,6 +729,7 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
         <p><span>Biggest bill</span><strong>☕ {state.today.best}</strong></p>
         {state.today.vips > 0 && <p><span>Genesis VIPs</span><strong>{state.today.vips}</strong></p>}
         <p><span>Rating</span><strong>{stars(state.rating)} {state.rating.toFixed(1)}</strong></p>
+        {challengesFor(state).map(challenge => <p key={challenge.id} className={challenge.done ? "cafe-done" : undefined}><span>{challenge.done ? "✓" : "✗"} {challenge.text}</span><strong>{challenge.done ? `+☕ ${challengeReward(state.day).beans}` : "missed"}</strong></p>)}
       </div>
       <p>{state.today.lost === 0 && state.today.served > 0 ? "Perfect service. Not a single guest left unhappy!" : "Spend your Beans before the next day: rearrange, hire staff, or add dishes."}</p>
       <div className="cafe-share">
@@ -747,6 +833,16 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
                 {boost.capsules} capsules · {rf(definition.price * BigInt(boost.capsules))}</button>
             </div>;
           })}
+          <h3 className="cafe-subhead">RF sceneries · the world outside, for good</h3>
+          {SCENERIES.filter(scenery => scenery.capsules).map(scenery => {
+            const owned = state.sceneries.has(scenery.id);
+            return <div className="cafe-row" key={scenery.id}>
+              <span><strong>{scenery.name}{owned ? " · owned" : ""}</strong><small>{scenery.text} +{scenery.ambience} ambience.</small></span>
+              {owned ? <button type="button" disabled={paused || state.scenery === scenery.id} onClick={() => { applyScenery(state, scenery.id); cue("select"); refresh(); }}>{state.scenery === scenery.id ? "In use" : "Use"}</button>
+                : <button type="button" disabled={busy || paused || pendingPlays.length > 0 || snapshot.consumables < BigInt(scenery.capsules!)} onClick={() => void buyScenery(scenery.id)}>
+                  {scenery.capsules} capsules · {rf(definition.price * BigInt(scenery.capsules!))}</button>}
+            </div>;
+          })}
           {snapshot.consumables < 2n && <p className="cafe-note">You have {snapshot.consumables.toString()} capsule{snapshot.consumables === 1n ? "" : "s"}. Buy more on the Machine tab.</p>}
         </> : capsuleTab === "collection" ? <div className="cafe-collection">
           {EXCLUSIVES.map(item => {
@@ -846,7 +942,8 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
         <li><strong>Tap / click</strong> a guest: take their order, or fetch and serve their dish.</li>
         <li><strong>Tap the counter</strong>: pick up every ready dish; you deliver them automatically.</li>
         <li><strong>Tap the floor</strong>: walk. Tap the capsule machine for Rare Recipe Capsules.</li>
-        <li><strong>WASD / arrows</strong>: walk · <strong>E / Space</strong>: act nearby · <strong>1–9, 0</strong>: act on that table · <strong>C</strong>: pick up · <strong>X</strong>: clear tasks.</li>
+        <li><strong>Drag</strong> or <strong>arrows</strong>: move the view · <strong>scroll</strong>, <strong>pinch</strong> or <strong>+ / −</strong>: zoom · <strong>⤢</strong>: reset the view.</li>
+        <li><strong>WASD</strong>: walk · <strong>E / Space</strong>: act nearby · <strong>1–9, 0</strong>: act on that table · <strong>C</strong>: pick up · <strong>X</strong>: clear tasks.</li>
         <li><strong>Esc / P</strong> or <strong>⏸</strong>: pause. Esc again resumes.</li>
         <li><strong>Tap a tired staff Friend</strong> (zzz bubble) or press <strong>T</strong> to send them to the break room for 15–30 s.</li>
         <li><strong>Build (B)</strong>: tap tiles to place tables and décor. <strong>Move</strong>: tap an item (or the capsule machine), then a tile. <strong>Sell</strong>: 50% back. <strong>R</strong> turns any item a quarter (Shift+R back), tables and chairs included; arrows + Enter work too; <strong>Esc</strong> finishes.</li>

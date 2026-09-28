@@ -130,14 +130,14 @@ export type UpgradeId = "sign" | "shoes" | "chairs" | "tipjar" | "breakroom" | "
 /** Beans upgrades bought one level at a time; `levels` is the café level each step needs. */
 export type Upgrade = Readonly<{ id: UpgradeId; name: string; text: string; costs: readonly number[]; levels: readonly number[] }>;
 export const UPGRADES: readonly Upgrade[] = [
-  { id: "sign", name: "Window sign", text: "+6% walk-ins per level.", costs: [90, 240, 520], levels: [2, 5, 8] },
+  { id: "sign", name: "Window sign", text: "+6% walk-ins per level.", costs: [90, 300, 1000], levels: [2, 5, 8] },
   { id: "shoes", name: "Running shoes", text: "You walk 8% faster per level.", costs: [110, 300], levels: [2, 6] },
-  { id: "chairs", name: "Comfy cushions", text: "Guests wait 8% longer per level.", costs: [140, 340, 700], levels: [3, 6, 9] },
-  { id: "tipjar", name: "Tip jar", text: "+5% tips per level.", costs: [160, 380, 780], levels: [3, 6, 10] },
+  { id: "chairs", name: "Comfy cushions", text: "Guests wait 8% longer per level.", costs: [140, 450, 1300], levels: [3, 6, 9] },
+  { id: "tipjar", name: "Tip jar", text: "+5% tips per level.", costs: [160, 500, 1500], levels: [3, 6, 10] },
   { id: "breakroom", name: "Break-room coffee", text: "Staff tire 12% slower and rest 20% faster per level.", costs: [200, 480], levels: [4, 8] },
   { id: "dishwasher", name: "Dishwasher", text: "Guests finish eating 20% sooner per level, freeing tables.", costs: [240, 560], levels: [4, 8] },
-  { id: "plating", name: "Fancy plating", text: "Every dish sells for 6% more per level.", costs: [300, 700, 1400], levels: [5, 9, 12] },
-  { id: "tray", name: "Big serving tray", text: "You carry one more dish.", costs: [1000], levels: [11] },
+  { id: "plating", name: "Fancy plating", text: "Every dish sells for 6% more per level.", costs: [300, 900, 2400], levels: [5, 9, 12] },
+  { id: "tray", name: "Big serving tray", text: "You carry one more dish.", costs: [2500], levels: [11] },
 ];
 export const upgradeById = (id: UpgradeId) => UPGRADES.find(item => item.id === id)!;
 
@@ -170,7 +170,7 @@ export const BOOSTS: readonly { id: BoostId; name: string; text: string; capsule
 export type ExclusiveId = "luckycat" | "gumball" | "crane" | "jukebox" | "fountain" | "telescope" | "starlamp" | "statue";
 export type RugKind = "rug" | "runner" | "roundrug";
 export type ItemKind = "table" | "tabletwo" | "tablefour" | "plant" | "lamp" | "shelf" | "record" | "piano" | RugKind
-  | "cactus" | "coatrack" | "chalkboard" | "flowers" | "armchair" | "catbed" | "birdcage" | "cakecase" | "sofa" | "clock" | "arcade" | "aquarium" | ExclusiveId;
+  | "candelabra" | "dessertcart" | "grandpiano" | "koipond" | "cactus" | "coatrack" | "chalkboard" | "flowers" | "armchair" | "catbed" | "birdcage" | "cakecase" | "sofa" | "clock" | "arcade" | "aquarium" | ExclusiveId;
 /**
  * `tier` marks an RF exclusive: collected from Rare Recipe Capsules (0 House Secret … 3 Golden Recipe), then placed for free.
  * Items that don't block are rugs: flat, walkable, and furniture can stand on them.
@@ -201,6 +201,11 @@ export const CATALOG: readonly CatalogItem[] = [
   { kind: "arcade", name: "Arcade cabinet", cost: 220, ambience: 3, blocks: true, text: "+3 ambience" },
   { kind: "aquarium", name: "Fish tank", cost: 240, ambience: 4, blocks: true, text: "+4 ambience" },
   { kind: "piano", name: "Upright piano", cost: 260, ambience: 4, blocks: true, text: "+4 ambience" },
+  // Luxury pieces for a well-off café.
+  { kind: "dessertcart", name: "Dessert trolley", cost: 750, ambience: 4, blocks: true, text: "+4 ambience · three tiers of cakes" },
+  { kind: "candelabra", name: "Crystal candelabra", cost: 950, ambience: 5, blocks: true, text: "+5 ambience · twinkling crystals" },
+  { kind: "grandpiano", name: "Grand piano", cost: 1600, ambience: 7, blocks: true, text: "+7 ambience · lid up, candles lit" },
+  { kind: "koipond", name: "Koi pond", cost: 2200, ambience: 8, blocks: true, text: "+8 ambience · koi circling a lily pad" },
   // RF exclusives: only from Rare Recipe Capsules. Each can be placed once, for free.
   { kind: "luckycat", name: "Lucky Cat", cost: 0, ambience: 3, blocks: true, text: "RF exclusive · waves in guests", tier: 0 },
   { kind: "gumball", name: "Gumball Machine", cost: 0, ambience: 3, blocks: true, text: "RF exclusive · faded pastel gumballs", tier: 0 },
@@ -233,9 +238,9 @@ export const WALLPAPERS: readonly Finish[] = [
   { id: "floral", name: "Butter florals", cost: 150, ambience: 2, colors: ["#d8d2bd", "#e5dfcb"] },
   { id: "panel", name: "Wood panelling", cost: 180, ambience: 2, colors: ["#b8a690", "#c9b8a2"] },
   { id: "chevron", name: "Lavender chevron", cost: 200, ambience: 2, colors: ["#c7c1d2", "#d6d1df"] },
-  { id: "damask", name: "Dusty-blue damask", cost: 240, ambience: 3, colors: ["#b3bcc6", "#c4ccd4"] },
-  { id: "scallop", name: "Rose scallops", cost: 280, ambience: 3, colors: ["#d6c1bf", "#e3d2d0"] },
-  { id: "starry", name: "Starry night", cost: 340, ambience: 4, colors: ["#4e5566", "#5c6477"] },
+  { id: "damask", name: "Dusty-blue damask", cost: 520, ambience: 3, colors: ["#b3bcc6", "#c4ccd4"] },
+  { id: "scallop", name: "Rose scallops", cost: 680, ambience: 3, colors: ["#d6c1bf", "#e3d2d0"] },
+  { id: "starry", name: "Starry night", cost: 950, ambience: 4, colors: ["#4e5566", "#5c6477"] },
 ];
 export const FLOORS: readonly Finish[] = [
   { id: "checker", name: "Grey checker", cost: 0, ambience: 0, colors: ["#dedbd3", "#cfccc4"] },
@@ -248,11 +253,42 @@ export const FLOORS: readonly Finish[] = [
   { id: "parquet", name: "Parquet squares", cost: 170, ambience: 2, colors: ["#c9ae8c", "#b8997a"] },
   { id: "herringbone", name: "Herringbone", cost: 190, ambience: 2, colors: ["#cbb79d", "#b9a58b"] },
   { id: "carpet", name: "Lavender carpet", cost: 210, ambience: 2, colors: ["#cbc3d6", "#c0b7cc"] },
-  { id: "marble", name: "Rose marble", cost: 260, ambience: 3, colors: ["#e6dcda", "#d8cbc8"] },
-  { id: "mosaic", name: "Blue mosaic", cost: 300, ambience: 4, colors: ["#c3cdd8", "#dde3e9"] },
+  { id: "marble", name: "Rose marble", cost: 560, ambience: 3, colors: ["#e6dcda", "#d8cbc8"] },
+  { id: "mosaic", name: "Blue mosaic", cost: 900, ambience: 4, colors: ["#c3cdd8", "#dde3e9"] },
 ];
 /** Ambience points needed for ambience levels 1–5 (raises tips, patience and arrivals). */
-export const AMBIENCE_LEVELS = [2, 5, 9, 14, 20] as const;
+export const AMBIENCE_LEVELS = [3, 8, 15, 24, 36] as const;
+
+// ---------- Outside: the world around the building ----------
+/** Sceneries dress the ground beyond the walls and sidewalks. Beans ones are bought outright; RF ones are paid with capsules. */
+export type SceneryId = "lot" | "garden" | "park" | "forest" | "beach" | "snow" | "blossom" | "market";
+export type Scenery = Readonly<{ id: SceneryId; name: string; text: string; cost: number; capsules?: number; ambience: number }>;
+export const SCENERIES: readonly Scenery[] = [
+  { id: "lot", name: "Quiet lot", text: "Paving stones, shrubs and a bike rack.", cost: 0, ambience: 0 },
+  { id: "garden", name: "Cottage garden", text: "Lawns, a picket fence, flower beds and apple trees.", cost: 1200, ambience: 2 },
+  { id: "park", name: "City park", text: "Paths, benches, a duck pond and round trees.", cost: 2600, ambience: 3 },
+  { id: "forest", name: "Pine woods", text: "Tall pines, mushrooms and mossy logs.", cost: 4200, ambience: 4 },
+  { id: "beach", name: "Seaside", text: "Sand, palms, beach umbrellas and the sea.", cost: 0, capsules: 3, ambience: 4 },
+  { id: "snow", name: "Snowy village", text: "Snowy pines, a snowman and lamplit cottages.", cost: 0, capsules: 3, ambience: 4 },
+  { id: "blossom", name: "Cherry blossom lane", text: "Pink trees, fallen petals and stone lanterns.", cost: 0, capsules: 4, ambience: 5 },
+  { id: "market", name: "Night market", text: "Striped stalls under strings of lanterns.", cost: 0, capsules: 5, ambience: 6 },
+];
+export const sceneryById = (id: string) => SCENERIES.find(item => item.id === id) ?? SCENERIES[0];
+
+// ---------- Daily challenges ----------
+/** Three challenges a day, picked from these by the day number; each pays Beans and shop XP when done. */
+export type ChallengeId = "served" | "happy" | "beans" | "tips" | "walkIns" | "group" | "perfect" | "rating";
+export const CHALLENGES: readonly { id: ChallengeId; text: (target: number) => string; target: (day: number) => number }[] = [
+  { id: "served", text: n => `Serve ${n} guests`, target: day => Math.min(60, 10 + day * 2) },
+  { id: "happy", text: n => `Serve ${n} happy guests`, target: day => Math.min(45, 6 + day * 2) },
+  { id: "beans", text: n => `Earn ☕ ${n} Beans`, target: day => Math.min(1200, 120 + day * 25) },
+  { id: "tips", text: n => `Earn ☕ ${n} in tips`, target: day => Math.min(300, 20 + day * 6) },
+  { id: "walkIns", text: n => `Welcome ${n} walk-ins`, target: day => Math.min(70, 12 + day * 2) },
+  { id: "group", text: n => `Serve ${n} guests at group tables`, target: day => Math.min(30, 4 + day) },
+  { id: "perfect", text: () => "No guest leaves unhappy all day", target: () => 1 },
+  { id: "rating", text: () => "Close with a ★ 4.5 rating or better", target: () => 1 },
+];
+export const challengeReward = (day: number) => ({ beans: Math.min(400, 40 + day * 6), xp: 6 });
 
 export type FamilyPerk = Readonly<{ title: string; text: string }>;
 /** Indexed by Generations family ID (Skeleton … Hollow). */

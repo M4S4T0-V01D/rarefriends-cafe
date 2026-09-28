@@ -53,7 +53,9 @@ export type Plan = Readonly<{
   clear: readonly Tile[];
   /** Kitchen tiles (floor, stoves and counter), and the dining tiles where things can be placed. */
   kitchenArea: ReadonlySet<number>; dining: ReadonlySet<number>;
-  chefSpots: readonly Tile[]; restSpots: readonly Tile[]; promoterSpots: readonly Tile[]; lane: number; laneStart: number; laneEnd: number;
+  chefSpots: readonly Tile[]; restSpots: readonly Tile[]; promoterSpots: readonly Tile[];
+  /** The street: the sidewalk runs down the door side (x = w … lane) and, as `side`, along the building's other front (y = d, d + 1) out to `sideStart`. */
+  lane: number; laneStart: number; laneEnd: number; side: number; sideStart: number;
 }>;
 
 const range = (from: number, to: number) => Array.from({ length: Math.max(0, to - from) }, (_, index) => from + index);
@@ -107,7 +109,7 @@ export function planFor(size: number, options: { building?: BuildingId; capsule?
     chefSpots: [...chefRow.filter((_, index) => index % 2 === 0), ...chefRow.filter((_, index) => index % 2 === 1)],
     restSpots: breakRows.flatMap(y => [{ x: 1, y }, { x: 0, y }]).filter(tile => !(tile.x === 0 && tile.y === d - 3)),
     promoterSpots: [2, -2, 4, -4, 6, -6, 3, -3, 5, -5].map(offset => ({ x: w, y: door.y + offset })).filter(tile => tile.y >= -2 && tile.y <= d + 1),
-    lane: w + 1, laneStart: -3, laneEnd: d + 2,
+    lane: w + 1, laneStart: -8, laneEnd: d + 7, side: d + 1, sideStart: -8,
   });
   cache.set(id, plan);
   return plan;
@@ -138,7 +140,8 @@ export const fromKey = (id: number): Tile => ({ x: (id % 64) - 8, y: Math.floor(
 export const inside = (tile: Tile, plan: Pick<Plan, "w" | "d">) => tile.x >= 0 && tile.y >= 0 && tile.x < plan.w && tile.y < plan.d;
 /** Walkable: the building floor plus the sidewalk strip in front of it. */
 export const walkable = (tile: Tile, plan: Plan) => inside(tile, plan)
-  || (tile.x >= plan.w && tile.x <= plan.lane && tile.y >= plan.laneStart && tile.y <= plan.laneEnd);
+  || (tile.x >= plan.w && tile.x <= plan.lane && tile.y >= plan.laneStart && tile.y <= plan.laneEnd)
+  || (tile.y >= plan.d && tile.y <= plan.side && tile.x >= plan.sideStart && tile.x < plan.w);
 export const inDining = (tile: Tile, plan: Plan) => plan.dining.has(key(tile));
 
 const fixtures = (plan: Plan) => new Set([...plan.stoves, ...plan.counter, ...plan.walls, plan.capsule].map(key));
@@ -156,8 +159,9 @@ export function blockedTiles(items: readonly Item[], plan: Plan): Set<number> {
 /** Can a step from `a` to its neighbour `b` be taken? Walls separate the building from the street except at the door. */
 function passable(a: Tile, b: Tile, plan: Plan, blocked: Set<number>) {
   if (!walkable(b, plan) || blocked.has(key(b))) return false;
-  const crossing = (a.x < plan.w) !== (b.x < plan.w);
-  return !crossing || (a.y === plan.door.y && b.y === plan.door.y);
+  // Walls separate the building from the sidewalks, except at the front door.
+  if (inside(a, plan) === inside(b, plan)) return true;
+  return (same(a, plan.door) && same(b, plan.entry)) || (same(a, plan.entry) && same(b, plan.door));
 }
 
 const STEPS = [[1, 0], [-1, 0], [0, 1], [0, -1]] as const;
@@ -252,7 +256,8 @@ export function unproject(sx: number, sy: number) {
 export type Camera = Readonly<{ zoom: number; x: number; y: number }>;
 export function cameraFor(shop: number | Plan): Camera {
   const plan = typeof shop === "number" ? planFor(shop) : shop;
-  const points = [project(-0.5, -0.5, 150), project(plan.lane + 2.5, plan.laneStart - 0.5), project(plan.lane + 2.5, plan.laneEnd + 0.5),
+  // Frame the building and the street beside it; the rest of the world is there to zoom out and pan to.
+  const points = [project(-0.5, -0.5, 150), project(plan.lane + 2.5, -3.5), project(plan.lane + 2.5, plan.d + 2.5),
     project(-0.5, plan.d - 0.5), project(plan.w - 0.5, plan.d + 0.5)];
   const left = Math.min(...points.map(p => p.x)), right = Math.max(...points.map(p => p.x));
   const top = Math.min(...points.map(p => p.y)), bottom = Math.max(...points.map(p => p.y));

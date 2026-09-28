@@ -3,7 +3,7 @@
  * Beans, levels, staff and furniture are in-shop progress; the SDK runtime owns RF.
  */
 import {
-  isTable, AMBIENCE_LEVELS, BASE_WALK_IN, BLEND_BONUSES, CATALOG, DAY_LENGTH, DUPLICATE_BEANS, EXCLUSIVES, EAT_TIME, EXPAND_COSTS, EXPAND_LEVELS, FATIGUE, FLOORS, FOOD_PATIENCE,
+  CHALLENGES, SCENERIES, challengeReward, sceneryById, type ChallengeId, type SceneryId, isTable, AMBIENCE_LEVELS, BASE_WALK_IN, BLEND_BONUSES, CATALOG, DAY_LENGTH, DUPLICATE_BEANS, EXCLUSIVES, EAT_TIME, EXPAND_COSTS, EXPAND_LEVELS, FATIGUE, FLOORS, FOOD_PATIENCE,
   LEVEL_XP, MACHINE_COSTS, MAX_LEVEL, MAX_STAFF_SLOTS, ORDER_PATIENCE, PASSERBY_INTERVAL, PROMOTER_PULL, SELL_REFUND, SHOPS, START_STAFF_SLOTS,
   BOOSTS, MANAGER_SKILLS, MAX_STAT, STAFF_SLOT_COSTS, type BoostId, type SkillId, STAFF_SLOT_LEVELS, TIP_RATE, type StatId, UPGRADES, WALLPAPERS, breakSeconds, catalogItem, isRug, upgradeById, type UpgradeId, dishById, machineFactor, shopById, tableLimit, tierOf, workerLevel,
   type DishId, type ItemKind, type ShopId,
@@ -46,8 +46,11 @@ export type CafeEvent =
   | { kind: "coins"; amount: number; x: number; y: number; vip: boolean; double: boolean }
   | { kind: "ready"; dish: DishId } | { kind: "order"; x: number; y: number } | { kind: "angry"; x: number; y: number }
   | { kind: "arrive"; promoted: boolean } | { kind: "levelup"; level: number } | { kind: "dayEnd" }
-  | { kind: "tired"; slot: number } | { kind: "workerLevel"; slot: number; level: number } | { kind: "rested"; slot: number };
-export type DayStats = { served: number; lost: number; beans: number; tips: number; vips: number; best: number; walkIns: number };
+  | { kind: "tired"; slot: number } | { kind: "workerLevel"; slot: number; level: number } | { kind: "rested"; slot: number }
+  | { kind: "challenge"; text: string; beans: number };
+/** One day's numbers. `done` lists the day's finished challenges; `rewards` is the Beans they paid. */
+export type DayStats = { served: number; lost: number; beans: number; tips: number; vips: number; best: number; walkIns: number;
+  happy: number; group: number; done: ChallengeId[]; rewards: number };
 export type Phase = "intro" | "open" | "summary";
 
 export type CafeState = {
@@ -58,6 +61,8 @@ export type CafeState = {
   capsule: Placement | null; upgrades: Partial<Record<UpgradeId, number>>; building: BuildingId;
   /** Manager skill points spent, and RF boosts with the shop days they have left. */
   skills: Partial<Record<SkillId, number>>; boosts: Partial<Record<BoostId, number>>;
+  /** The world around the building, and the sceneries owned. */
+  scenery: SceneryId; sceneries: Set<SceneryId>;
   staffSlots: number; staff: StaffMember[]; ownedFriends: number[]; generations: Record<number, number>; applicants: number[];
   customers: Customer[]; passersby: Passerby[]; orders: Order[]; workers: Worker[]; events: CafeEvent[];
   spawn: number; nextId: number; blocked: Set<number>; manual: { dx: number; dy: number } | null;
@@ -69,7 +74,7 @@ export type Prefs = { track: string; music: boolean; sfx: boolean; volume: numbe
 export const DEFAULT_PREFS: Prefs = { track: "latte", music: true, sfx: true, volume: 0.6, confirm: true, theme: "auto" };
 
 const perk = (state: CafeState, family: number) => state.familyId === family;
-const emptyDay = (): DayStats => ({ served: 0, lost: 0, beans: 0, tips: 0, vips: 0, best: 0, walkIns: 0 });
+const emptyDay = (): DayStats => ({ served: 0, lost: 0, beans: 0, tips: 0, vips: 0, best: 0, walkIns: 0, happy: 0, group: 0, done: [], rewards: 0 });
 /** Sprite facing for each item `dir`; a seated guest faces their table, which lies that way from the chair. */
 export const DIR_FACING: readonly Facing[] = ["down", "right", "up", "left"];
 const walker = (tile: Tile, speed: number): Walker => ({ x: tile.x, y: tile.y, path: [], speed, facing: "down", moving: false });
@@ -105,7 +110,7 @@ export function createCafe(options: {
     phase: "intro", shop: options.shop ?? "cafe", started: false, day: 1, clock: 0, beans: 30, xp: 0, level: 1, rating: 3.5,
     size: START_SIZE, machine: 0, unlocked: new Set(), blends: [0, 0, 0, 0], familyId: options.familyId, guestCount, regulars: options.regulars ?? [],
     items: DEFAULT_ITEMS.map(item => ({ ...item })), wallpaper: "plain", floor: "checker", finishes: new Set(["plain", "checker"]),
-    collection: new Set(), prefs: { ...DEFAULT_PREFS }, capsule: null, upgrades: {}, building: "corner", skills: {}, boosts: {},
+    collection: new Set(), prefs: { ...DEFAULT_PREFS }, capsule: null, upgrades: {}, building: "corner", skills: {}, boosts: {}, scenery: "lot", sceneries: new Set(["lot"]),
     staffSlots: START_STAFF_SLOTS, staff: [], ownedFriends: [], generations: {},
     applicants: Array.from({ length: Math.min(6, guestCount) }, (_, index) => (index * 5 + 3) % guestCount),
     customers: [], passersby: [], orders: [], workers: [], events: [], spawn: 0.5, nextId: 100, blocked: new Set(), manual: null,
@@ -190,7 +195,8 @@ function train(state: CafeState, worker: Worker, amount = 1) {
 }
 
 export function ambiencePoints(state: CafeState) {
-  const finish = (WALLPAPERS.find(item => item.id === state.wallpaper)?.ambience ?? 0) + (FLOORS.find(item => item.id === state.floor)?.ambience ?? 0);
+  const finish = (WALLPAPERS.find(item => item.id === state.wallpaper)?.ambience ?? 0) + (FLOORS.find(item => item.id === state.floor)?.ambience ?? 0)
+    + sceneryById(state.scenery).ambience;
   return finish + state.items.reduce((sum, item) => sum + catalogItem(item.kind).ambience, 0);
 }
 /** Ambience level 0–5 from placed décor, wallpaper and floor. */
@@ -246,6 +252,51 @@ export function buyUpgrade(state: CafeState, id: UpgradeId): string | null {
   state.beans -= next.cost; state.upgrades[id] = upgradeLevel(state, id) + 1;
   return null;
 }
+
+// ---------- Daily challenges ----------
+/** Today's three challenges, picked by the day number (group tables only when the shop has one). */
+export function challengesFor(state: CafeState) {
+  const eligible = CHALLENGES.filter(item => item.id !== "group" || tables(state).some(table => (catalogItem(table.kind).seats ?? 1) > 1));
+  // A shuffle seeded by the day number, so everyone gets the same three on the same day.
+  let seed = (state.day * 2654435761) >>> 0;
+  const next = () => { seed = (Math.imul(seed ^ (seed >>> 15), 2246822507) + 0x9e3779b9) >>> 0; return seed / 4294967296; };
+  const picked = [...eligible].map(item => ({ item, order: next() })).sort((a, b) => a.order - b.order).slice(0, 3).map(entry => entry.item);
+  return picked.map(item => {
+    const target = item.target(state.day), progress = challengeProgress(state, item.id);
+    return { id: item.id, text: item.text(target), target, progress, done: state.today.done.includes(item.id) };
+  });
+}
+function challengeProgress(state: CafeState, id: ChallengeId) {
+  const today = state.today;
+  if (id === "perfect") return today.lost === 0 && today.served > 0 ? 1 : 0;
+  if (id === "rating") return state.rating >= 4.5 ? 1 : 0;
+  return id === "served" ? today.served : id === "happy" ? today.happy : id === "beans" ? today.beans : id === "tips" ? today.tips : id === "walkIns" ? today.walkIns : today.group;
+}
+/** Pay out finished challenges. Perfect days and ratings are judged at closing. */
+function checkChallenges(state: CafeState, closing: boolean) {
+  for (const challenge of challengesFor(state)) {
+    if (challenge.done || ((challenge.id === "perfect" || challenge.id === "rating") && !closing) || challenge.progress < challenge.target) continue;
+    const reward = challengeReward(state.day);
+    state.today.done.push(challenge.id); state.today.rewards += reward.beans; state.beans += reward.beans; gainXp(state, reward.xp);
+    state.events.push({ kind: "challenge", text: challenge.text, beans: reward.beans });
+  }
+}
+
+// ---------- Outside ----------
+/** Buy (Beans) or switch to an owned scenery. RF sceneries are unlocked with capsules through `unlockScenery`. */
+export function applyScenery(state: CafeState, id: SceneryId): string | null {
+  const scenery = SCENERIES.find(item => item.id === id);
+  if (!scenery) return "Unknown scenery.";
+  if (!state.sceneries.has(id)) {
+    if (scenery.capsules) return `${scenery.name} is paid with ${scenery.capsules} capsules (RF): Capsules → Boosts.`;
+    if (state.beans < scenery.cost) return "Not enough Beans.";
+    state.beans -= scenery.cost; state.sceneries.add(id);
+  }
+  state.scenery = id;
+  return null;
+}
+/** An RF scenery bought with capsules: unlock it and move in. */
+export function unlockScenery(state: CafeState, id: SceneryId) { state.sceneries.add(id); state.scenery = id; }
 
 // ---------- Building ----------
 /**
@@ -549,7 +600,7 @@ export type CafeSave = {
   unlocked: string[]; items: { kind: ItemKind; x: number; y: number; dir: Dir }[]; wallpaper: string; floor: string; finishes: string[];
   staffSlots: number; staff: { slot: number; owned?: number; guest?: number; role: StaffRole; xp: number; stats?: Stats }[]; totalServed: number;
   collection?: string[]; prefs?: Prefs; capsule?: Placement | null; upgrades?: Partial<Record<UpgradeId, number>>; building?: BuildingId;
-  skills?: Partial<Record<SkillId, number>>; boosts?: Partial<Record<BoostId, number>>;
+  skills?: Partial<Record<SkillId, number>>; boosts?: Partial<Record<BoostId, number>>; scenery?: SceneryId; sceneries?: SceneryId[];
 };
 /** Long-term progress only. A day in progress resumes from its start; a closed day resumes at the next one. */
 export function serializeCafe(state: CafeState): CafeSave | null {
@@ -560,7 +611,7 @@ export function serializeCafe(state: CafeState): CafeSave | null {
     items: state.items.map(({ kind, x, y, dir }) => ({ kind, x, y, dir })), wallpaper: state.wallpaper, floor: state.floor, finishes: [...state.finishes],
     staffSlots: state.staffSlots, staff: state.staff.map(member => ({ slot: member.slot, role: member.role, xp: member.xp, stats: { ...member.stats }, ...member.who })),
     totalServed: state.totalServed, collection: [...state.collection], prefs: { ...state.prefs }, capsule: state.capsule, upgrades: { ...state.upgrades }, building: state.building,
-    skills: { ...state.skills }, boosts: { ...state.boosts },
+    skills: { ...state.skills }, boosts: { ...state.boosts }, scenery: state.scenery, sceneries: [...state.sceneries],
   };
 }
 const int = (value: unknown, min: number, max: number) => typeof value === "number" && Number.isInteger(value) && value >= min && value <= max;
@@ -592,11 +643,14 @@ export function restoreCafe(state: CafeState, input: unknown): boolean {
   if (!Object.entries(skills).every(([id, points]) => MANAGER_SKILLS.some(item => item.id === id && int(points, 0, item.max)))
     || Object.values(skills).reduce((sum, points) => sum + (points ?? 0), 0) > save.level! - 1
     || !Object.entries(boosts).every(([id, days]) => BOOSTS.some(item => item.id === id) && int(days, 0, 1000))) return false;
+  const sceneryIds = new Set<string>(SCENERIES.map(item => item.id));
+  const owned = new Set<SceneryId>(["lot", ...(Array.isArray(save.sceneries) ? save.sceneries.filter(id => sceneryIds.has(id)) : [])]);
+  if (save.scenery !== undefined && !owned.has(save.scenery)) return false;
   if (save.items.length > 300 || !save.items.every(item => item && kinds.has(item.kind) && int(item.x, 0, MAX_EXTENT) && int(item.y, 0, MAX_EXTENT) && isDir(item.dir))) return false;
   Object.assign(state, {
     shop: shop.id, started: true, day: save.day, beans: save.beans, xp: save.xp, level: save.level, rating: save.rating, machine: save.machine, size,
     unlocked: new Set(save.unlocked), wallpaper: save.wallpaper, floor: save.floor, finishes: new Set(save.finishes),
-    staffSlots: save.staffSlots, totalServed: save.totalServed, staff: [], collection: new Set(collection), upgrades: { ...upgrades }, capsule: null, building: save.building ?? "corner", skills: { ...skills }, boosts: { ...boosts },
+    staffSlots: save.staffSlots, totalServed: save.totalServed, staff: [], collection: new Set(collection), upgrades: { ...upgrades }, capsule: null, building: save.building ?? "corner", skills: { ...skills }, boosts: { ...boosts }, scenery: save.scenery ?? "lot", sceneries: owned,
     prefs: { track: typeof prefs.track === "string" ? prefs.track : DEFAULT_PREFS.track, music: prefs.music !== false, sfx: prefs.sfx !== false,
       volume: typeof prefs.volume === "number" && prefs.volume >= 0 && prefs.volume <= 1 ? prefs.volume : DEFAULT_PREFS.volume,
       confirm: prefs.confirm !== false, theme: prefs.theme === "light" || prefs.theme === "dark" ? prefs.theme : "auto" },
@@ -831,11 +885,13 @@ function finish(state: CafeState, worker: Worker, job: Job) {
     customer.paid = amount; customer.state = "eating"; customer.eat = EAT_TIME * (1 - 0.2 * upgradeLevel(state, "dishwasher"));
     customer.mood = fraction > 0.5 ? "happy" : "ok";
     state.beans += amount;
-    state.today.served++; state.today.beans += amount; state.today.tips += amount - base; state.today.best = Math.max(state.today.best, amount);
+    state.today.served++; if (customer.mood === "happy") state.today.happy++; if ((catalogItem(byId(state.items, customer.table)?.kind ?? "table").seats ?? 1) > 1) state.today.group++;
+    state.today.beans += amount; state.today.tips += amount - base; state.today.best = Math.max(state.today.best, amount);
     if (customer.vip) state.today.vips++;
     state.totalServed++;
     rate(state, customer.mood === "happy" ? 5 : 4);
     gainXp(state, 1 + (customer.mood === "happy" ? 1 : 0) + (customer.vip ? 2 : 0));
+    checkChallenges(state, false);
     train(state, worker); tire(state, worker, FATIGUE.perTask);
     state.events.push({ kind: "coins", amount, x: customer.walker.x, y: customer.walker.y, vip: customer.vip, double });
   }
@@ -867,13 +923,27 @@ function stroll(layout: Plan, from: Tile, down: boolean): Tile[] {
   const end = down ? layout.laneEnd : layout.laneStart;
   return Array.from({ length: Math.abs(end - from.y) }, (_, index) => ({ x: layout.lane, y: from.y + (down ? index + 1 : -index - 1) }));
 }
-/** Friends stroll along the street in both directions. */
+/** The side sidewalk from its far end to the corner (or back), one tile at a time. */
+function sideWalk(layout: Plan, east: boolean): Tile[] {
+  const xs = Array.from({ length: layout.lane - layout.sideStart + 1 }, (_, index) => layout.sideStart + index);
+  return (east ? xs : xs.reverse()).map(x => ({ x, y: layout.side }));
+}
+/** Friends stroll along the street in both directions, and some come round the corner from the side sidewalk. */
 function spawnPasserby(state: CafeState) {
-  const layout = plan(state), down = state.rng() < 0.5;
-  const start = { x: layout.lane, y: down ? layout.laneStart : layout.laneEnd };
+  const layout = plan(state), down = state.rng() < 0.5, corner = state.rng() < 0.35;
   const regular = state.regulars.length && state.rng() < 0.1 ? state.regulars[Math.floor(state.rng() * state.regulars.length)] : null;
+  let start: Tile, path: Tile[];
+  if (corner && down) {
+    // Down the street, round the corner and off along the side.
+    start = { x: layout.lane, y: layout.laneStart };
+    path = [...stroll(layout, start, true).filter(tile => tile.y <= layout.side), ...sideWalk(layout, false).slice(1)];
+  } else if (corner) {
+    // In from the side, round the corner and up the street past the door.
+    const along = sideWalk(layout, true);
+    start = along[0]; path = [...along.slice(1), ...stroll(layout, { x: layout.lane, y: layout.side }, false)];
+  } else { start = { x: layout.lane, y: down ? layout.laneStart : layout.laneEnd }; path = stroll(layout, start, down); }
   const body = walker(start, 1.4 + state.rng() * 0.6);
-  body.path = stroll(layout, start, down);
+  body.path = path;
   state.passersby.push({ id: state.nextId++, guest: Math.floor(state.rng() * state.guestCount), regular, walker: body, decided: false });
 }
 /** A passer-by at the door decides whether to come in (if a table is free). */
@@ -1011,6 +1081,7 @@ export function update(state: CafeState, dt: number) {
     for (const id of Object.keys(state.boosts) as BoostId[]) if ((state.boosts[id] = (state.boosts[id] ?? 0) - 1) <= 0) delete state.boosts[id];
     for (const worker of state.workers) { worker.queue = []; worker.job = null; worker.carrying = []; }
     state.orders = [];
+    checkChallenges(state, true);
     state.events.push({ kind: "dayEnd" });
   }
 }

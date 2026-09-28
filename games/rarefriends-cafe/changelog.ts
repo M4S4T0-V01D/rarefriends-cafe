@@ -3,6 +3,17 @@ export type Release = Readonly<{ version: string; date: string; title: string; n
 
 export const CHANGELOG: readonly Release[] = [
   {
+    version: "1.4", date: "2026-09-28", title: "A world outside, a camera and daily challenges",
+    notes: [
+      "The world around the shop: pick a scenery in Build → Outside. Quiet lot, cottage garden, city park and pine woods cost Beans; seaside, snowy village, cherry blossom lane and night market are paid with RF capsules (Capsules → Boosts).",
+      "A longer street, and the sidewalk now wraps round the building's other front. Some Friends come round the corner.",
+      "Camera: drag to move the view, scroll or pinch to zoom, arrow keys to pan, + / − to zoom, ⤢ to reset. WASD walks your manager.",
+      "Daily challenges: three a day (serve, happy guests, Beans, tips, walk-ins, group tables, a perfect day or a top rating), each paying Beans and XP.",
+      "Luxury pieces: dessert trolley, crystal candelabra, grand piano and koi pond.",
+      "The high end costs more: top wallpapers and floors, the last upgrade levels, and ambience levels that need more décor.",
+    ],
+  },
+  {
     version: "1.3", date: "2026-09-28", title: "Group tables, boosts and a proper pause",
     notes: [
       "Tables for two and for four: parties sit together, and one tap takes the whole table's order.",

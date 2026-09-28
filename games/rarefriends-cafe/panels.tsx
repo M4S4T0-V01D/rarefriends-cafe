@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import {
   isRug, isTable, MAX_STAT, WORKER_STATS, CATALOG, FAMILY_NAMES, FLOORS, MAX_STAFF_SLOTS, SHOPS, STAFF_ROLES, WALLPAPERS, WORKER_LEVEL_XP, catalogItem, tableLimit, tierOf, workerLevel,
-  type DishShape, type Finish, type ItemKind, type ShopId, type StatId,
+  SCENERIES, type SceneryId, type DishShape, type Finish, type ItemKind, type ShopId, type StatId,
 } from "./data.ts";
 import { TRACKS, type TrackId } from "./audio.ts";
 import type { Prefs } from "./engine.ts";
@@ -192,14 +192,14 @@ export function MusicControls({ prefs, collected, onChange }: { prefs: Prefs; co
 
 /** Furniture is split into tables, rugs and décor tabs (all "items" underneath). */
 export type Shelf = "tables" | "rugs" | "decor";
-export type BuildTool = { tab: "items" | "walls" | "floors" | "building" | "music"; shelf: Shelf; mode: "place" | "move" | "sell"; kind: ItemKind; dir: Dir };
+export type BuildTool = { tab: "items" | "walls" | "floors" | "outside" | "building" | "music"; shelf: Shelf; mode: "place" | "move" | "sell"; kind: ItemKind; dir: Dir };
 const shelfOf = (kind: ItemKind): Shelf => isTable(kind) ? "tables" : isRug(kind) ? "rugs" : "decor";
 /** Screen arrow and words for each facing, in R order (a quarter turn clockwise each). */
 export const DIR_LABELS = [["↙", "front-left"], ["↘", "front-right"], ["↗", "back-right"], ["↖", "back-left"]] as const;
 export const turned = (dir: Dir, by = 1) => ((dir + by + 4) % 4) as Dir;
-export function BuildBar({ state, tool, onTool, onFinish, onDone, message, onPrefs, onBuilding }: {
+export function BuildBar({ state, tool, onTool, onFinish, onDone, message, onPrefs, onBuilding, onScenery }: {
   state: CafeState; tool: BuildTool; onTool: (tool: BuildTool) => void; onFinish: (surface: "wallpaper" | "floor", id: string) => void; onDone: () => void; message: string;
-  onPrefs: (prefs: Prefs) => void; onBuilding: (id: BuildingId) => void;
+  onPrefs: (prefs: Prefs) => void; onBuilding: (id: BuildingId) => void; onScenery: (id: SceneryId) => void;
 }) {
   const finishes = (surface: "wallpaper" | "floor", list: readonly Finish[]) => list.map(finish => {
     const owned = state.finishes.has(finish.id), active = state[surface] === finish.id;
@@ -214,7 +214,7 @@ export function BuildBar({ state, tool, onTool, onFinish, onDone, message, onPre
         {(["tables", "rugs", "decor"] as const).map(shelf => <button type="button" role="tab" key={shelf} aria-selected={tool.tab === "items" && tool.shelf === shelf}
           onClick={() => { const first = CATALOG.find(item => shelfOf(item.kind) === shelf)!; onTool({ ...tool, tab: "items", shelf, mode: "place", kind: shelfOf(tool.kind) === shelf ? tool.kind : first.kind }); }}>
           {shelf === "tables" ? "Tables" : shelf === "rugs" ? "Rugs" : "Décor"}</button>)}
-        {(["walls", "floors", "building", "music"] as const).map(tab => <button type="button" role="tab" key={tab} aria-selected={tool.tab === tab} onClick={() => onTool({ ...tool, tab })}>{tab === "walls" ? "Wallpaper" : tab === "floors" ? "Floor" : tab === "building" ? "Building" : "Music"}</button>)}
+        {(["walls", "floors", "outside", "building", "music"] as const).map(tab => <button type="button" role="tab" key={tab} aria-selected={tool.tab === tab} onClick={() => onTool({ ...tool, tab })}>{tab === "walls" ? "Wallpaper" : tab === "floors" ? "Floor" : tab === "outside" ? "Outside" : tab === "building" ? "Building" : "Music"}</button>)}
       </div>
       <span className="cafe-build-status" role="status">{message || `☕ ${state.beans} · tables ${tableCount(state)}/${tableLimit(state.level)}`}</span>
       <button type="button" className="rf-frame-primary" onClick={onDone}>Done</button>
@@ -228,6 +228,13 @@ export function BuildBar({ state, tool, onTool, onFinish, onDone, message, onPre
           <button type="button" key={item.kind} aria-pressed={tool.mode === "place" && tool.kind === item.kind} disabled={state.beans < item.cost} className={item.tier !== undefined ? "cafe-exclusive" : undefined}
             onClick={() => onTool({ ...tool, mode: "place", kind: item.kind })}><span>{item.name}<small>{item.tier !== undefined ? "RF exclusive · free" : `☕ ${item.cost}`}{item.ambience ? ` · +${item.ambience}` : ""}</small></span></button>)}
       </> : tool.tab === "walls" ? finishes("wallpaper", WALLPAPERS) : tool.tab === "floors" ? finishes("floor", FLOORS)
+        : tool.tab === "outside" ? SCENERIES.map(scenery => {
+          const owned = state.sceneries.has(scenery.id), active = state.scenery === scenery.id;
+          return <button type="button" key={scenery.id} aria-pressed={active} className={scenery.capsules && !owned ? "cafe-exclusive" : undefined}
+            disabled={!owned && !scenery.capsules && state.beans < scenery.cost} onClick={() => onScenery(scenery.id)} title={scenery.text}>
+            <span>{scenery.name}<small>{active ? "In use" : owned ? "Owned" : scenery.capsules ? `RF · ${scenery.capsules} capsules` : `☕ ${scenery.cost.toLocaleString("en-US")}`}{scenery.ambience ? ` · +${scenery.ambience}` : ""}</small></span>
+          </button>;
+        })
         : tool.tab === "building" ? <>
           {state.phase === "open" && <p className="cafe-build-note">Change buildings between days. Misfit furniture is refunded.</p>}
           <BuildingPicker value={state.building} size={state.size} onChange={onBuilding} disabled={state.phase === "open"} />
