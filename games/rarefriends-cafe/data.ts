@@ -14,11 +14,11 @@ export type Dish = Readonly<{
 
 /** Price, cook time, unlock cost and level are shared per menu slot so every shop is balanced alike. */
 const TIERS = [
-  { price: 8, cook: 3, unlockCost: 0, level: 1 }, { price: 12, cook: 4, unlockCost: 0, level: 1 },
-  { price: 16, cook: 5, unlockCost: 60, level: 2 }, { price: 20, cook: 6, unlockCost: 120, level: 3 },
-  { price: 28, cook: 8, unlockCost: 200, level: 4 }, { price: 40, cook: 10, unlockCost: 350, level: 5 },
-  { price: 50, cook: 9, unlockCost: 500, level: 6 },
-  { price: 60, cook: 6, unlockCost: 0, level: 1, blend: 1 }, { price: 95, cook: 11, unlockCost: 0, level: 1, blend: 2 },
+  { price: 5, cook: 3, unlockCost: 0, level: 1 }, { price: 7, cook: 4, unlockCost: 0, level: 1 },
+  { price: 9, cook: 5, unlockCost: 60, level: 2 }, { price: 12, cook: 6, unlockCost: 120, level: 3 },
+  { price: 16, cook: 8, unlockCost: 200, level: 5 }, { price: 23, cook: 10, unlockCost: 350, level: 7 },
+  { price: 29, cook: 9, unlockCost: 500, level: 9 },
+  { price: 35, cook: 6, unlockCost: 0, level: 1, blend: 1 }, { price: 55, cook: 11, unlockCost: 0, level: 1, blend: 2 },
 ] as const;
 type MenuRow = readonly [name: string, shape: DishShape, color: string, accent: string];
 
@@ -63,13 +63,16 @@ export const shopById = (id: ShopId) => SHOPS.find(item => item.id === id)!;
 export const dishById = (id: DishId) => shopById(id.split(":")[0] as ShopId).menu[Number(id.split(":")[1])];
 
 /** XP needed to reach level n + 2 (index 0 is level 2). */
-export const LEVEL_XP = [8, 22, 40, 64, 95, 135, 185, 250, 330, 430] as const;
+export const LEVEL_XP = [15, 40, 75, 120, 180, 255, 345, 450, 575, 720, 885, 1070, 1275, 1500] as const;
 export const MAX_LEVEL = LEVEL_XP.length + 1;
 
 export const MACHINE_COSTS = [70, 150, 260, 420, 650] as const;
 /** Each kitchen station level cuts cook time 12%. */
 export const machineFactor = (level: number) => 1 - 0.12 * level;
-export const DAY_LENGTH = 150;
+/** A day lasts five minutes. */
+export const DAY_LENGTH = 300;
+/** Tips: up to this share of the price for a guest served with full patience. */
+export const TIP_RATE = 0.2;
 export const ORDER_PATIENCE = 18;
 export const FOOD_PATIENCE = 34;
 export const EAT_TIME = 4;
@@ -79,7 +82,7 @@ export const START_STAFF_SLOTS = 1;
 export const MAX_STAFF_SLOTS = 5;
 /** Cost and café level for staff slot number (index + 2). */
 export const STAFF_SLOT_COSTS = [120, 280, 520, 900] as const;
-export const STAFF_SLOT_LEVELS = [2, 3, 5, 7] as const;
+export const STAFF_SLOT_LEVELS = [2, 4, 6, 9] as const;
 export type StaffRoleInfo = Readonly<{ id: "waiter" | "chef" | "promoter"; name: string; text: string }>;
 export const STAFF_ROLES: readonly StaffRoleInfo[] = [
   { id: "waiter", name: "Waiter", text: "Takes orders and delivers dishes." },
@@ -99,6 +102,14 @@ export const tierOf = (generation: number | null) => generation === null ? GUEST
 /** Worker XP (one per task, dish or guest brought in) needed for levels 2–10. Each level adds 4% to the worker's power. */
 export const WORKER_LEVEL_XP = [10, 25, 45, 70, 100, 140, 190, 250, 320] as const;
 export const workerLevel = (xp: number) => 1 + WORKER_LEVEL_XP.filter(need => xp >= need).length;
+/** Each worker level past the first earns one attribute point; each attribute takes up to MAX_STAT points. */
+export type StatId = "speed" | "stamina" | "skill";
+export const MAX_STAT = 5;
+export const WORKER_STATS: readonly { id: StatId; name: string; text: string }[] = [
+  { id: "speed", name: "Speed", text: "+6% walking speed per point." },
+  { id: "stamina", name: "Stamina", text: "Tires 8% slower per point." },
+  { id: "skill", name: "Skill", text: "Chefs cook 4% faster, waiters earn +3% tips, promoters pull 8% harder, per point." },
+];
 /** Fatigue 0–100. Tired at 70 (slower); exhausted at 100 (stops working until rested). */
 export const FATIGUE = { tired: 70, exhausted: 100, perTask: 4, perDish: 3, promoterPerSecond: 0.3, levelRelief: 0.04 } as const;
 /** A break takes 15 s rested, up to 30 s exhausted. */
@@ -111,20 +122,55 @@ export const BASE_WALK_IN = 0.34;
 export const PROMOTER_PULL = 0.12;
 /** Expanding adds 2 tiles to each side of the shop. */
 export const EXPAND_COSTS = [400, 900, 1600] as const;
-export const EXPAND_LEVELS = [3, 5, 7] as const;
+export const EXPAND_LEVELS = [4, 7, 10] as const;
+
+// ---------- Shop upgrades ----------
+export type UpgradeId = "sign" | "shoes" | "chairs" | "tipjar" | "breakroom" | "dishwasher" | "plating" | "tray";
+/** Beans upgrades bought one level at a time; `levels` is the café level each step needs. */
+export type Upgrade = Readonly<{ id: UpgradeId; name: string; text: string; costs: readonly number[]; levels: readonly number[] }>;
+export const UPGRADES: readonly Upgrade[] = [
+  { id: "sign", name: "Window sign", text: "+6% walk-ins per level.", costs: [90, 240, 520], levels: [2, 5, 8] },
+  { id: "shoes", name: "Running shoes", text: "You walk 8% faster per level.", costs: [110, 300], levels: [2, 6] },
+  { id: "chairs", name: "Comfy cushions", text: "Guests wait 8% longer per level.", costs: [140, 340, 700], levels: [3, 6, 9] },
+  { id: "tipjar", name: "Tip jar", text: "+5% tips per level.", costs: [160, 380, 780], levels: [3, 6, 10] },
+  { id: "breakroom", name: "Break-room coffee", text: "Staff tire 12% slower and rest 20% faster per level.", costs: [200, 480], levels: [4, 8] },
+  { id: "dishwasher", name: "Dishwasher", text: "Guests finish eating 20% sooner per level, freeing tables.", costs: [240, 560], levels: [4, 8] },
+  { id: "plating", name: "Fancy plating", text: "Every dish sells for 6% more per level.", costs: [300, 700, 1400], levels: [5, 9, 12] },
+  { id: "tray", name: "Big serving tray", text: "You carry one more dish.", costs: [1000], levels: [11] },
+];
+export const upgradeById = (id: UpgradeId) => UPGRADES.find(item => item.id === id)!;
 
 // ---------- Build mode ----------
 export type ExclusiveId = "luckycat" | "gumball" | "crane" | "jukebox" | "fountain" | "telescope" | "starlamp" | "statue";
-export type ItemKind = "table" | "plant" | "lamp" | "shelf" | "record" | "rug" | "piano" | ExclusiveId;
-/** `tier` marks an RF exclusive: collected from Rare Recipe Capsules (0 House Secret … 3 Golden Recipe), then placed for free. */
+export type RugKind = "rug" | "runner" | "roundrug";
+export type ItemKind = "table" | "plant" | "lamp" | "shelf" | "record" | "piano" | RugKind
+  | "cactus" | "coatrack" | "chalkboard" | "flowers" | "armchair" | "catbed" | "birdcage" | "cakecase" | "sofa" | "clock" | "arcade" | "aquarium" | ExclusiveId;
+/**
+ * `tier` marks an RF exclusive: collected from Rare Recipe Capsules (0 House Secret … 3 Golden Recipe), then placed for free.
+ * Items that don't block are rugs: flat, walkable, and furniture can stand on them.
+ */
 export type CatalogItem = Readonly<{ kind: ItemKind; name: string; cost: number; ambience: number; blocks: boolean; text: string; tier?: number }>;
 export const CATALOG: readonly CatalogItem[] = [
-  { kind: "table", name: "Table & chair", cost: 60, ambience: 0, blocks: true, text: "Seats one guest. Tap R / Rotate to face the chair." },
+  { kind: "table", name: "Table & chair", cost: 60, ambience: 0, blocks: true, text: "Seats one guest. R / Rotate turns the chair to any side." },
+  { kind: "cactus", name: "Little cactus", cost: 25, ambience: 1, blocks: true, text: "+1 ambience" },
   { kind: "plant", name: "Potted monstera", cost: 35, ambience: 1, blocks: true, text: "+1 ambience" },
+  { kind: "coatrack", name: "Coat rack", cost: 40, ambience: 1, blocks: true, text: "+1 ambience" },
   { kind: "rug", name: "Faded rose rug", cost: 45, ambience: 1, blocks: false, text: "+1 ambience · walk over it" },
+  { kind: "chalkboard", name: "A-frame menu board", cost: 55, ambience: 1, blocks: true, text: "+1 ambience · MENU on the front, OPEN on the back" },
+  { kind: "runner", name: "Sage runner", cost: 55, ambience: 1, blocks: false, text: "+1 ambience · walk over it" },
+  { kind: "flowers", name: "Flower stand", cost: 65, ambience: 1, blocks: true, text: "+1 ambience" },
   { kind: "lamp", name: "Paper floor lamp", cost: 70, ambience: 2, blocks: true, text: "+2 ambience" },
+  { kind: "roundrug", name: "Braided round rug", cost: 80, ambience: 2, blocks: false, text: "+2 ambience · walk over it" },
   { kind: "shelf", name: "Bookshelf", cost: 90, ambience: 2, blocks: true, text: "+2 ambience" },
+  { kind: "armchair", name: "Velvet armchair", cost: 110, ambience: 2, blocks: true, text: "+2 ambience" },
+  { kind: "catbed", name: "Sleepy cat", cost: 130, ambience: 2, blocks: true, text: "+2 ambience · a cat asleep in its basket" },
+  { kind: "birdcage", name: "Birdcage", cost: 140, ambience: 2, blocks: true, text: "+2 ambience · a butter-yellow canary" },
   { kind: "record", name: "Record player", cost: 150, ambience: 3, blocks: true, text: "+3 ambience" },
+  { kind: "cakecase", name: "Cake display", cost: 160, ambience: 3, blocks: true, text: "+3 ambience" },
+  { kind: "sofa", name: "Lavender loveseat", cost: 180, ambience: 3, blocks: true, text: "+3 ambience" },
+  { kind: "clock", name: "Grandfather clock", cost: 200, ambience: 3, blocks: true, text: "+3 ambience · its pendulum swings" },
+  { kind: "arcade", name: "Arcade cabinet", cost: 220, ambience: 3, blocks: true, text: "+3 ambience" },
+  { kind: "aquarium", name: "Fish tank", cost: 240, ambience: 4, blocks: true, text: "+4 ambience" },
   { kind: "piano", name: "Upright piano", cost: 260, ambience: 4, blocks: true, text: "+4 ambience" },
   // RF exclusives: only from Rare Recipe Capsules. Each can be placed once, for free.
   { kind: "luckycat", name: "Lucky Cat", cost: 0, ambience: 3, blocks: true, text: "RF exclusive · waves in guests", tier: 0 },
@@ -140,6 +186,7 @@ export const EXCLUSIVES = CATALOG.filter(item => item.tier !== undefined);
 /** Beans given for a duplicate exclusive, by capsule tier. */
 export const DUPLICATE_BEANS = [40, 80, 160, 400] as const;
 export const catalogItem = (kind: ItemKind) => CATALOG.find(item => item.kind === kind)!;
+export const isRug = (kind: ItemKind) => !catalogItem(kind).blocks;
 export const START_TABLES = 3;
 /** Most tables allowed at a shop level (more room after expanding helps fit them). */
 export const tableLimit = (level: number) => Math.min(16, START_TABLES + level);
@@ -149,18 +196,30 @@ export type Finish = Readonly<{ id: string; name: string; cost: number; ambience
 export const WALLPAPERS: readonly Finish[] = [
   { id: "plain", name: "Plain plaster", cost: 0, ambience: 0, colors: ["#c3c0b8", "#d3d0c9"] },
   { id: "stripes", name: "Faded stripes", cost: 60, ambience: 1, colors: ["#cfc6c2", "#e0d8d3"] },
+  { id: "gingham", name: "Sage gingham", cost: 70, ambience: 1, colors: ["#c9d1c3", "#d8ded3"] },
   { id: "dots", name: "Polka dots", cost: 90, ambience: 1, colors: ["#c7ccc2", "#d9ddd4"] },
+  { id: "subway", name: "Subway tile", cost: 110, ambience: 1, colors: ["#d6d6d2", "#e4e4e0"] },
   { id: "brick", name: "White brick", cost: 140, ambience: 2, colors: ["#cdc8c0", "#dcd8d1"] },
+  { id: "floral", name: "Butter florals", cost: 150, ambience: 2, colors: ["#d8d2bd", "#e5dfcb"] },
   { id: "panel", name: "Wood panelling", cost: 180, ambience: 2, colors: ["#b8a690", "#c9b8a2"] },
+  { id: "chevron", name: "Lavender chevron", cost: 200, ambience: 2, colors: ["#c7c1d2", "#d6d1df"] },
   { id: "damask", name: "Dusty-blue damask", cost: 240, ambience: 3, colors: ["#b3bcc6", "#c4ccd4"] },
+  { id: "scallop", name: "Rose scallops", cost: 280, ambience: 3, colors: ["#d6c1bf", "#e3d2d0"] },
+  { id: "starry", name: "Starry night", cost: 340, ambience: 4, colors: ["#4e5566", "#5c6477"] },
 ];
 export const FLOORS: readonly Finish[] = [
   { id: "checker", name: "Grey checker", cost: 0, ambience: 0, colors: ["#dedbd3", "#cfccc4"] },
+  { id: "strawberry", name: "Strawberry checker", cost: 70, ambience: 1, colors: ["#e6d3d1", "#f3eee8"] },
   { id: "planks", name: "Oak planks", cost: 80, ambience: 1, colors: ["#d6c7b2", "#c9b9a2"] },
+  { id: "tatami", name: "Tatami mats", cost: 110, ambience: 1, colors: ["#d9d3a9", "#cfc79b"] },
   { id: "hex", name: "Sage hex tiles", cost: 120, ambience: 1, colors: ["#cdd5c6", "#bcc6b4"] },
+  { id: "slate", name: "Slate flagstones", cost: 140, ambience: 2, colors: ["#b9bbbb", "#a9abab"] },
   { id: "terrazzo", name: "Terrazzo", cost: 150, ambience: 2, colors: ["#e3e0da", "#d6d2cb"] },
+  { id: "parquet", name: "Parquet squares", cost: 170, ambience: 2, colors: ["#c9ae8c", "#b8997a"] },
   { id: "herringbone", name: "Herringbone", cost: 190, ambience: 2, colors: ["#cbb79d", "#b9a58b"] },
+  { id: "carpet", name: "Lavender carpet", cost: 210, ambience: 2, colors: ["#cbc3d6", "#c0b7cc"] },
   { id: "marble", name: "Rose marble", cost: 260, ambience: 3, colors: ["#e6dcda", "#d8cbc8"] },
+  { id: "mosaic", name: "Blue mosaic", cost: 300, ambience: 4, colors: ["#c3cdd8", "#dde3e9"] },
 ];
 /** Ambience points needed for ambience levels 1–5 (raises tips, patience and arrivals). */
 export const AMBIENCE_LEVELS = [2, 5, 9, 14, 20] as const;

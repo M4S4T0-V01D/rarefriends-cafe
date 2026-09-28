@@ -42,7 +42,7 @@ await testGame(game, {
     assert.equal(await attr(frame, "shop"), "seafood");
     const canvas = frame.locator("canvas[tabindex]");
     // Serve guests with the keyboard: table numbers take orders and fetch dishes, C picks up at the counter.
-    const deadline = Date.now() + 75_000;
+    const deadline = Date.now() + 200_000;
     let shotTaken = false;
     while (Date.now() < deadline && (await number(frame, "beans")) < 90) {
       await canvas.focus();

@@ -2,14 +2,15 @@
 
 import { useEffect, useRef } from "react";
 import {
-  CATALOG, FAMILY_NAMES, FLOORS, MAX_STAFF_SLOTS, SHOPS, STAFF_ROLES, WALLPAPERS, WORKER_LEVEL_XP, catalogItem, tableLimit, tierOf, workerLevel,
-  type DishShape, type Finish, type ItemKind, type ShopId,
+  MAX_STAT, WORKER_STATS, CATALOG, FAMILY_NAMES, FLOORS, MAX_STAFF_SLOTS, SHOPS, STAFF_ROLES, WALLPAPERS, WORKER_LEVEL_XP, catalogItem, tableLimit, tierOf, workerLevel,
+  type DishShape, type Finish, type ItemKind, type ShopId, type StatId,
 } from "./data.ts";
 import { TRACKS, type TrackId } from "./audio.ts";
 import type { Prefs } from "./engine.ts";
-import { generationOf, purchaseCost, purchaseLevel, staffAt, staffPower, tableCount, type CafeState, type StaffRole, type StaffWho } from "./engine.ts";
+import { generationOf, purchaseCost, purchaseLevel, staffAt, staffPower, statPoints, tableCount, type CafeState, type StaffRole, type StaffWho } from "./engine.ts";
 import type { GuestArt } from "./guests.ts";
 import { drawItem, drawShape, INK } from "./render.ts";
+import { BUILDINGS, key, planFor, type BuildingId, type Dir } from "./layout.ts";
 
 /** A small canvas showing a 16 × 16 one-bit Friend frame in the canonical black-with-white-halo style. */
 export function SpriteChip({ rows, size = 36, label }: { rows: readonly string[] | null; size?: number; label: string }) {
@@ -48,6 +49,44 @@ export function ShopPicker({ value, onChange }: { value: ShopId; onChange: (id: 
   </div>;
 }
 
+/** A small isometric floor plan: dining (paper), kitchen (grey), counter (ink), break room (lavender), walls and the door. */
+export function PlanPreview({ building, size }: { building: BuildingId; size: number }) {
+  const node = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const ctx = node.current?.getContext("2d");
+    if (!ctx) return;
+    const plan = planFor(size, { building }), half = 84 / (plan.w + plan.d + 2), top = 4;
+    ctx.clearRect(0, 0, 90, 52);
+    const colors = new Map<number, string>();
+    for (const tile of plan.kitchenFloor) colors.set(key(tile), "#cfccc5");
+    for (const tile of plan.stoves) colors.set(key(tile), "#8f8c86");
+    for (const tile of plan.counter) colors.set(key(tile), "#3b3a38");
+    for (const tile of plan.breakFloor) colors.set(key(tile), "#c6bed4");
+    for (const tile of plan.walls) colors.set(key(tile), tile.low ? "#9fae96" : "#6d6b67");
+    colors.set(key(plan.kitchenDoor), "#cfccc5"); colors.set(key(plan.door), "#d8b6b4"); colors.set(key(plan.pickup), "#e2d7ad");
+    for (let y = 0; y < plan.d; y++) for (let x = 0; x < plan.w; x++) {
+      const cx = 45 + (x - y) * half, cy = top + (x + y + 1) * half / 2;
+      ctx.fillStyle = colors.get(key({ x, y })) ?? "#f7f5f0";
+      ctx.beginPath(); ctx.moveTo(cx, cy - half / 2); ctx.lineTo(cx + half, cy); ctx.lineTo(cx, cy + half / 2); ctx.lineTo(cx - half, cy); ctx.closePath(); ctx.fill();
+    }
+    ctx.strokeStyle = INK; ctx.lineWidth = 1; ctx.beginPath();
+    ctx.moveTo(45, top); ctx.lineTo(45 + plan.w * half, top + plan.w * half / 2); ctx.lineTo(45 + (plan.w - plan.d) * half, top + (plan.w + plan.d) * half / 2);
+    ctx.lineTo(45 - plan.d * half, top + plan.d * half / 2); ctx.closePath(); ctx.stroke();
+  }, [building, size]);
+  return <canvas ref={node} className="cafe-plan" width={90} height={52} aria-hidden="true" />;
+}
+export function BuildingPicker({ value, size, onChange, disabled = false }: { value: BuildingId; size: number; onChange: (id: BuildingId) => void; disabled?: boolean }) {
+  return <div className="cafe-buildings" role="radiogroup" aria-label="Choose your building">
+    {BUILDINGS.map(building => {
+      const plan = planFor(size, { building: building.id });
+      return <button type="button" role="radio" key={building.id} aria-checked={value === building.id} disabled={disabled} onClick={() => onChange(building.id)}>
+        <PlanPreview building={building.id} size={size} />
+        <span><strong>{building.name}</strong> <small>{plan.w} × {plan.d}</small><small>{building.text}</small></span>
+      </button>;
+    })}
+  </div>;
+}
+
 export type StaffCandidate = { who: StaffWho; label: string; detail: string; rows: readonly string[] | null };
 export function staffCandidates(state: CafeState, guests: readonly GuestArt[], ownedRows: (id: number) => readonly string[] | null, ownedFamily: (id: number) => number | null): StaffCandidate[] {
   return [
@@ -61,10 +100,10 @@ export function staffCandidates(state: CafeState, guests: readonly GuestArt[], o
 }
 const sameWho = (a: StaffWho, b: StaffWho) => ("owned" in a && "owned" in b && a.owned === b.owned) || ("guest" in a && "guest" in b && a.guest === b.guest);
 
-export function StaffPanel({ state, candidates, picking, onPick, onAssign, onRole, onUnlock, onBreak, paused }: {
+export function StaffPanel({ state, candidates, picking, onPick, onAssign, onRole, onUnlock, onBreak, onStat, paused }: {
   state: CafeState; candidates: StaffCandidate[]; picking: number | null; paused: boolean;
   onPick: (slot: number | null) => void; onAssign: (slot: number, who: StaffWho | null) => void; onRole: (slot: number, role: StaffRole) => void;
-  onUnlock: () => void; onBreak: (workerId: number) => void;
+  onUnlock: () => void; onBreak: (workerId: number) => void; onStat: (slot: number, stat: StatId) => void;
 }) {
   const cost = purchaseCost(state, "slot"), level = purchaseLevel(state, "slot");
   const describe = (who: StaffWho) => candidates.find(candidate => sameWho(candidate.who, who));
@@ -86,6 +125,13 @@ export function StaffPanel({ state, candidates, picking, onPick, onAssign, onRol
           {STAFF_ROLES.map(role => <button type="button" role="radio" key={role.id} aria-checked={member.role === role.id} title={role.text} disabled={paused} onClick={() => onRole(slot, role.id)}>{role.name}</button>)}
           {(() => { const worker = state.workers.find(item => item.slot === slot); return worker && <button type="button" disabled={paused || worker.duty !== "work" || member.fatigue < 20} onClick={() => onBreak(worker.id)}>{worker.duty !== "work" ? "On break" : `Break · ${Math.round(100 - member.fatigue)}%`}</button>; })()}
           <button type="button" disabled={paused} onClick={() => onAssign(slot, null)}>Dismiss</button>
+        </div>}
+        {member && <div className="cafe-stats" role="group" aria-label={`Attributes for slot ${slot + 1}`}>
+          <small>{statPoints(member) > 0 ? `${statPoints(member)} point${statPoints(member) > 1 ? "s" : ""} to spend` : "1 point per worker level"}</small>
+          {WORKER_STATS.map(stat => <button type="button" key={stat.id} title={stat.text} disabled={paused || statPoints(member) <= 0 || member.stats[stat.id] >= MAX_STAT}
+            aria-label={`${stat.name} ${member.stats[stat.id]} of ${MAX_STAT}. ${stat.text}`} onClick={() => onStat(slot, stat.id)}>
+            {stat.name} <b aria-hidden="true">{"●".repeat(member.stats[stat.id])}{"○".repeat(MAX_STAT - member.stats[stat.id])}</b>{statPoints(member) > 0 && member.stats[stat.id] < MAX_STAT ? " +" : ""}
+          </button>)}
         </div>}
         {picking === slot && <div className="cafe-candidates">
           {candidates.map(candidate => {
@@ -118,7 +164,7 @@ export function ItemPreview({ kind, locked = false, statue, size = 64 }: { kind:
     ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, 96, 110);
     ctx.translate(48 - 480, 100 - 168);
     if (locked) ctx.filter = "brightness(0) opacity(.22)";
-    drawItem(ctx, kind, { x: 0, y: 0 }, 0, true, statue);
+    drawItem(ctx, kind, { x: 0, y: 0 }, 0, 0, true, statue);
     ctx.filter = "none";
   }, [kind, locked, statue]);
   return <canvas ref={node} className="cafe-preview" width={96} height={110} style={{ width: size, height: size * 110 / 96 }} aria-hidden="true" />;
@@ -144,10 +190,13 @@ export function MusicControls({ prefs, collected, onChange }: { prefs: Prefs; co
   </div>;
 }
 
-export type BuildTool = { tab: "items" | "walls" | "floors" | "music"; mode: "place" | "move" | "sell"; kind: ItemKind; dir: 0 | 1 };
-export function BuildBar({ state, tool, onTool, onFinish, onDone, message, onPrefs }: {
+export type BuildTool = { tab: "items" | "walls" | "floors" | "building" | "music"; mode: "place" | "move" | "sell"; kind: ItemKind; dir: Dir };
+/** Screen arrow and words for each facing, in R order (a quarter turn clockwise each). */
+export const DIR_LABELS = [["↙", "front-left"], ["↘", "front-right"], ["↗", "back-right"], ["↖", "back-left"]] as const;
+export const turned = (dir: Dir, by = 1) => ((dir + by + 4) % 4) as Dir;
+export function BuildBar({ state, tool, onTool, onFinish, onDone, message, onPrefs, onBuilding }: {
   state: CafeState; tool: BuildTool; onTool: (tool: BuildTool) => void; onFinish: (surface: "wallpaper" | "floor", id: string) => void; onDone: () => void; message: string;
-  onPrefs: (prefs: Prefs) => void;
+  onPrefs: (prefs: Prefs) => void; onBuilding: (id: BuildingId) => void;
 }) {
   const finishes = (surface: "wallpaper" | "floor", list: readonly Finish[]) => list.map(finish => {
     const owned = state.finishes.has(finish.id), active = state[surface] === finish.id;
@@ -159,7 +208,7 @@ export function BuildBar({ state, tool, onTool, onFinish, onDone, message, onPre
   return <div className="cafe-build" role="toolbar" aria-label="Build mode">
     <div className="cafe-build-head">
       <div className="cafe-tabs" role="tablist" aria-label="Build categories">
-        {(["items", "walls", "floors", "music"] as const).map(tab => <button type="button" role="tab" key={tab} aria-selected={tool.tab === tab} onClick={() => onTool({ ...tool, tab })}>{tab === "items" ? "Furniture" : tab === "walls" ? "Wallpaper" : tab === "floors" ? "Floor" : "Music"}</button>)}
+        {(["items", "walls", "floors", "building", "music"] as const).map(tab => <button type="button" role="tab" key={tab} aria-selected={tool.tab === tab} onClick={() => onTool({ ...tool, tab })}>{tab === "items" ? "Furniture" : tab === "walls" ? "Wallpaper" : tab === "floors" ? "Floor" : tab === "building" ? "Building" : "Music"}</button>)}
       </div>
       <span className="cafe-build-status" role="status">{message || `☕ ${state.beans} · tables ${tableCount(state)}/${tableLimit(state.level)}`}</span>
       <button type="button" className="rf-frame-primary" onClick={onDone}>Done</button>
@@ -168,11 +217,12 @@ export function BuildBar({ state, tool, onTool, onFinish, onDone, message, onPre
       {tool.tab === "items" ? <>
         {(["move", "sell"] as const).map(mode => <button type="button" key={mode} aria-pressed={tool.mode === mode} onClick={() => onTool({ ...tool, mode })}>
           <span>{mode === "move" ? "✥ Move" : "✕ Sell"}<small>{mode === "move" ? "tap item, then tile" : "50% refund"}</small></span></button>)}
-        <button type="button" onClick={() => onTool({ ...tool, dir: tool.dir ? 0 : 1 })} aria-label={`Rotate chair (R), now facing ${tool.dir ? "left" : "right"}`}><span>⟲ Rotate<small>R</small></span></button>
+        <button type="button" onClick={() => onTool({ ...tool, dir: turned(tool.dir) })} aria-label={`Rotate (R), now facing ${DIR_LABELS[tool.dir][1]}`}><span>⟳ Rotate {DIR_LABELS[tool.dir][0]}<small>R · Shift+R back</small></span></button>
         {CATALOG.filter(item => item.tier === undefined || (state.collection.has(item.kind) && !state.items.some(placed => placed.kind === item.kind))).map(item =>
           <button type="button" key={item.kind} aria-pressed={tool.mode === "place" && tool.kind === item.kind} disabled={state.beans < item.cost} className={item.tier !== undefined ? "cafe-exclusive" : undefined}
             onClick={() => onTool({ ...tool, mode: "place", kind: item.kind })}><span>{item.name}<small>{item.tier !== undefined ? "RF exclusive · free" : `☕ ${item.cost}`}{item.ambience ? ` · +${item.ambience}` : ""}</small></span></button>)}
       </> : tool.tab === "walls" ? finishes("wallpaper", WALLPAPERS) : tool.tab === "floors" ? finishes("floor", FLOORS)
+        : tool.tab === "building" ? <BuildingPicker value={state.building} size={state.size} onChange={onBuilding} disabled={state.phase === "open"} />
         : <MusicControls prefs={state.prefs} collected={state.collection} onChange={onPrefs} />}
     </div>
   </div>;

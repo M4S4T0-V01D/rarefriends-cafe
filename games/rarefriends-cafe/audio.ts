@@ -4,9 +4,12 @@
  */
 import type { ShopId } from "./data.ts";
 
-export type TrackId = "latte" | "rain" | "stroll" | "bossa" | "neon" | "moon";
+export type TrackId = "latte" | "rain" | "stroll" | "bossa" | "neon" | "moon"
+  | "pourover" | "sugar" | "tidepool" | "pastry" | "lantern" | "rooftop" | "cranes" | "nightbus" | "samba" | "lastorder";
 type Chord = readonly number[];
-export type Track = Readonly<{ id: TrackId; name: string; mood: string; bpm: number; swing: boolean; bossa?: boolean; chords: readonly Chord[]; unlock?: string }>;
+/** Swing (the default) walks the bass and comps; bossa plays a dotted bass; waltz is jazz in 3/4; lofi is a lazy boom-bap groove. */
+export type TrackStyle = "swing" | "bossa" | "waltz" | "lofi";
+export type Track = Readonly<{ id: TrackId; name: string; mood: string; bpm: number; swing: boolean; style?: TrackStyle; chords: readonly Chord[]; unlock?: string }>;
 
 const Q: Record<string, readonly number[]> = {
   maj7: [0, 4, 7, 11], maj9: [0, 4, 7, 11, 14], m7: [0, 3, 7, 10], m9: [0, 3, 7, 10, 14], dom7: [0, 4, 7, 10], dom13: [0, 4, 10, 14, 21],
@@ -22,9 +25,21 @@ export const TRACKS: readonly Track[] = [
   { id: "latte", name: "Café au Lait", mood: "Warm mid-tempo swing", bpm: 92, swing: true, chords: ["Fmaj7", "Dm7", "Gm7", "Cdom7"].map(chord) },
   { id: "rain", name: "Rainy Window", mood: "Slow, minor and cosy", bpm: 70, swing: true, chords: ["Dm9", "Bbmaj7", "Gm9", "Adom7b9"].map(chord) },
   { id: "stroll", name: "Sunday Stroll", mood: "Bright walking swing", bpm: 108, swing: true, chords: ["Cmaj7", "Adom7", "Dm7", "Gdom7", "Em7", "Adom7", "Dm7", "Gdom13"].map(chord) },
-  { id: "bossa", name: "Street Bossa", mood: "Straight-eighths bossa nova", bpm: 128, swing: false, bossa: true, chords: ["Am9", "Ddom13", "Gmaj7", "Cmaj7", "Gbm7b5", "Bdom7b9", "Em9", "Em9"].map(chord) },
+  { id: "bossa", name: "Street Bossa", mood: "Straight-eighths bossa nova", bpm: 128, swing: false, style: "bossa", chords: ["Am9", "Ddom13", "Gmaj7", "Cmaj7", "Gbm7b5", "Bdom7b9", "Em9", "Em9"].map(chord) },
   { id: "neon", name: "Neon Nights", mood: "Late-night lounge (Chrome Jukebox)", bpm: 96, swing: true, chords: ["Ebmaj7", "Cm7", "Fm7", "Bbdom7"].map(chord), unlock: "jukebox" },
   { id: "moon", name: "Midnight Moon", mood: "Dreamy ballad (Moon Telescope)", bpm: 62, swing: true, chords: ["Abmaj9", "Dbdom13", "Gbmaj7", "Fm9", "Bbm7", "Ebdom13", "Absix9", "Absix9"].map(chord), unlock: "telescope" },
+  { id: "pourover", name: "Morning Pour-Over", mood: "Lo-fi beat, soft and sleepy", bpm: 78, swing: true, style: "lofi", chords: ["Fmaj9", "Em7", "Dm9", "Cmaj7"].map(chord) },
+  { id: "sugar", name: "Sugar Waltz", mood: "Lilting jazz waltz", bpm: 138, swing: true, style: "waltz", chords: ["Bbmaj7", "Gm7", "Cm7", "Fdom7"].map(chord) },
+  { id: "tidepool", name: "Tide Pool", mood: "Breezy seaside bossa", bpm: 118, swing: false, style: "bossa", chords: ["Dmaj9", "Bm7", "Em9", "Adom13"].map(chord) },
+  { id: "pastry", name: "Pastry Case Blues", mood: "Twelve-bar blues shuffle", bpm: 100, swing: true,
+    chords: ["Fdom7", "Bbdom7", "Fdom7", "Fdom7", "Bbdom7", "Bbdom7", "Fdom7", "Ddom7b9", "Gm7", "Cdom7", "Fdom7", "Cdom7"].map(chord) },
+  { id: "lantern", name: "Lantern Glow", mood: "Lo-fi beat under paper lanterns", bpm: 72, swing: true, style: "lofi", chords: ["Abmaj7", "Gm7", "Fm9", "Ebsix9"].map(chord) },
+  { id: "rooftop", name: "Rooftop Bounce", mood: "Up-tempo bebop swing", bpm: 150, swing: true, chords: ["Bbmaj7", "Gm7", "Cm7", "Fdom7", "Dm7", "Gdom7", "Cm7", "Fdom7"].map(chord) },
+  { id: "cranes", name: "Paper Cranes", mood: "Gentle, drifting waltz", bpm: 108, swing: true, style: "waltz", chords: ["Emaj7", "Dbm7", "Gbm7", "Bdom13"].map(chord) },
+  { id: "nightbus", name: "Night Bus Home", mood: "Minor lo-fi, rain on the glass", bpm: 84, swing: true, style: "lofi", chords: ["Cm9", "Abmaj7", "Ebmaj7", "Bbdom13"].map(chord) },
+  { id: "samba", name: "Samba de Café", mood: "Quick, bright bossa", bpm: 140, swing: false, style: "bossa", chords: ["Cmaj7", "Adom7b9", "Dm9", "Gdom13"].map(chord) },
+  { id: "lastorder", name: "Last Order", mood: "Slow closing-time ballad", bpm: 58, swing: true,
+    chords: ["Dbmaj9", "Bbm9", "Ebm7", "Abdom13", "Fm7", "Bbdom7b9", "Ebm9", "Abdom13"].map(chord) },
 ];
 
 const hz = (midi: number) => 440 * 2 ** ((midi - 69) / 12);
@@ -143,10 +158,11 @@ export class CafeAudio {
     }
   }
   private play(track: Track, step: number, t: number, eighth: number) {
-    const bar = Math.floor(step / 8), inBar = step % 8, beat = Math.floor(inBar / 2), onBeat = inBar % 2 === 0;
+    const perBar = track.style === "waltz" ? 6 : 8;
+    const bar = Math.floor(step / perBar), inBar = step % perBar, beat = Math.floor(inBar / 2), onBeat = inBar % 2 === 0;
     const current = track.chords[bar % track.chords.length], next = track.chords[(bar + 1) % track.chords.length];
     const root = current[0], tones = current.slice(1);
-    if (track.bossa) {
+    if (track.style === "bossa") {
       // Bossa: root and fifth on a dotted rhythm, syncopated comping, rim clave and a soft shaker.
       if (inBar === 0) this.bass(root, t, eighth * 2.6);
       if (inBar === 3) this.bass(root + 7, t, eighth * 0.9);
@@ -156,6 +172,22 @@ export class CafeAudio {
       if ([0, 3, 6, 10, 12].includes(step % 16)) this.hiss(t, 0.03, 2500, 0.1, this.musicBus, "bandpass", 4);
       this.hiss(t, 0.05, 7000, 0.03, this.musicBus);
       if (inBar === 0 && bar % 2 === 0) this.kick(t);
+    } else if (track.style === "waltz") {
+      // Jazz waltz: bass on one (and a fifth on three), ride on every beat, comping on two and three.
+      if (onBeat) {
+        if (beat === 0) { this.bass(root + (root < 40 ? 12 : 0), t, eighth * 3); if (Math.random() < 0.7) this.kick(t); }
+        if (beat === 2) this.bass(root + 7, t, eighth * 1.7);
+        this.hiss(t, 0.18, 6500, beat === 0 ? 0.05 : 0.035, this.musicBus);
+        if (beat > 0 && Math.random() < 0.8) tones.forEach(interval => this.epiano(root + 24 + interval, t, eighth * 1.5, 0.6, this.musicBus));
+      } else if (beat === 1) this.hiss(t, 0.07, 6500, 0.03, this.musicBus);
+    } else if (track.style === "lofi") {
+      // Lo-fi: a held chord per bar, a lazy kick and snare, quiet hats and a little vinyl crackle.
+      if (inBar === 0) { tones.forEach(interval => this.epiano(root + 24 + interval, t, eighth * 7, 0.55, this.musicBus)); this.bass(root + 12, t, eighth * 5); }
+      if (inBar === 6) this.bass(next[0] + 12, t, eighth * 1.8);
+      if (inBar === 0 || inBar === 5 || (inBar === 3 && bar % 2 === 1)) this.kick(t);
+      if (inBar === 2 || inBar === 6) this.hiss(t, 0.16, 1500, 0.09, this.musicBus, "bandpass", 0.8);
+      this.hiss(t, 0.025, 8000, onBeat ? 0.035 : 0.02, this.musicBus);
+      if (Math.random() < 0.3) this.hiss(t + Math.random() * eighth, 0.008, 3000, 0.025, this.musicBus);
     } else {
       // Swing: walking bass, ride cymbal "ding, ding-da", brushes on 2 and 4, soft comping.
       if (onBeat) {

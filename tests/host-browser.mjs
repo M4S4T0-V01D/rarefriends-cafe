@@ -93,7 +93,7 @@ try {
   await page.waitForTimeout(6000);
   await page.locator(".rf-game-frame").screenshot({ path: "./artifacts/host-playing.png" });
   // Let the day run to closing; the summary shows the day card and shares through the host.
-  await game.getByRole("heading", { name: "Day 1 closed" }).waitFor({ timeout: 240_000 });
+  await game.getByRole("heading", { name: "Day 1 closed" }).waitFor({ timeout: 420_000 });
   await game.getByRole("img", { name: /Day 1 report card for Flour Moon/ }).waitFor();
   await game.getByRole("button", { name: "Post to X", exact: true }).click();
   await game.getByText(/Picture copied and X opened/).waitFor();

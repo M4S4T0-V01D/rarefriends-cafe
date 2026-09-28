@@ -51,6 +51,7 @@
 .cafe-row small { display: block; margin-top: 2px; color: var(--muted); font-size: 11px; }
 .cafe-row em { font-style: normal; font-size: 11px; padding: 3px 8px; background: var(--sage); border: 1px solid var(--ink); white-space: nowrap; }
 .cafe-row button { white-space: nowrap; }
+.cafe-row .cafe-pips { display: inline; margin-left: 6px; letter-spacing: 1px; }
 .cafe-odds { width: 100%; border-collapse: collapse; margin: 6px 0 10px; font-size: 11px; text-align: left; }
 .cafe-odds th, .cafe-odds td { padding: 5px 4px; border-bottom: 1px solid #cfccc4; vertical-align: top; }
 .cafe-odds th { border-bottom: 1.5px solid var(--ink); }
@@ -96,6 +97,15 @@
 .cafe-shops button { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; padding: 8px; box-shadow: 2px 2px 0 var(--ink); border-left: 6px solid var(--shop, var(--rose)); }
 .cafe-shops button[aria-checked="true"] { background: #fff; outline: 2px solid var(--ink); outline-offset: 1px; }
 .cafe-shops small { color: var(--muted); font-size: 11px; }
+.cafe-buildings { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px; margin: 4px 0 12px; }
+.cafe-buildings button { display: flex; align-items: center; gap: 8px; text-align: left; padding: 6px 8px; box-shadow: 2px 2px 0 var(--ink); }
+.cafe-buildings button[aria-checked="true"] { background: #fff; outline: 2px solid var(--ink); outline-offset: 1px; }
+.cafe-buildings small { display: block; color: var(--muted); font-size: 10px; }
+.cafe-buildings strong + small { display: inline; }
+.cafe-plan { flex: none; width: 90px; height: 52px; }
+.cafe-build-row .cafe-buildings { display: flex; margin: 0; }
+.cafe-build-row .cafe-buildings button { flex: none; width: 250px; }
+@media (max-width: 640px) { .cafe-buildings { grid-template-columns: 1fr; gap: 4px; } .cafe-buildings small { font-size: 8px; } .cafe-plan { width: 60px; height: 35px; } .cafe-build-row .cafe-buildings button { width: 190px; } }
 .cafe-dishes { width: 120px; height: 40px; }
 
 /* Staff */
@@ -188,3 +198,12 @@
 @media (prefers-reduced-motion: reduce) { .cafe-machine[data-spin="true"] .crank, .cafe-machine[data-spin="true"] .dome i { animation: none; } }
 .cafe-build-row .cafe-music { flex: none; }
 .cafe-build-row .cafe-music-levels { flex: none; flex-wrap: nowrap; white-space: nowrap; }
+/* Sixteen tracks: volume and toggles lead the build-bar row; elsewhere the list scrolls. */
+.cafe-build-row .cafe-music-levels { order: -1; }
+.cafe-music-tracks { max-height: 230px; overflow-y: auto; }
+.cafe-build-row .cafe-music-tracks { max-height: none; overflow: visible; }
+.cafe-subhead { margin: 10px 0 2px; font-size: 13px; }
+.cafe-stats { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin: 4px 0 2px; }
+.cafe-stats small { flex-basis: 100%; color: var(--muted); font-size: 10px; }
+.cafe-stats button { box-shadow: none; padding: 2px 7px; font-size: 11px; }
+.cafe-stats b { font-weight: normal; letter-spacing: 1px; }

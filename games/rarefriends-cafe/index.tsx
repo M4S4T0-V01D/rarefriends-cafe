@@ -8,17 +8,17 @@ import { expectedReward, maximumPrize, type GamePlay, type GameSnapshot } from "
 import { createFriendReader, type GenerationSprites } from "@rarefriends/friendsdk/sprites";
 import { createFriendSoundKit, type FriendSoundCue, type FriendSoundKit } from "@rarefriends/friendsdk/sounds";
 import {
-  BLEND_BONUSES, DAY_LENGTH, EXCLUSIVES, FAMILY_NAMES, workerLevel, type ItemKind, FAMILY_PERKS, LEVEL_XP, MAX_LEVEL, catalogItem, shopById, tableLimit, type DishId, type ShopId,
+  UPGRADES, upgradeById, type UpgradeId, BLEND_BONUSES, DAY_LENGTH, EXCLUSIVES, FAMILY_NAMES, workerLevel, type ItemKind, FAMILY_PERKS, LEVEL_XP, MAX_LEVEL, catalogItem, shopById, tableLimit, type DishId, type ShopId,
 } from "./data.ts";
 import {
   actOnCounter, actOnCustomer, actOnTable, ambience, ambiencePoints, applyFinish, assignStaff, availableDishes, buy, carryCapacity, chooseShop,
-  clearQueue, createCafe, dayProgress, interactNearby, isClosing, itemAt, kitchenSlots, manager, moveItem, openCafe, placeItem, purchaseCost,
+  CAPSULE_ID, raiseStat, setBuilding, buyUpgrade, capsuleProblemAt, moveCapsule, nextUpgrade, upgradeLevel, clearQueue, createCafe, dayProgress, interactNearby, isClosing, itemAt, kitchenSlots, manager, moveItem, openCafe, placeItem, purchaseCost,
   purchaseLevel, restoreCafe, sellItem, serializeCafe, setBlends, setManual, setOwnedFriends, setStaffRole, unlockDish, update, walkTo, type CafeState,
   memberOf, mostTired, plan, sendToBreak, collectFromCapsule, type Prefs,
 } from "./engine.ts";
 import { createGuests } from "./guests.ts";
-import { placementProblem, type Tile } from "./layout.ts";
-import { BuildBar, ItemPreview, MusicControls, ShopPicker, SpriteChip, StaffPanel, staffCandidates, toolLabel, type BuildTool } from "./panels.tsx";
+import { buildingById, placementProblem, type Tile } from "./layout.ts";
+import { BuildBar, BuildingPicker, ItemPreview, MusicControls, ShopPicker, SpriteChip, StaffPanel, staffCandidates, toolLabel, turned, type BuildTool } from "./panels.tsx";
 import { REGULAR_SPRITES } from "./regulars.ts";
 import { VIEW, friendRows, hitTest, renderScene, tileAt, type BuildView, type Floater } from "./render.ts";
 import { HOST_HELLO, HOST_STATE, SAVE_WRITE, SHARE_REQUEST, SHARE_RESULT, parseStaffRoster, type ShareAction, type ShareOutcome } from "./roster.ts";
@@ -176,7 +176,7 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
           else if (event.kind === "arrive") audio.current?.doorbell();
           else if (event.kind === "levelup") { setToast(`Level ${event.level}! New dishes, tables, staff slots or an expansion may be available.`); audio.current?.levelUp(); }
           else if (event.kind === "tired") { setToast(`Slot ${event.slot + 1} is tired. Tap them (or press T) to send them to the break room.`); audio.current?.tired(event.slot); }
-          else if (event.kind === "workerLevel") { setToast(`Staff slot ${event.slot + 1} reached worker level ${event.level}!`); audio.current?.workerLevel(); }
+          else if (event.kind === "workerLevel") { setToast(`Staff slot ${event.slot + 1} reached worker level ${event.level}! A new attribute point is ready in Staff.`); audio.current?.workerLevel(); }
           else if (event.kind === "rested") { setToast(`Slot ${event.slot + 1} is rested and back at work.`); audio.current?.rested(event.slot); }
           else if (event.kind === "dayEnd") { audio.current?.closing(); saveNow(); }
         }
@@ -219,13 +219,17 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
     const state = cafe.current;
     if (!state || !build) { buildView.current = null; return; }
     const moving = build.mode === "move" && build.selected !== null ? state.items.find(item => item.id === build.selected) : null;
-    let ghost: BuildView["ghost"] = null, valid = false;
+    let ghost: BuildView["ghost"] = null, valid = false, capsule: BuildView["capsule"] = null;
+    if (build.cursor && build.tab === "items" && build.mode === "move" && build.selected === CAPSULE_ID) {
+      capsule = { x: build.cursor.x, y: build.cursor.y, dir: build.dir };
+      valid = !capsuleProblemAt(state, build.cursor, build.dir);
+    }
     if (build.cursor && build.tab === "items" && (build.mode === "place" || moving)) {
       const kind = moving ? moving.kind : build.kind;
       ghost = { kind, x: build.cursor.x, y: build.cursor.y, dir: build.dir };
       valid = !placementProblem(state.items, ghost, plan(state), moving?.id) && (Boolean(moving) || state.beans >= catalogItem(kind).cost);
     }
-    buildView.current = { cursor: build.cursor, ghost, valid, selected: build.selected };
+    buildView.current = { cursor: build.cursor, ghost, valid, selected: build.selected, capsule };
   }, [build, hud?.beans]);
 
   const blocked = paused || menu !== null || reveal !== null || !hud || (hud.phase !== "open" && !build);
@@ -244,11 +248,16 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
       problem = item ? sellItem(state, item.id) : "Nothing to sell there.";
       done = item ? `Sold for ☕ ${Math.floor(catalogItem(item.kind).cost / 2)}.` : "";
     } else if (build.selected === null) {
+      const machine = plan(state);
+      if (tile.x === machine.capsule.x && tile.y === machine.capsule.y) {
+        setBuild({ ...build, selected: CAPSULE_ID, dir: machine.capsuleDir, cursor: tile });
+        setBuildMessage("Moving the capsule machine: tap a tile. R turns the side you use it from."); return;
+      }
       const item = itemAt(state, tile);
       if (!item) problem = "Tap an item to move it.";
       else { setBuild({ ...build, selected: item.id, dir: item.dir, cursor: tile }); setBuildMessage(`Moving ${catalogItem(item.kind).name}: tap a new tile.`); return; }
     } else {
-      problem = moveItem(state, build.selected, tile, build.dir); done = "Moved.";
+      problem = build.selected === CAPSULE_ID ? moveCapsule(state, tile, build.dir) : moveItem(state, build.selected, tile, build.dir); done = "Moved.";
       if (!problem) { setBuild({ ...build, selected: null, cursor: tile }); setBuildMessage(done); audio.current?.place(); setHud(readHud(state)); return; }
     }
     setBuildMessage(problem ?? done); if (!problem) { if (build.mode === "sell") audio.current?.sell(); else audio.current?.place(); }
@@ -316,9 +325,9 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
     const key = event.key.toLowerCase();
     if (build) {
       const cursor = build.cursor ?? { x: 5, y: 5 };
-      if (DIRECTIONS[key]) { event.preventDefault(); const { dx, dy } = DIRECTIONS[key]; setBuild({ ...build, cursor: { x: Math.max(0, Math.min(10, cursor.x + dx)), y: Math.max(0, Math.min(10, cursor.y + dy)) } }); }
+      if (DIRECTIONS[key]) { event.preventDefault(); const { dx, dy } = DIRECTIONS[key]; setBuild({ ...build, cursor: { x: Math.max(0, Math.min(plan(state).w - 1, cursor.x + dx)), y: Math.max(0, Math.min(plan(state).d - 1, cursor.y + dy)) } }); }
       else if (key === "enter" || key === " " || key === "e") { event.preventDefault(); buildAt(cursor); }
-      else if (key === "r") { event.preventDefault(); setBuild({ ...build, dir: build.dir ? 0 : 1 }); }
+      else if (key === "r") { event.preventDefault(); setBuild({ ...build, dir: turned(build.dir, event.shiftKey ? -1 : 1) }); }
       else if (key === "delete" || key === "backspace") { event.preventDefault(); const item = itemAt(state, cursor); setBuildMessage(item ? sellItem(state, item.id) ?? "Sold." : "Nothing to sell there."); refresh(); }
       else if (key === "escape") { event.preventDefault(); if (build.selected !== null) setBuild({ ...build, selected: null }); else exitBuild(); }
       return;
@@ -358,6 +367,13 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
     if (!state || paused) return;
     const problem = buy(state, item);
     if (problem) setError(problem); else { setError(""); cue("purchase"); say(item === "slot" ? "New staff slot unlocked. Choose a Friend for it." : item === "expand" ? "The shop grew by 2 × 2. More room to build!" : "Kitchen upgraded."); }
+    setHud(readHud(state)); refresh();
+  }
+  function upgradeShop(id: UpgradeId) {
+    const state = cafe.current;
+    if (!state || paused) return;
+    const problem = buyUpgrade(state, id);
+    if (problem) setError(problem); else { setError(""); cue("purchase"); say(`${upgradeById(id).name} upgraded.`); }
     setHud(readHud(state)); refresh();
   }
   function unlock(id: DishId) {
@@ -489,6 +505,7 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
         </div>
         {build && state && <BuildBar state={state} tool={build} message={buildMessage || toolLabel(build)} onDone={exitBuild} onPrefs={changePrefs}
           onTool={next => { setBuild({ ...build, ...next, selected: next.mode === "move" ? build.selected : null }); setBuildMessage(next.tab === "items" ? toolLabel(next) : ""); }}
+          onBuilding={id => { const problem = setBuilding(state, id); setBuildMessage(problem ?? `Moved into the ${buildingById(id).name.toLowerCase()}.`); if (!problem) cue("purchase"); setBuild({ ...build, selected: null, cursor: null }); setHud(readHud(state)); refresh(); }}
           onFinish={(surface, id) => { const problem = applyFinish(state, surface, id); setBuildMessage(problem ?? `${surface === "wallpaper" ? "Wallpaper" : "Floor"} applied.`); if (!problem) cue("purchase"); setHud(readHud(state)); refresh(); }} />}
         {hud.phase === "open" && !build && <div className="cafe-footer">
           <p role="status" aria-live="polite">{toast || (hud.queue ? `${hud.queue} task${hud.queue > 1 ? "s" : ""} queued${hud.carrying ? ` · carrying ${hud.carrying}` : ""}` : hud.carrying ? `Carrying ${hud.carrying} dish${hud.carrying > 1 ? "es" : ""}` : "Tap a guest to take an order · tap the counter when a dish is ready")}</p>
@@ -519,6 +536,8 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
         <li>Earn <strong>Beans</strong> for dishes, staff slots and upgrades. Press <strong>Build</strong> to place tables and décor on the tiles, and to pick wallpaper and floors.</li>
         <li>Fill staff slots with <strong>Friends you own</strong> or guest Friends. Rare Recipe Capsules (simulated RF) unlock specials.</li>
       </ol>
+      <h3 className="cafe-subhead">Your building</h3>
+      <BuildingPicker value={state.building} size={state.size} onChange={id => { setBuilding(state, id); cue("select"); refresh(); }} />
       <button type="button" className="rf-frame-primary" disabled={paused} onClick={startDay}>Open {shop.name}</button>
       <button type="button" disabled={paused} onClick={enterBuild}>Arrange first</button>
       <button type="button" disabled={paused} onClick={() => { setTab("staff"); openMenu("upgrades"); }}>Staff & upgrades</button>
@@ -572,15 +591,24 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
         </div>
         <p className="cafe-note">{kitchenSlots(state)} dish{kitchenSlots(state) > 1 ? "es" : ""} cook at once (1 + chefs). You carry {carryCapacity(state, manager(state))}. Ambience {ambience(state)}/5 ({ambiencePoints(state)} points from décor, wallpaper and floor) raises tips, patience and arrivals. Up to {tableLimit(state.level)} tables at level {state.level}.</p>
         <div className="cafe-row">
-          <span><strong>{purchaseCost(state, "expand") === null ? `Shop size ${state.size} × ${state.size}` : `Expand to ${state.size + 2} × ${state.size + 2}`}</strong>
-            <small>{purchaseCost(state, "expand") === null ? "Fully expanded." : `Now ${state.size} × ${state.size}. Adds 2 tiles each way: more dining room, a longer kitchen counter. Between days only.`}</small></span>
+          <span><strong>{purchaseCost(state, "expand") === null ? `Shop size ${plan(state).w} × ${plan(state).d}` : `Expand to ${plan(state).w + 2} × ${plan(state).d + 2}`}</strong>
+            <small>{purchaseCost(state, "expand") === null ? "Fully expanded." : `Now ${plan(state).w} × ${plan(state).d}. Adds 2 tiles each way: more dining room, a longer kitchen counter. Between days only.`}</small></span>
           {purchaseCost(state, "expand") === null ? <em>Maxed</em> : <button type="button" disabled={paused || state.phase === "open" || state.level < purchaseLevel(state, "expand") || state.beans < purchaseCost(state, "expand")!} onClick={() => purchase("expand")}>{state.level < purchaseLevel(state, "expand") ? `Lv ${purchaseLevel(state, "expand")}` : `☕ ${purchaseCost(state, "expand")}`}</button>}
         </div>
+        {UPGRADES.map(upgrade => {
+          const owned = upgradeLevel(state, upgrade.id), next = nextUpgrade(state, upgrade.id);
+          return <div className="cafe-row" key={upgrade.id}>
+            <span><strong>{upgrade.name} {owned ? `Lv ${owned}` : ""}<small className="cafe-pips" aria-label={`${owned} of ${upgrade.costs.length}`}>{"●".repeat(owned)}{"○".repeat(upgrade.costs.length - owned)}</small></strong>
+              <small>{upgrade.text}</small></span>
+            {!next ? <em>Maxed</em> : <button type="button" disabled={paused || state.level < next.level || state.beans < next.cost} onClick={() => upgradeShop(upgrade.id)}>{state.level < next.level ? `Lv ${next.level}` : `☕ ${next.cost}`}</button>}
+          </div>;
+        })}
         <button type="button" disabled={paused} onClick={enterBuild}>Open build mode</button>
       </> : <StaffPanel state={state} candidates={candidates} picking={picking} paused={paused} onPick={setPicking} onUnlock={() => purchase("slot")}
         onAssign={(slot, who) => { const problem = assignStaff(state, slot, who, "waiter"); setError(problem ?? ""); if (!problem) { cue("select"); setPicking(null); } refresh(); }}
         onRole={(slot, role) => { setStaffRole(state, slot, role); cue("select"); refresh(); }}
-        onBreak={id => { say(sendToBreak(state, id)); cue("select"); refresh(); }} />}
+        onBreak={id => { say(sendToBreak(state, id)); cue("select"); refresh(); }}
+        onStat={(slot, stat) => { const problem = raiseStat(state, slot, stat); setError(problem ?? ""); if (!problem) cue("purchase"); refresh(); }} />}
       {error && <p role="alert">{error}</p>}
       {tab === "staff" && purchaseLevel(state, "slot") > state.level && <p className="cafe-note">Next staff slot at level {purchaseLevel(state, "slot")}.</p>}
     </GameMenu>}
@@ -670,7 +698,7 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
         <li><strong>Tap the floor</strong>: walk. Tap the capsule machine for Rare Recipe Capsules.</li>
         <li><strong>WASD / arrows</strong>: walk · <strong>E / Space</strong>: act nearby · <strong>1–9, 0</strong>: act on that table · <strong>C</strong>: pick up · <strong>X</strong>: clear tasks.</li>
         <li><strong>Tap a tired staff Friend</strong> (zzz bubble) or press <strong>T</strong> to send them to the break room for 15–30 s.</li>
-        <li><strong>Build (B)</strong>: tap tiles to place tables and décor. <strong>Move</strong>: tap an item, then a tile. <strong>Sell</strong>: 50% back. <strong>R</strong> rotates a chair; arrows + Enter work too; <strong>Esc</strong> finishes.</li>
+        <li><strong>Build (B)</strong>: tap tiles to place tables and décor. <strong>Move</strong>: tap an item (or the capsule machine), then a tile. <strong>Sell</strong>: 50% back. <strong>R</strong> turns any item a quarter (Shift+R back), tables and chairs included; arrows + Enter work too; <strong>Esc</strong> finishes.</li>
       </ul>
       <p>Tasks queue up (numbered markers), so you can tap several guests in a row. Guests leave unhappy if their patience bar runs out. A day lasts {Math.round(DAY_LENGTH / 60 * 10) / 10} minutes; the shop pauses while a menu or build mode is open.</p>
       <button type="button" onClick={closeMenu}>Back to the shop</button>
