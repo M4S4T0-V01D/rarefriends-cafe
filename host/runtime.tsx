@@ -18,7 +18,10 @@ import { createRoot } from "react-dom/client";
 import { GameHost } from "@rarefriends/friendsdk/runtime";
 import { parseChanceGame } from "@rarefriends/friendsdk/game";
 import { readOwnedFriends } from "@rarefriends/friendsdk/owned";
-import { createFriendPublicClient, createFriendWalletSession } from "@rarefriends/friendsdk/wallet";
+import { createFriendWalletSession } from "@rarefriends/friendsdk/wallet";
+import { GENERATION_SPRITE_MANIFEST } from "@rarefriends/friendsdk/sprites";
+import { createClient, http } from "viem";
+import { getBlockNumber, getChainId, getLogs, readContract } from "viem/actions";
 import {
   HOST_HELLO, HOST_STATE, SAVE_WRITE, SHARE_REQUEST, SHARE_RESULT, type ShareAction, type ShareOutcome,
 } from "../games/rarefriends-cafe/roster.ts";
@@ -67,9 +70,23 @@ async function share(action: ShareAction, text: string, image: Blob, filename: s
   return copied ? "copied-and-opened" : "saved-and-opened";
 }
 
+/**
+ * A read-only RPC client with just the four reads roster discovery needs, like the SDK's own preview client, so the
+ * page carries no transaction-sending actions (FriendSDK v0.1.4 preview builds).
+ */
+function createRosterClient(): Parameters<typeof readOwnedFriends>[0] {
+  const client = createClient({ transport: http(GENERATION_SPRITE_MANIFEST.rpcUrl), cacheTime: 0, pollingInterval: 1_000 });
+  return {
+    getBlockNumber: parameters => getBlockNumber(client, parameters),
+    getChainId: () => getChainId(client),
+    getLogs: parameters => getLogs(client, parameters),
+    readContract: parameters => readContract(client, parameters),
+  } as Parameters<typeof readOwnedFriends>[0];
+}
+
 function CafeHost() {
   useEffect(() => {
-    const session = createFriendWalletSession(), client = createFriendPublicClient();
+    const session = createFriendWalletSession(), client = createRosterClient();
     let account: string | null = null, controller: AbortController | null = null, roster: string[] | null = null;
     const frames = () => [...document.querySelectorAll("iframe")].flatMap(frame => frame.contentWindow ? [frame.contentWindow] : []);
     // Nothing is sent until this wallet's roster is known, so the game can match it to its verified manager; the save

@@ -22,7 +22,7 @@
 | --- | --- |
 | **Builder** | M4S4T0 · [@M4S4T0-V01D](https://github.com/M4S4T0-V01D) |
 | **Category** | Character Spotlight (primary) · Economy Potential · Token Activity |
-| **Stack** | [FriendSDK v0.1.3](https://github.com/spokesz/friendsdk/tree/v0.1.3) · React 19 · Canvas 2D · WebAudio · TypeScript |
+| **Stack** | [FriendSDK v0.1.4](https://github.com/spokesz/friendsdk/tree/v0.1.4) · React 19 · Canvas 2D · WebAudio · TypeScript |
 | **Economy** | Simulated. Capsules use the SDK's preview RF ledger; no contracts or transactions. |
 | **Wallet / network** | Browser wallet on **Robinhood mainnet (chain 4663)** holding a hardwired Generations NFT (generation ≥ 1) |
 
@@ -72,11 +72,11 @@ manager in gold.
 - **RF sink:** a Rare Capsule costs 1 RF and returns 0.88 RF in expected value. 12% of each purchase stays with the game as prize stake. Buying ×5 is supported.
 - **Keep or redeem:** recipes keep a fixed RF value with no expiry, but only boost your shop while you keep them. This fits the SDK's backing model: each capsule reserves 5 RF.
 - **Collectibles:** every capsule also grants one of 8 RF-exclusive items. They add ambience, and the Jukebox and Telescope unlock music tracks. They are saved with your shop and carry no RF value, so they need no prize reserve. Duplicates turn into Beans.
-- **RF boosts and sceneries, paid with capsules:** SDK v0.1.3 has no generic "spend RF on an upgrade" action, so boosts and RF sceneries are paid with capsules you bought with RF. They still open and settle through the SDK (you keep or redeem their recipes), but give the boost or scenery instead of a collectible. Boosts: *Tireless crew* (2 capsules, staff don't tire for 3 days), *Perfect service* (2, no unhappy guests for a day), *Street festival* (3, twice the passers-by for 2 days), *Golden hour* (3, dishes pay 25% more for 2 days). Sceneries: *Seaside* and *Snowy village* (3), *Cherry blossom lane* (4), *Night market* (5), kept for good.
+- **RF boosts and sceneries, paid with capsules:** SDK v0.1.4 has no generic "spend RF on an upgrade" action, so boosts and RF sceneries are paid with capsules you bought with RF. They still open and settle through the SDK (you keep or redeem their recipes), but give the boost or scenery instead of a collectible. Boosts: *Tireless crew* (2 capsules, staff don't tire for 3 days), *Perfect service* (2, no unhappy guests for a day), *Street festival* (3, twice the passers-by for 2 days), *Golden hour* (3, dishes pay 25% more for 2 days). Sceneries: *Seaside* and *Snowy village* (3), *Cherry blossom lane* (4), *Night market* (5), kept for good.
 - **Two currencies:** Beans are earn-only, so the game is fun without spending. RF gives access to specials, VIP guests, exclusives, boosts and sceneries. It's a boost, not a paywall.
 - **Holding more Friends pays off in game:** owned staff outperform guests, and better generations outperform worse ones.
 
-**Future integrations** (not in the SDK v0.1.3 API):
+**Future integrations** (not in the SDK v0.1.4 API):
 
 | Idea | Needs |
 | --- | --- |
@@ -100,7 +100,7 @@ npm run build:preview  # the /preview/ page (with its Street Bossa record button
 ```
 
 On a phone, open the Pages link in a wallet app's in-app browser (for example MetaMask Mobile). Landscape gives the
-biggest shop. FriendSDK is vendored as `vendor/rarefriends-friendsdk-0.1.3.tgz`, packed from the official `v0.1.3` tag
+biggest shop. FriendSDK is vendored as `vendor/rarefriends-friendsdk-0.1.4.tgz`, the official `v0.1.4` release archive
 (see [NOTICE.md](NOTICE.md)). `.github/workflows/pages.yml` runs every check below and deploys to GitHub Pages on
 each push to `main`.
 

@@ -17,7 +17,8 @@ const build = await buildGame(game, { outdir, watch: dev });
 const host = await context({
   entryPoints: [path.join(root, "host/runtime.tsx")], outfile: path.join(outdir, "runtime.js"),
   bundle: true, format: "iife", platform: "browser", target: "es2022", jsx: "automatic", minify: true, logLevel: "warning",
-  define: { "process.env.NODE_ENV": '"production"' },
+  // A preview build, like the SDK's own: the runtime's live RF transfers, approvals and signing compile out (FriendSDK v0.1.4).
+  define: { "process.env.NODE_ENV": '"production"', "globalThis.__FRIENDSDK_LIVE__": "false" },
   alias: { react: path.dirname(require.resolve("react/package.json")), "react-dom": path.dirname(require.resolve("react-dom/package.json")) },
 });
 await host.rebuild();
