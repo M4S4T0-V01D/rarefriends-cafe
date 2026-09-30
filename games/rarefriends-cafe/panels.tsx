@@ -10,6 +10,7 @@ import { SHUFFLE_EVERY, type Prefs } from "./engine.ts";
 import { generationOf, purchaseCost, purchaseLevel, staffAt, staffPower, statPoints, tableCount, type CafeState, type StaffRole, type StaffWho } from "./engine.ts";
 import type { GuestArt } from "./guests.ts";
 import { drawItem, drawShape, INK } from "./render.ts";
+import { Beans, Icon } from "./icons.tsx";
 import { BUILDINGS, key, planFor, type BuildingId, type Dir } from "./layout.ts";
 
 /** A small canvas showing a 16 × 16 one-bit Friend frame in the canonical black-with-white-halo style. */
@@ -150,7 +151,7 @@ export function StaffPanel({ state, candidates, picking, onPick, onAssign, onRol
     })}
     {state.staffSlots < MAX_STAFF_SLOTS && cost !== null && <div className="cafe-row">
       <span><strong>Staff slot {state.staffSlots + 1}</strong><small>{state.staffSlots}/{MAX_STAFF_SLOTS} slots. Earn and level up to grow your team.</small></span>
-      <button type="button" disabled={paused || state.level < level || state.beans < cost} onClick={onUnlock}>{state.level < level ? `Lv ${level}` : `☕ ${cost}`}</button>
+      <button type="button" disabled={paused || state.level < level || state.beans < cost} onClick={onUnlock}>{state.level < level ? `Lv ${level}` : <Beans n={cost} />}</button>
     </div>}
   </>;
 }
@@ -215,7 +216,7 @@ export function NowPlaying({ prefs, collected, onChange }: { prefs: Prefs; colle
   const skip = (step: 1 | -1) => onChange({ ...prefs, track: stepTrack(prefs.track, collected, step, prefs.shuffle && step === 1 ? Math.random : undefined) });
   const expanded = open || hover;
   return <div className={`cafe-now${expanded ? " open" : ""}`} role="status" aria-live="polite" onPointerEnter={() => setHover(true)} onPointerLeave={() => setHover(false)}>
-    <span className="cafe-now-note" aria-hidden="true">♫</span>
+    <span className="cafe-now-note" aria-hidden="true"><Icon name="note" size={16} /></span>
     <span className="cafe-now-text"><small>{prefs.shuffle ? "Now playing · shuffle" : "Now playing"}</small><strong>{track.name}</strong>{expanded && <small>{track.mood}</small>}</span>
     <button type="button" onClick={() => skip(-1)} aria-label="Previous track" title="Previous track">⏮</button>
     <button type="button" onClick={() => skip(1)} aria-label="Next track" title="Next track">⏭</button>
@@ -257,7 +258,7 @@ export function BuildBar({ state, tool, onTool, onFinish, onDone, message, onPre
     const owned = state.finishes.has(finish.id), active = state[surface] === finish.id;
     return <button type="button" key={finish.id} aria-pressed={active} onClick={() => onFinish(surface, finish.id)} disabled={!owned && state.beans < finish.cost}>
       <i className="cafe-swatch" style={{ background: `linear-gradient(135deg, ${finish.colors[0]} 50%, ${finish.colors[1]} 50%)` }} />
-      <span>{finish.name}<small>{active ? "In use" : owned ? "Owned" : `☕ ${finish.cost}`}{finish.ambience ? ` · +${finish.ambience}` : ""}</small></span>
+      <span>{finish.name}<small>{active ? "In use" : owned ? "Owned" : <Beans n={finish.cost} size={10} />}{finish.ambience ? ` · +${finish.ambience}` : ""}</small></span>
     </button>;
   });
   return <div className="cafe-build" role="toolbar" aria-label="Build mode">
@@ -268,23 +269,23 @@ export function BuildBar({ state, tool, onTool, onFinish, onDone, message, onPre
           {shelf === "tables" ? "Tables" : shelf === "rugs" ? "Rugs" : "Décor"}</button>)}
         {(["walls", "floors", "outside", "building", "music"] as const).map(tab => <button type="button" role="tab" key={tab} aria-selected={tool.tab === tab} onClick={() => onTool({ ...tool, tab })}>{tab === "walls" ? "Wallpaper" : tab === "floors" ? "Floor" : tab === "outside" ? "Outside" : tab === "building" ? "Building" : "Music"}</button>)}
       </div>
-      <span className="cafe-build-status" role="status">{message || `☕ ${state.beans} · tables ${tableCount(state)}/${tableLimit(state.level)}`}</span>
+      <span className="cafe-build-status" role="status">{message || <><Beans n={state.beans} size={12} /> · tables {tableCount(state)}/{tableLimit(state.level)}</>}</span>
       <button type="button" className="rf-frame-primary" onClick={onDone}>Done</button>
     </div>
     <div className="cafe-build-row">
       {tool.tab === "items" ? <>
         {(["move", "turn", "sell"] as const).map(mode => <button type="button" key={mode} aria-pressed={tool.mode === mode} onClick={() => onTool({ ...tool, mode })}>
-          <span>{mode === "move" ? "✥ Move" : mode === "turn" ? "⟳ Turn" : "✕ Sell"}<small>{mode === "move" ? "tap item, then tile" : mode === "turn" ? "tap an item to turn it" : "50% refund"}</small></span></button>)}
-        <button type="button" onClick={() => onTool({ ...tool, dir: turned(tool.dir) })} aria-label={`Rotate (R), now facing ${DIR_LABELS[tool.dir][1]}`}><span>⟳ Rotate {DIR_LABELS[tool.dir][0]}<small>R · Shift+R back</small></span></button>
+          <Icon name={mode === "move" ? "fit" : mode === "turn" ? "turnRight" : "close"} size={14} /><span>{mode === "move" ? "Move" : mode === "turn" ? "Turn" : "Sell"}<small>{mode === "move" ? "tap item, then tile" : mode === "turn" ? "tap an item to turn it" : "50% refund"}</small></span></button>)}
+        <button type="button" onClick={() => onTool({ ...tool, dir: turned(tool.dir) })} aria-label={`Rotate (R), now facing ${DIR_LABELS[tool.dir][1]}`}><Icon name="turnRight" size={14} /><span>Rotate {DIR_LABELS[tool.dir][0]}<small>R · Shift+R back</small></span></button>
         {CATALOG.filter(item => shelfOf(item.kind) === tool.shelf && (item.tier === undefined || (state.collection.has(item.kind) && !state.items.some(placed => placed.kind === item.kind)))).map(item =>
           <button type="button" key={item.kind} aria-pressed={tool.mode === "place" && tool.kind === item.kind} disabled={state.beans < item.cost} className={item.tier !== undefined ? "cafe-exclusive" : undefined}
-            onClick={() => onTool({ ...tool, mode: "place", kind: item.kind })}><span>{item.name}<small>{item.tier !== undefined ? "RF exclusive · free" : `☕ ${item.cost}`}{item.ambience ? ` · +${item.ambience}` : ""}</small></span></button>)}
+            onClick={() => onTool({ ...tool, mode: "place", kind: item.kind })}><span>{item.name}<small>{item.tier !== undefined ? "RF exclusive · free" : <Beans n={item.cost} size={10} />}{item.ambience ? ` · +${item.ambience}` : ""}</small></span></button>)}
       </> : tool.tab === "walls" ? finishes("wallpaper", WALLPAPERS) : tool.tab === "floors" ? finishes("floor", FLOORS)
         : tool.tab === "outside" ? SCENERIES.map(scenery => {
           const owned = state.sceneries.has(scenery.id), active = state.scenery === scenery.id;
           return <button type="button" key={scenery.id} aria-pressed={active} className={scenery.capsules && !owned ? "cafe-exclusive" : undefined}
             disabled={!owned && !scenery.capsules && state.beans < scenery.cost} onClick={() => onScenery(scenery.id)} title={scenery.text}>
-            <span>{scenery.name}<small>{active ? "In use" : owned ? "Owned" : scenery.capsules ? `RF · ${scenery.capsules} capsules` : `☕ ${scenery.cost.toLocaleString("en-US")}`}{scenery.ambience ? ` · +${scenery.ambience}` : ""}</small></span>
+            <span>{scenery.name}<small>{active ? "In use" : owned ? "Owned" : scenery.capsules ? `RF · ${scenery.capsules} capsules` : <Beans n={scenery.cost} size={10} />}{scenery.ambience ? ` · +${scenery.ambience}` : ""}</small></span>
           </button>;
         })
         : tool.tab === "building" ? <>

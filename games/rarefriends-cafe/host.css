@@ -1,0 +1,15 @@
+/* The page around the café: warm paper with a faint dot grid, the game frame lifted off it, and a row of links below. */
+/* (:root outranks the SDK layout.css that loads after this.) */
+:root, :root body { background: #e8e5dc radial-gradient(rgba(22, 22, 22, .07) 1px, transparent 1.3px) 0 0 / 9px 9px; color: #161616; }
+:root #root { padding: 16px 12px 26px; }
+.rf-game-frame { border-radius: 14px; outline: 2px solid #161616; box-shadow: 0 8px 0 #161616; overflow: hidden; }
+.cafe-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin: 22px 0 0; font: 600 13px ui-monospace, Menlo, Consolas, monospace; }
+.cafe-links a { color: #161616; text-decoration: none; padding: 7px 13px; background: #fbfaf6; border: 2px solid #161616; border-radius: 9px; box-shadow: 0 3px 0 #161616; }
+.cafe-links a:hover { background: #fff; }
+.cafe-links a:active { transform: translateY(2px); box-shadow: 0 1px 0 #161616; }
+@media (max-width: 640px) { :root #root { padding: 6px 4px 16px; } .rf-game-frame { border-radius: 8px; box-shadow: 0 4px 0 #161616; } .cafe-links { gap: 6px; margin-top: 14px; font-size: 11px; } }
+@media (prefers-color-scheme: dark) {
+  :root, :root body { background: #1b1b1a radial-gradient(rgba(255, 255, 255, .05) 1px, transparent 1.3px) 0 0 / 9px 9px; color: #eceae4; }
+  .rf-game-frame { outline-color: #000; box-shadow: 0 8px 0 #000; }
+  .cafe-links a { color: #eceae4; background: #262625; border-color: #5a5955; box-shadow: 0 3px 0 #000; }
+}

@@ -107,9 +107,10 @@
   .cafe-reveal h3 { font-size: 15px; }
 }
 .cafe-card { grid-template-columns: auto 1fr; column-gap: 10px; }
-.cafe-card > :not(.cafe-portrait) { grid-column: 2; }
-.cafe-portrait { grid-column: 1; grid-row: 1 / span 5; align-self: center; width: 58px; height: 58px; image-rendering: pixelated; background: var(--rose); border: 1.5px solid var(--ink); border-radius: 6px; }
-@media (max-width: 640px) { .cafe-portrait { width: 30px; height: 30px; grid-row: 1 / span 3; } .cafe-card { column-gap: 6px; } }
+.cafe-card > :not(.cafe-portrait-wrap) { grid-column: 2; }
+.cafe-portrait-wrap { grid-column: 1; grid-row: 1 / span 6; align-self: center; position: relative; }
+.cafe-portrait { display: block; width: 62px; height: 62px; image-rendering: pixelated; background: var(--rose); border: 1.5px solid var(--ink); border-radius: 6px; }
+@media (max-width: 640px) { .cafe-portrait { width: 30px; height: 30px; } .cafe-portrait-wrap { grid-row: 1 / span 3; } .cafe-card { column-gap: 6px; } }
 
 /* Shop picker */
 .cafe-shops { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin: 8px 0 12px; }
@@ -290,3 +291,187 @@
 .cafe-game[data-theme="dark"] .rf-frame-menu button[aria-checked="true"], .cafe-game[data-theme="dark"] .rf-frame-menu button[aria-pressed="true"],
 .cafe-game[data-theme="dark"] .rf-frame-menu button[aria-selected="true"], .cafe-game[data-theme="dark"] .cafe-build button[aria-selected="true"],
 .cafe-game[data-theme="dark"] .cafe-build button[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+
+
+/* ==========================================================================================================
+   Polish pass: one look for every panel, button and menu. Chunky ink edges, soft corners, keycap buttons that
+   press down, the shop's accent colour on panel and menu headers, pixel icons, framed and striped bars.
+   ========================================================================================================== */
+.cafe-game { --edge: 2px; --r: 10px; --r-small: 7px; --press: var(--ink); --shop: var(--rose); --shop-soft: color-mix(in srgb, var(--shop) 42%, #fff);
+  --dots: radial-gradient(rgba(22, 22, 22, .055) 1px, transparent 1.3px) 0 0 / 7px 7px; --card: #fbfaf6f2; --well: #ffffff; --rule: #d9d6cf; --rose-deep: #b07c7a; }
+.cafe-icon { display: inline-block; flex: none; image-rendering: pixelated; vertical-align: -3px; }
+.cafe-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.cafe-price { display: inline-flex; align-items: center; gap: 3px; font-weight: 700; white-space: nowrap; }
+.cafe-stars { display: inline-flex; gap: 1px; vertical-align: -2px; }
+
+/* Buttons: keycaps. */
+.cafe-game button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-weight: 600; letter-spacing: .01em; border: var(--edge) solid var(--ink);
+  border-radius: var(--r-small); background: linear-gradient(#fff, #f2f0e9); box-shadow: 0 3px 0 var(--press); transition: transform .06s ease-out, box-shadow .06s ease-out, background-color .12s; }
+.cafe-game button:hover:not(:disabled) { background: #fff; }
+.cafe-game button:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 1px 0 var(--press); }
+.cafe-game button:disabled { box-shadow: 0 3px 0 color-mix(in srgb, var(--press) 40%, transparent); }
+.cafe-game .rf-frame-primary { background: var(--ink); color: var(--paper); box-shadow: 0 3px 0 #000, inset 0 1px 0 rgba(255, 255, 255, .2); }
+.cafe-game .rf-frame-primary:hover:not(:disabled) { background: #2c2c2b; }
+/* A price to pay: a butter keycap. */
+.cafe-game .cafe-row button:has(.cafe-price):not(:disabled), .cafe-game .cafe-buttons .rf-frame-primary:has(.cafe-price) { background: linear-gradient(#faf3d6, var(--butter)); color: var(--ink); }
+.cafe-game .cafe-row button:has(.cafe-price):hover:not(:disabled) { background: #faf3d6; }
+.cafe-row em { font-style: normal; font-weight: 700; font-size: 11px; padding: 3px 10px; background: var(--sage); border: 1.5px solid var(--ink); border-radius: 20px; }
+.cafe-pips, .cafe-attrs b { color: var(--rose-deep); }
+
+/* Panels. */
+.cafe-card, .cafe-coin, .cafe-challenges, .cafe-now, .cafe-build, .cafe-zoom { border: var(--edge) solid var(--ink); border-radius: var(--r); box-shadow: 0 4px 0 var(--press); background: var(--dots), var(--card); }
+.cafe-card { position: relative; overflow: hidden; padding: 14px 13px 10px 11px; column-gap: 12px; row-gap: 3px; min-width: 226px; }
+.cafe-card::before { content: ""; position: absolute; inset: 0 0 auto; height: 5px; background: var(--shop); border-bottom: var(--edge) solid var(--ink); }
+.cafe-portrait { border: var(--edge) solid var(--ink); border-radius: 9px; background: var(--shop-soft); box-shadow: inset 0 0 0 2px #fff; }
+.cafe-level { position: absolute; right: -7px; bottom: -6px; padding: 1px 6px; font-size: 10px; line-height: 1.5; color: var(--paper); background: var(--ink); border: 2px solid var(--card); border-radius: 10px; white-space: nowrap; }
+.cafe-title { font-size: 15px; font-weight: 800; letter-spacing: .06em; white-space: normal; line-height: 1.15; max-width: 150px; }
+/* The portrait keeps its column however tight the top row gets; a long shop name wraps instead. */
+.cafe-card { grid-template-columns: 66px minmax(0, 1fr); }
+.cafe-day { display: flex; align-items: center; gap: 5px; white-space: nowrap; }
+.cafe-clock, .cafe-xp { height: 8px; background: var(--well); border: 1.5px solid var(--ink); border-radius: 6px; overflow: hidden; }
+.cafe-clock i, .cafe-xp i { border-right: 1.5px solid var(--ink); background: repeating-linear-gradient(-45deg, var(--blue) 0 5px, #c9d3de 5px 10px); }
+.cafe-xp i { background: repeating-linear-gradient(-45deg, var(--rose) 0 5px, #e8cfcd 5px 10px); }
+.cafe-stats { margin: 1px 0; }
+.cafe-boosts b { display: inline-flex; align-items: center; gap: 3px; border-radius: 8px; }
+/* Wallet. */
+.cafe-coin { display: flex; align-items: center; gap: 8px; padding: 6px 13px 6px 9px; justify-items: start; }
+.cafe-coin > span { display: grid; line-height: 1.1; }
+.cafe-coin b { font-size: 18px; font-weight: 800; }
+.cafe-coin-beans, .cafe-coin-rf { border-left-width: var(--edge); border-left-color: var(--ink); }
+.cafe-game button.cafe-coin { justify-content: flex-start; font-weight: inherit; }
+.cafe-game button.cafe-coin:hover:not(:disabled) { background: var(--dots), #fff; }
+/* Top-right actions. */
+.cafe-actions { gap: 7px; }
+.cafe-actions button { background: linear-gradient(#fff, #f2f0e9); }
+.cafe-game .cafe-icon-button { width: 38px; padding: 0; }
+/* Challenges. */
+.cafe-challenges { padding: 8px 11px; font-size: 11px; }
+.cafe-game .cafe-challenges > button { display: flex; width: 100%; justify-content: flex-start; gap: 6px; min-height: 0; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; transform: none; font-weight: 800; font-size: 11px; letter-spacing: .03em; }
+.cafe-challenges > button em { margin-left: auto; font-style: normal; font-size: 10px; padding: 0 7px; background: var(--sage); border: 1.5px solid var(--ink); border-radius: 9px; }
+.cafe-challenges ul { margin: 7px 0 5px; gap: 4px; }
+.cafe-challenges li > span { display: flex; align-items: center; gap: 6px; }
+.cafe-challenges > small { display: flex; align-items: center; gap: 4px; }
+/* View controls: one pill. */
+.cafe-zoom { gap: 0; overflow: hidden; }
+.cafe-game .cafe-zoom button { width: 36px; min-height: 31px; border: 0; border-bottom: 1.5px solid var(--rule); border-radius: 0; box-shadow: none; background: transparent; transform: none; }
+.cafe-game .cafe-zoom button:last-child { border-bottom: 0; }
+.cafe-game .cafe-zoom button:hover:not(:disabled) { background: var(--shop-soft); transform: none; box-shadow: none; }
+.cafe-game .cafe-zoom button:active:not(:disabled) { background: var(--shop); }
+/* The status line at the bottom: a speech bubble. */
+.cafe-footer p { padding: 7px 16px; font-weight: 600; background: var(--card); border: var(--edge) solid var(--ink); border-radius: 18px; box-shadow: 0 3px 0 var(--press); }
+/* Now playing. */
+.cafe-now { padding: 5px 7px 5px 8px; }
+.cafe-now-note { border-radius: 8px; }
+.cafe-game .cafe-now button { box-shadow: none; border-width: 1.5px; min-height: 26px; }
+
+/* Loading: a pixel cup, rising steam, the wordmark and a striped bar. */
+.cafe-status { background: var(--dots), var(--paper); gap: 10px; }
+.cafe-steam { position: relative; width: 96px; height: 112px; font-size: 0; filter: none; animation: cafe-float 2.4s ease-in-out infinite; display: flex; align-items: flex-end; }
+.cafe-steam i { position: absolute; bottom: 70px; width: 6px; height: 26px; border-radius: 4px; background: var(--rule); opacity: 0; animation: cafe-rise 2.1s ease-in infinite; }
+.cafe-steam i:nth-child(1) { left: 30px; } .cafe-steam i:nth-child(2) { left: 46px; animation-delay: .7s; } .cafe-steam i:nth-child(3) { left: 62px; animation-delay: 1.4s; }
+@keyframes cafe-rise { 0% { transform: translateY(8px) scaleY(.6); opacity: 0; } 30% { opacity: .9; } 100% { transform: translateY(-26px) translateX(4px) scaleY(1.2); opacity: 0; } }
+.cafe-wordmark { font-size: 26px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.cafe-wordmark span { padding: 0 6px; background: var(--shop); border: var(--edge) solid var(--ink); border-radius: 8px; box-shadow: 0 3px 0 var(--press); }
+.cafe-loading { width: 200px; height: 12px; border: var(--edge) solid var(--ink); border-radius: 8px; background: repeating-linear-gradient(-45deg, var(--shop) 0 8px, #fff 8px 16px) 0 0 / 23px 100%; animation: cafe-stripes .9s linear infinite; }
+@keyframes cafe-stripes { to { background-position: 23px 0; } }
+@media (prefers-reduced-motion: reduce) { .cafe-steam i, .cafe-loading { animation: none; } .cafe-steam i { opacity: .6; } .cafe-game button { transition: none; } }
+
+/* The SDK's menus. */
+.cafe-game .rf-frame-scrim { background: #1616165c; backdrop-filter: blur(1.5px); }
+.cafe-game .rf-frame-menu { border: var(--edge) solid var(--ink); border-radius: 14px; box-shadow: 0 6px 0 var(--press); overflow: hidden; background: var(--dots), var(--paper); }
+.cafe-game .rf-frame-menu-heading { background: var(--shop-soft); border-bottom: var(--edge) solid var(--ink); }
+.cafe-game .rf-frame-menu-heading h2 { font-size: 15px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.cafe-game .rf-frame-menu-heading button { width: 32px; min-height: 32px; padding: 0; background: #fff; border: var(--edge) solid var(--ink); border-radius: 50%; box-shadow: 0 2px 0 var(--press); font-size: 16px; }
+.cafe-game .rf-frame-menu-body > button { margin: 6px 8px 4px 0; }
+/* Tabs: a segmented control. */
+.cafe-tabs { gap: 3px; padding: 3px; background: var(--well); border: var(--edge) solid var(--ink); border-radius: 11px; }
+.cafe-game .cafe-tabs button { border: 0; border-radius: 8px; box-shadow: none; background: transparent; min-height: 30px; transform: none; }
+.cafe-game .cafe-tabs button:hover:not(:disabled) { background: var(--shop-soft); transform: none; box-shadow: none; }
+.cafe-game .cafe-tabs button[aria-selected="true"], .cafe-game .cafe-tabs button[aria-selected="true"]:hover:not(:disabled) { background: var(--ink); color: var(--paper); }
+/* Rows: cards. */
+.rf-frame-menu .cafe-row { margin: 0 0 7px; padding: 9px 11px 9px 13px; background: var(--well); border: 1.5px solid var(--ink); border-radius: 9px; }
+.rf-frame-menu .cafe-slot { margin: 0 0 7px; padding: 4px 11px 9px; background: var(--well); border: 1.5px solid var(--ink); border-radius: 9px; }
+.rf-frame-menu .cafe-slot > .cafe-row { margin: 0; padding: 6px 0; background: none; border: 0; border-radius: 0; }
+.cafe-perk { border: 1.5px solid var(--ink); border-left: 6px solid var(--shop); border-radius: 9px; }
+.cafe-sim { border-radius: 9px; }
+.cafe-summary p { padding: 6px 2px; }
+.cafe-summary p > span { display: inline-flex; align-items: center; gap: 6px; }
+.cafe-share, .cafe-collection > div, .cafe-result { border-width: var(--edge); border-radius: 11px; }
+.cafe-share img { border-radius: 7px; }
+.cafe-shops button, .cafe-buildings button { border-radius: 10px; }
+.cafe-roles button, .cafe-attrs button, .cafe-theme button, .cafe-music-tracks button, .cafe-music-skip button, .cafe-candidates button { border-width: 1.5px; }
+.cafe-machine .body { border-radius: 10px 10px 6px 6px; }
+.cafe-news article { padding: 10px 12px; background: var(--well); border: 1.5px solid var(--ink); border-radius: 9px; }
+/* Build bar: compact, so it leaves the shop floor clear. */
+.cafe-build { padding: 5px 8px 7px; gap: 5px; }
+.cafe-build .cafe-tabs { padding: 2px; gap: 2px; border-radius: 9px; }
+.cafe-game .cafe-build .cafe-tabs button { min-height: 25px; padding: 2px 9px; border-radius: 7px; }
+.cafe-game .cafe-build-head .rf-frame-primary { min-height: 30px; padding: 3px 14px; }
+.cafe-game .cafe-build-row button { min-height: 0; padding: 3px 9px; border-width: 1.5px; border-radius: 8px; box-shadow: 0 2px 0 var(--press); line-height: 1.25; }
+.cafe-build-row button > .cafe-icon { margin-right: -1px; }
+.cafe-swatch { border-radius: 5px; }
+.cafe-build-status { display: flex; align-items: center; gap: 4px; }
+
+/* Dark mode for all of the above. */
+.cafe-game[data-theme="dark"] { --press: #050505; --card: #262625f2; --well: #2d2d2b; --rule: #45443f; --rose-deep: #d8a9a7;
+  --shop-soft: color-mix(in srgb, var(--shop) 38%, #262625); --dots: radial-gradient(rgba(255, 255, 255, .04) 1px, transparent 1.3px) 0 0 / 7px 7px; }
+.cafe-game[data-theme="dark"] .cafe-icon.mono { filter: invert(.92); }
+.cafe-game[data-theme="dark"] button { background: linear-gradient(#34342f, #2a2a28); color: var(--ink); }
+.cafe-game[data-theme="dark"] button:hover:not(:disabled) { background: #3a3a36; }
+.cafe-game[data-theme="dark"] .rf-frame-primary { background: var(--ink) !important; color: #1d1d1c !important; box-shadow: 0 3px 0 #050505; }
+.cafe-game[data-theme="dark"] .cafe-row button:has(.cafe-price):not(:disabled) { background: linear-gradient(#4a4430, #3a3424); color: var(--ink); }
+.cafe-game[data-theme="dark"] .cafe-zoom button, .cafe-game[data-theme="dark"] .cafe-tabs button:not([aria-selected="true"]) { background: transparent; }
+.cafe-game[data-theme="dark"] .cafe-level { color: #1d1d1c; border-color: #262625; }
+.cafe-game[data-theme="dark"] .rf-frame-menu, .cafe-game[data-theme="dark"] .cafe-status { background: var(--dots), #1f1f1e; }
+.cafe-game[data-theme="dark"] .rf-frame-menu .cafe-row, .cafe-game[data-theme="dark"] .rf-frame-menu .cafe-slot, .cafe-game[data-theme="dark"] .cafe-news article { background: var(--well); border-color: #5a5955; }
+.cafe-game[data-theme="dark"] .rf-frame-menu-heading button { background: #2d2d2b; }
+.cafe-game[data-theme="dark"] .cafe-clock i { background: repeating-linear-gradient(-45deg, var(--blue) 0 5px, #58636f 5px 10px); }
+.cafe-game[data-theme="dark"] .cafe-xp i { background: repeating-linear-gradient(-45deg, var(--rose) 0 5px, #6f5655 5px 10px); }
+.cafe-game[data-theme="dark"] button[aria-checked="true"]:hover:not(:disabled), .cafe-game[data-theme="dark"] button[aria-pressed="true"]:hover:not(:disabled),
+.cafe-game[data-theme="dark"] button[aria-selected="true"]:hover:not(:disabled) { background: var(--ink); color: #1d1d1c; }
+.cafe-game[data-theme="dark"] .cafe-wordmark span { color: #1d1d1c; }
+.cafe-game[data-theme="dark"] .cafe-loading { background: repeating-linear-gradient(-45deg, var(--shop) 0 8px, #2d2d2b 8px 16px) 0 0 / 23px 100%; }
+
+/* Phones: smaller edges and presses. */
+@media (max-width: 640px) {
+  .cafe-game { --edge: 1.5px; --r: 7px; --r-small: 5px; }
+  .cafe-game button { box-shadow: 0 2px 0 var(--press); gap: 3px; }
+  .cafe-game button:hover:not(:disabled) { box-shadow: 0 2px 0 var(--press); transform: none; }
+  .cafe-card, .cafe-coin, .cafe-challenges, .cafe-now, .cafe-build, .cafe-zoom { box-shadow: 0 2px 0 var(--press); }
+  .cafe-card { min-width: 0; padding: 8px 7px 5px 6px; }
+  .cafe-card::before { height: 3px; }
+  .cafe-level { font-size: 7px; right: -5px; bottom: -4px; padding: 0 3px; }
+  .cafe-coin { gap: 3px; padding: 2px 6px 2px 3px; } .cafe-coin .cafe-icon { width: 12px; height: 12px; } .cafe-coin small { display: none; } .cafe-coin b { font-size: 11px; }
+  /* Phone HUD: the manager card on the left; actions across the top right with the wallet beneath them. */
+  .cafe-hud { display: grid; grid-template-columns: auto 1fr; align-items: start; gap: 4px; }
+  .cafe-left { grid-column: 1; grid-row: 1 / span 2; }
+  .cafe-actions { grid-column: 2; grid-row: 1; justify-self: end; min-width: 0; gap: 3px; }
+  .cafe-wallet { grid-column: 2; grid-row: 2; justify-self: end; margin: 0; gap: 3px; }
+  .cafe-game[data-build="on"] .cafe-wallet { grid-row: 1; }
+  .cafe-game[data-build="on"] .cafe-zoom button { min-height: 19px; }
+  .cafe-game .cafe-actions button { padding: 2px 5px; } .cafe-game .cafe-actions .cafe-icon-button { width: 25px; }
+  .cafe-actions .cafe-icon { width: 13px; height: 13px; } .cafe-game .cafe-icon-button { width: 28px; }
+  .cafe-game .cafe-zoom button { width: 26px; min-height: 23px; }
+  .cafe-clock, .cafe-xp { height: 5px; border-width: 1px; }
+  .cafe-wordmark { font-size: 17px; } .cafe-steam { transform: scale(.7); }
+  .cafe-footer p { border-radius: 12px; padding: 3px 9px; }
+  .cafe-game .rf-frame-menu { border-radius: 10px; }
+  /* Everything compact enough for a 360 × 240 frame. */
+  .cafe-game .cafe-portrait { width: 30px; height: 30px; border-radius: 6px; box-shadow: inset 0 0 0 1px #fff; }
+  .cafe-card { grid-template-columns: 34px minmax(0, 1fr); }
+  .cafe-game .cafe-day { font-size: 9px; gap: 3px; } .cafe-day .cafe-icon { width: 9px; height: 9px; }
+  .cafe-stars .cafe-icon { width: 9px; height: 9px; }
+  .cafe-challenges { padding: 3px 6px; max-width: 150px; font-size: 8px; }
+  .cafe-game .cafe-challenges > button { font-size: 8px; gap: 3px; }
+  .cafe-challenges > button em { font-size: 7px; padding: 0 4px; border-width: 1px; }
+  .cafe-challenges > button .cafe-icon, .cafe-challenges li .cafe-icon { width: 8px; height: 8px; }
+  .cafe-challenges ul { margin: 3px 0 2px; gap: 1px; }
+  .cafe-challenges li > span { gap: 3px; }
+  .cafe-now { padding: 2px 4px; } .cafe-now-note .cafe-icon { width: 11px; height: 11px; }
+  .cafe-game .cafe-build .cafe-tabs button { min-height: 19px; padding: 1px 5px; font-size: 9px; border-radius: 5px; }
+  .cafe-build .cafe-tabs { padding: 1px; border-radius: 7px; }
+  .cafe-game .cafe-build-head .rf-frame-primary { min-height: 20px; padding: 1px 8px; font-size: 9px; }
+  .cafe-game .cafe-build-row button { padding: 2px 5px; font-size: 9px; border-radius: 5px; box-shadow: 0 1px 0 var(--press); }
+  .cafe-build-row .cafe-icon { width: 10px; height: 10px; }
+  .cafe-footer p { font-size: 9px; }
+}

@@ -320,7 +320,7 @@ export const sceneryById = (id: string) => SCENERIES.find(item => item.id === id
 export type EventId = "critic" | "bus" | "rain" | "rush" | "celebrity" | "hiccup";
 export const EVENTS: readonly { id: EventId; name: string; icon: string; text: string; duration: number }[] = [
   { id: "critic", name: "Food critic", icon: "✎", text: "A food critic is coming in. Serve them happily for a big rating boost and a ☕ 80 tip.", duration: 0 },
-  { id: "celebrity", name: "Celebrity Friend", icon: "★", text: "A famous Friend is on the way! Serve them for ☕ 150 and a rating bump.", duration: 0 },
+  { id: "celebrity", name: "Celebrity Friend", icon: "★", text: "A famous Friend is on the way! Serve them for 150 Beans and a rating bump.", duration: 0 },
   { id: "bus", name: "Tour bus", icon: "»", text: "A tour bus stops outside: passers-by come thick and fast for a minute.", duration: 60 },
   { id: "rain", name: "Rain shower", icon: "☂", text: "Rain for 90 s: fewer passers-by, but guests inside are extra patient.", duration: 90 },
   { id: "rush", name: "Lunch rush", icon: "✦", text: "Lunch rush for 90 s: guests tip 20% more.", duration: 90 },
@@ -334,8 +334,8 @@ export type ChallengeId = "served" | "happy" | "beans" | "tips" | "walkIns" | "g
 export const CHALLENGES: readonly { id: ChallengeId; text: (target: number) => string; target: (day: number) => number }[] = [
   { id: "served", text: n => `Serve ${n} guests`, target: day => Math.min(60, 10 + day * 2) },
   { id: "happy", text: n => `Serve ${n} happy guests`, target: day => Math.min(45, 6 + day * 2) },
-  { id: "beans", text: n => `Earn ☕ ${n} Beans`, target: day => Math.min(1200, 120 + day * 25) },
-  { id: "tips", text: n => `Earn ☕ ${n} in tips`, target: day => Math.min(300, 20 + day * 6) },
+  { id: "beans", text: n => `Earn ${n} Beans`, target: day => Math.min(1200, 120 + day * 25) },
+  { id: "tips", text: n => `Earn ${n} Beans in tips`, target: day => Math.min(300, 20 + day * 6) },
   { id: "walkIns", text: n => `Welcome ${n} walk-ins`, target: day => Math.min(70, 12 + day * 2) },
   { id: "group", text: n => `Serve ${n} guests at group tables`, target: day => Math.min(30, 4 + day) },
   { id: "perfect", text: () => "No guest leaves unhappy all day", target: () => 1 },

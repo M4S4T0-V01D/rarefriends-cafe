@@ -63,7 +63,7 @@ await testGame(game, {
     await page.mouse.click(spot.x, spot.y);
     // Beans purchases ask first.
     await frame.getByRole("heading", { name: "Confirm" }).waitFor();
-    await frame.getByRole("button", { name: "Buy · ☕ 35", exact: true }).click();
+    await frame.getByRole("button", { name: "Buy · 35 Beans", exact: true }).click();
     await frame.getByText("Potted monstera placed.").waitFor();
     assert.equal(await number(frame, "items"), items + 1);
     await frame.getByRole("tab", { name: "Rugs" }).click();

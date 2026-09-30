@@ -28,6 +28,8 @@ import {
 import gameJson from "../games/rarefriends-cafe/game.json";
 import "@rarefriends/friendsdk/frame.css";
 import "@rarefriends/friendsdk/runtime.css";
+// The page around the game (the SDK would load host.css through its own runtime script, which this host replaces).
+import "../games/rarefriends-cafe/host.css";
 
 const definition = parseChanceGame(gameJson);
 const saveKey = (manager: string) => `rarefriends-cafe:save:v2:friend:${manager}`;
@@ -131,7 +133,14 @@ function CafeHost() {
     const poll = setInterval(() => { if (session.getSnapshot().status !== "connected") void session.refresh(); }, 2500);
     return () => { clearInterval(poll); unsubscribe(); window.removeEventListener("message", receive); controller?.abort(); session.dispose(); };
   }, []);
-  return <GameHost definition={definition} frameUrl="./game.html" />;
+  return (
+    <div className="cafe-page">
+      <GameHost definition={definition} frameUrl="./game.html" />
+      <nav className="cafe-links" aria-label="More about the game">
+        <a href="./preview/">About the café</a><a href="./preview/#gallery">Gallery</a><a href="./preview/#music">Soundtrack</a>
+      </nav>
+    </div>
+  );
 }
 
 createRoot(document.getElementById("root")!).render(<CafeHost />);

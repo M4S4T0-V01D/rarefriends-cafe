@@ -3,6 +3,19 @@ export type Release = Readonly<{ version: string; date: string; title: string; n
 
 export const CHANGELOG: readonly Release[] = [
   {
+    version: "1.9", date: "2026-09-30", title: "A polished new look",
+    notes: [
+      "Every panel, button and menu has a new look: chunky ink edges, soft corners, and keycap buttons that press down.",
+      "Pixel-art icons for Beans, RF, stars, challenges and every button, in place of text symbols.",
+      "Your shop's colour runs along the top of the manager card and every menu header.",
+      "Striped day and XP bars, a level badge on your manager's portrait, and price tags in butter yellow.",
+      "Menus are tidier: tabs as a segmented control, and each upgrade, staff slot and dish in its own card.",
+      "A new loading screen with a steaming pixel cup, and the page around the game is dressed to match, with links to the about page, gallery and soundtrack.",
+      "On a phone the top bar uses icon buttons and today's challenges start folded, so more of the shop floor shows.",
+      "Dark mode covers all of it.",
+    ],
+  },
+  {
     version: "1.8", date: "2026-09-28", title: "A shop per manager and a second pass",
     notes: [
       "Every manager has their own shop: progress saves by the managing Friend's token number. Pick another of your Friends as manager to open a new shop; switch back and the first is waiting. An existing shop moves to the first manager you open it with.",
