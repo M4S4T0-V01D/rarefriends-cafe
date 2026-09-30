@@ -11,6 +11,16 @@ const game = "./games/rarefriends-cafe";
 const shot = (page, name) => page.locator(".rf-game-frame").screenshot({ path: `./artifacts/${name}.png` });
 const attr = async (frame, name) => await frame.locator(".cafe-game").getAttribute(`data-${name}`);
 const number = async (frame, name) => Number(await attr(frame, name));
+/** Every top-bar button and counter sits wholly inside the game frame (nothing pushed off the edge). */
+const hudFits = async page => {
+  const outside = await gameFrame(page).evaluate(() => { const frame = document.querySelector(".cafe-game").getBoundingClientRect();
+    // Inside the frame, and clear of the manager card (nothing slid under it or wrapped down over the shop).
+    const card = document.querySelector(".cafe-card").getBoundingClientRect(), overlaps = r => r.left < card.right - 1 && r.right > card.left + 1 && r.top < card.bottom - 1 && r.bottom > card.top + 1;
+    return [...document.querySelectorAll(".cafe-hud button:not(.cafe-card button):not(.cafe-challenges button), .cafe-hud .cafe-coin")].filter(el => { const r = el.getBoundingClientRect();
+      return r.width > 0 && (r.left < frame.left - 1 || r.right > frame.right + 1 || r.top < frame.top - 1 || r.bottom > frame.top + frame.height * 0.45 || overlaps(r)); })
+      .map(el => el.getAttribute("aria-label") ?? el.textContent.trim()); });
+  assert.deepEqual(outside, [], "the top bar fits in the frame");
+};
 /** The sandboxed game frame (a Playwright Frame, for evaluate). */
 const gameFrame = page => page.frames().find(frame => frame !== page.mainFrame() && frame.url() !== "about:blank") ?? page.frames()[1];
 /** Tap every AudioContext the game creates and keep the loudest RMS it outputs. */
@@ -48,7 +58,7 @@ await testGame(game, {
       await canvas.focus();
       for (const key of ["1", "2", "3", "c"]) await page.keyboard.press(key);
       await page.waitForTimeout(700);
-      if (!shotTaken && (await number(frame, "customers")) >= 2) { await page.waitForTimeout(1500); await shot(page, "desktop-service"); shotTaken = true; }
+      if (!shotTaken && (await number(frame, "customers")) >= 2) { await page.waitForTimeout(1500); await shot(page, "desktop-service"); await hudFits(page); shotTaken = true; }
     }
     assert((await number(frame, "served")) >= 3, "Guests should be served through the keyboard loop");
     assert((await number(frame, "beans")) >= 90, "Serving earns Beans");
@@ -178,6 +188,7 @@ await testGame(game, {
     assert.ok(audio.length >= 1 && audio.every(entry => entry.state === "running"), `audio contexts: ${JSON.stringify(audio)}`);
     assert.ok(Math.max(...audio.map(entry => entry.loudest)) > 0.05, `audio too quiet: ${JSON.stringify(audio)}`);
     await shot(page, "phone-service");
+    await hudFits(page);
     await frame.getByRole("button", { name: "Build", exact: true }).click();
     await shot(page, "phone-build");
   },

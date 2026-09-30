@@ -32,6 +32,17 @@ import "./style.css";
 
 const GUESTS = createGuests(18);
 const rf = (value: bigint) => `${formatGameAmount(value, 18)} RF`;
+/** A number short enough for the top bar: exact up to 99,999, then 123.4k, 1.23M, 4.5B. */
+export function compact(n: number) {
+  if (n < 100_000) return Math.floor(n).toLocaleString("en-US");
+  for (const [size, unit] of [[1e9, "B"], [1e6, "M"], [1e3, "k"]] as const) if (n >= size) {
+    const value = n / size, digits = value >= 100 ? 0 : value >= 10 ? 1 : 2;
+    return `${(Math.floor(value * 10 ** digits) / 10 ** digits).toFixed(digits).replace(/\.?0+$/, "")}${unit}`;
+  }
+  return String(n);
+}
+/** An RF balance for the top bar, shortened the same way. */
+const rfShort = (value: bigint) => { const amount = Number(value / 10n ** 12n) / 1e6; return amount < 100_000 ? rf(value) : `${compact(amount)} RF`; };
 /** WASD walks the manager (and, in build mode, moves the cursor along with the arrows); arrows pan the view. */
 const DIRECTIONS: Record<string, { dx: number; dy: number }> = { w: { dx: 0, dy: -1 }, s: { dx: 0, dy: 1 }, a: { dx: -1, dy: 0 }, d: { dx: 1, dy: 0 } };
 const CURSOR: Record<string, { dx: number; dy: number }> = {
@@ -700,9 +711,9 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
           </div>}
           </div>
           <div className="cafe-wallet">
-            <div className="cafe-coin cafe-coin-beans" aria-label={`${hud.beans} Beans`}><Icon name="bean" size={24} /><span><b>{hud.beans.toLocaleString("en-US")}</b><small>Beans</small></span></div>
+            <div className="cafe-coin cafe-coin-beans" aria-label={`${hud.beans} Beans`}><Icon name="bean" size={24} /><span><b title={`${hud.beans.toLocaleString("en-US")} Beans`}>{compact(hud.beans)}</b><small>Beans</small></span></div>
             <button type="button" className="cafe-coin cafe-coin-rf" onClick={() => openMenu("capsules")} aria-label={`${snapshot ? rf(snapshot.rfBalance) : "RF"}${snapshot?.mode === "preview" ? " (simulated)" : ""}: open the capsule machine`}>
-              <Icon name="rf" size={24} /><span><b>{snapshot ? rf(snapshot.rfBalance) : "… RF"}</b><small>{snapshot?.mode === "preview" ? "simulated" : "on-chain"}</small></span></button>
+              <Icon name="rf" size={24} /><span><b title={snapshot ? rf(snapshot.rfBalance) : undefined}>{snapshot ? rfShort(snapshot.rfBalance) : "… RF"}</b><small>{snapshot?.mode === "preview" ? "simulated" : "on-chain"}</small></span></button>
           </div>
           {!build && <div className="cafe-actions">
             {/* Icons only on a phone (the labels hide; the names stay). */}

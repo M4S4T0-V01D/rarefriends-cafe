@@ -475,3 +475,16 @@
   .cafe-build-row .cafe-icon { width: 10px; height: 10px; }
   .cafe-footer p { font-size: 9px; }
 }
+
+/* The top bar always fits: the card and wallet keep their size, the buttons take what's left and wrap to a second row
+   rather than leave the frame, and when the bar runs short the text labels step aside for their icons. */
+@media (min-width: 641px) {
+  .cafe-left { flex: none; }
+  /* Beans over RF, so the wallet stays narrow however big the numbers get. */
+  .cafe-wallet { flex: none; flex-direction: column; gap: 6px; }
+  .cafe-coin { padding: 4px 12px 4px 8px; min-width: 128px; }
+  .cafe-coin b { font-size: 16px; }
+  .cafe-coin .cafe-icon { width: 20px; height: 20px; }
+  .cafe-actions { flex: 1 1 0; min-width: 0; flex-wrap: wrap; justify-content: flex-end; container-type: inline-size; }
+}
+@container (max-width: 480px) { .cafe-actions .cafe-wide { display: none; } }
