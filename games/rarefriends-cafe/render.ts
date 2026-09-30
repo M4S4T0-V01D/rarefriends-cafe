@@ -4,7 +4,7 @@ import { FLOORS, WALLPAPERS, catalogItem, dishById, isRug, isTable, shopById, wo
 import { CAPSULE_ID, DIR_FACING, eventActive, ambience, dayProgress, manager, memberOf, plan, tables, type CafeState, type Customer, type Facing, type Passerby, type StaffWho, type Worker } from "./engine.ts";
 import type { GuestArt } from "./guests.ts";
 import { bead, behindWalls, drawProp, outsideProps, paintGround } from "./world.ts";
-import { type Neighbour, FACING, buildingById, depthOf, turnView, viewDir, viewTurn, cameraFor, fromKey, inside, key, project, seatOf, seatsOf, toWorld, unproject, type Camera, type Dir, type Item, type Placement, type Tile } from "./layout.ts";
+import { TILE_W, type Neighbour, FACING, buildingById, depthOf, turnView, viewDir, viewTurn, cameraFor, fromKey, inside, key, project, seatOf, seatsOf, toWorld, unproject, type Camera, type Dir, type Item, type Placement, type Tile } from "./layout.ts";
 
 export const VIEW = { width: 960, height: 640 } as const;
 /** The player's zoom and pan (in view pixels), on top of the camera that frames the shop. */
@@ -110,7 +110,12 @@ const tileQuad = (x: number, y: number, inset = 0) =>
 export function line(ctx: CanvasRenderingContext2D, a: Point, b: Point) { ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
 
 // ---------- Static layer: paper, street, walls and floors ----------
-let backdrop: { canvas: HTMLCanvasElement; key: string } | null = null;
+let backdrop: { canvas: HTMLCanvasElement; key: string; windows: WindowSpot[] } | null = null;
+/** The windows on the back walls (collected while the backdrop paints), for the daylight they cast on the floor. */
+type WindowSpot = { wall: Wall; start: number; span: number };
+let windowSpots: WindowSpot[] = [];
+/** Pools of light on the floor (lamps, candles, pendants, window light), painted once per layout and time of day. */
+let glowLayer: { canvas: HTMLCanvasElement; key: string } | null = null;
 /** Backdrop canvases are reused while panning and zooming, rather than allocated every frame. */
 const recycled: HTMLCanvasElement[] = [];
 const H = 132;
@@ -382,9 +387,92 @@ function paintBackdrop(state: CafeState, scale: number, camera: Camera) {
   for (let y = 0; y < DEEP; y++) for (let x = 0; x < WIDE; x++) if (!layout.cut.has(key({ x, y }))) {
     line(ctx, project(x - 0.5, y - 0.5), project(x + 0.5, y - 0.5)); line(ctx, project(x - 0.5, y - 0.5), project(x - 0.5, y + 0.5));
   }
+  // Soft shade where the floor meets the back walls (deepest in the corner), so the room has depth.
+  for (const side of backs) {
+    const wall = wallOf(layout, side);
+    for (const [first, last] of wallSpans(layout, side)) {
+      const a = wallPoint(wall, first, 0), b = wallPoint(wall, last + 1, 0), c = wallPoint(wall, last + 1, 0, -1.3), d = wallPoint(wall, first, 0, -1.3);
+      const shade = ctx.createLinearGradient((a.x + b.x) / 2, (a.y + b.y) / 2, (c.x + d.x) / 2, (c.y + d.y) / 2);
+      shade.addColorStop(0, "rgba(70,48,34,.2)"); shade.addColorStop(0.45, "rgba(70,48,34,.07)"); shade.addColorStop(1, "rgba(70,48,34,0)");
+      ctx.fillStyle = shade; ctx.beginPath(); [a, b, c, d].forEach((q, i) => i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y)); ctx.closePath(); ctx.fill();
+    }
+  }
   ctx.lineWidth = 1; ctx.strokeStyle = INK;
   for (const edge of buildingEdges(layout)) line(ctx, project(edge.tile.x + edge.a.x, edge.tile.y + edge.a.y), project(edge.tile.x + edge.b.x, edge.tile.y + edge.b.y));
   return canvas;
+}
+/** How far the day has turned to evening (0 morning and midday … 1 after closing), in eighths so the light layer repaints rarely. */
+function eveningOf(state: CafeState) {
+  const progress = state.phase === "open" ? dayProgress(state) : state.phase === "summary" ? 1 : 0;
+  return Math.round(Math.max(0, Math.min(1, (progress - 0.5) / 0.45)) * 8) / 8;
+}
+/** Things that give off light, and how: warm lamps and candles, the fire's orange, the neon's pink, the aquarium's blue. */
+const LIGHTS: Partial<Record<ItemKind, { r: number; rgb: string; k: number }>> = {
+  lamp: { r: 1.9, rgb: "255,214,150", k: 0.5 }, candelabra: { r: 1.6, rgb: "255,205,140", k: 0.45 }, fireplace: { r: 2.3, rgb: "255,170,110", k: 0.55 },
+  rfneon: { r: 1.8, rgb: "240,160,190", k: 0.4 }, aquarium: { r: 1.4, rgb: "160,200,235", k: 0.3 }, carousel: { r: 1.4, rgb: "255,220,170", k: 0.3 },
+};
+/**
+ * The light layer, laid over the floor under the furniture: daylight through the windows (fading toward evening) and
+ * pools of lamplight (growing toward evening) under lamps, candles, the fire and every table's pendant. Painted into its
+ * own canvas once per layout, view and eighth of the evening, then drawn with one call a frame.
+ */
+function paintGlow(state: CafeState, scale: number, camera: Camera, windows: readonly WindowSpot[], evening: number) {
+  const canvas = recycled.pop() ?? document.createElement("canvas");
+  canvas.width = Math.round(VIEW.width * scale); canvas.height = Math.round(VIEW.height * scale);
+  const ctx = canvas.getContext("2d")!;
+  ctx.setTransform(scale, 0, 0, scale, 0, 0); ctx.clearRect(0, 0, VIEW.width, VIEW.height);
+  ctx.translate(camera.x, camera.y); ctx.scale(camera.zoom, camera.zoom);
+  const layout = plan(state), day = 1 - evening;
+  // Clip to the building's floor, so light stays indoors.
+  ctx.save(); ctx.beginPath();
+  for (let y = 0; y < layout.d; y++) for (let x = 0; x < layout.w; x++) if (!layout.cut.has(key({ x, y }))) {
+    const quad = [project(x - 0.5, y - 0.5), project(x + 0.5, y - 0.5), project(x + 0.5, y + 0.5), project(x - 0.5, y + 0.5)];
+    quad.forEach((q, i) => i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y)); ctx.closePath();
+  }
+  ctx.clip();
+  // A warm cast over the whole floor, deeper in the evening.
+  ctx.fillStyle = `rgba(255,205,150,${(0.08 + 0.1 * evening).toFixed(3)})`; ctx.fillRect(-4000, -4000, 8000, 8000);
+  // Daylight: each window throws a slanted patch of light across the floor.
+  if (day > 0.05) for (const { wall, start, span } of windows) {
+    const a = wallPoint(wall, start + 0.1, 0), b = wallPoint(wall, start + span - 0.1, 0), c = wallPoint(wall, start + span + 0.7, 0, -2.1), d = wallPoint(wall, start + 0.9, 0, -2.1);
+    const sun = ctx.createLinearGradient((a.x + b.x) / 2, (a.y + b.y) / 2, (c.x + d.x) / 2, (c.y + d.y) / 2);
+    sun.addColorStop(0, `rgba(255,248,225,${(0.6 * day).toFixed(3)})`); sun.addColorStop(1, "rgba(255,246,220,0)");
+    ctx.fillStyle = sun; ctx.beginPath(); [a, b, c, d].forEach((q, i) => i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y)); ctx.closePath(); ctx.fill();
+  }
+  // Lamplight: a soft isometric pool under each light, brighter as evening comes.
+  const lamp = 0.7 + 0.5 * evening, pool = (x: number, y: number, r: number, rgb: string, k: number) => {
+    const at = project(x, y), radius = r * TILE_W * 0.72;
+    ctx.save(); ctx.translate(at.x, at.y); ctx.scale(1, 0.5);
+    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, radius);
+    g.addColorStop(0, `rgba(${rgb},${(k * lamp).toFixed(3)})`); g.addColorStop(0.55, `rgba(${rgb},${(k * lamp * 0.4).toFixed(3)})`); g.addColorStop(1, `rgba(${rgb},0)`);
+    ctx.fillStyle = g; ctx.fillRect(-radius, -radius, radius * 2, radius * 2); ctx.restore();
+  };
+  for (const item of state.items) {
+    if (isTable(item.kind)) pool(item.x, item.y, 1.25, "255,212,150", 0.36);
+    else { const light = LIGHTS[item.kind]; if (light) pool(item.x, item.y, light.r, light.rgb, light.k); }
+  }
+  // The pass under the counter's heat lamps.
+  for (const tile of layout.pickups) pool(tile.x, tile.y, 1.2, "255,210,150", 0.28);
+  ctx.restore();
+  return canvas;
+}
+/** A pendant lamp's warm halo, drawn once and stamped for every pendant. */
+let haloSprite: HTMLCanvasElement | null = null;
+function halo() {
+  if (haloSprite) return haloSprite;
+  const c = document.createElement("canvas"); c.width = c.height = 64;
+  const g = c.getContext("2d")!, r = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  r.addColorStop(0, "rgba(255,228,170,.75)"); r.addColorStop(0.35, "rgba(255,220,160,.28)"); r.addColorStop(1, "rgba(255,220,160,0)");
+  g.fillStyle = r; g.fillRect(0, 0, 64, 64);
+  return haloSprite = c;
+}
+/** A pendant lamp over a table: a cord from the rafters, a little shade in the table's colour, and a glowing bulb. */
+function drawPendant(ctx: CanvasRenderingContext2D, x: number, y: number, accent: string, glow: number) {
+  const top = project(x, y, 172), at = project(x, y, 128);
+  ctx.strokeStyle = "rgba(22,22,22,.7)"; ctx.lineWidth = 0.8; line(ctx, top, at); ctx.lineWidth = 1;
+  ctx.globalAlpha = 0.35 + 0.65 * glow; ctx.drawImage(halo(), at.x - 18, at.y - 12, 36, 36); ctx.globalAlpha = 1;
+  poly(ctx, [{ x: at.x - 2, y: at.y }, { x: at.x + 2, y: at.y }, { x: at.x + 7, y: at.y + 7 }, { x: at.x - 7, y: at.y + 7 }], accent, INK);
+  ctx.fillStyle = "#fff4d2"; ctx.beginPath(); ctx.ellipse(at.x, at.y + 8, 3, 1.6, 0, 0, Math.PI * 2); ctx.fill();
 }
 /** One back wall with everything that hangs on it. Positions along a wall are grid coordinates (x or y). */
 function paintWall(ctx: CanvasRenderingContext2D, state: CafeState, layout: ReturnType<typeof plan>, side: Side, paper: { id: string; colors: readonly string[] }, level: number, shop: Shop) {
@@ -400,6 +488,14 @@ function paintWall(ctx: CanvasRenderingContext2D, state: CafeState, layout: Retu
   }
   const within = (from: number, to: number) => spans.some(([first, last]) => from >= first - 0.5 && to <= last + 0.5);
   wallpaper(ctx, paper.id, wall, paper.colors);
+  // Cosy trim: a warm wooden skirting board along the floor and a pale picture rail near the top.
+  {
+    const leftward = wallSlope(wall) < 0, end = wall.length, at = (t: number, h: number) => wallPoint(wall, t, h);
+    poly(ctx, [at(0, 0), at(end, 0), at(end, 9), at(0, 9)], leftward ? "#b8946c" : "#a07e5b", INK);
+    ctx.strokeStyle = "rgba(255,240,215,.55)"; line(ctx, at(0, 8), at(end, 8));
+    poly(ctx, [at(0, H - 16), at(end, H - 16), at(end, H - 12), at(0, H - 12)], leftward ? "#f6f1e6" : "#e8e1d2", "rgba(22,22,22,.55)");
+    ctx.strokeStyle = INK;
+  }
   const text = (c: number, h: number, draw: () => void) => { ctx.save(); onPlane(ctx, on(c, h), wall.start, wall.dir); draw(); ctx.restore(); };
   const frame = (c: number, h: number, color: string) => text(c, h, () => {
     ctx.fillStyle = C.light; ctx.fillRect(-15, -22, 30, 26); ctx.strokeStyle = INK; ctx.lineWidth = 1.5; ctx.strokeRect(-15, -22, 30, 26);
@@ -409,6 +505,7 @@ function paintWall(ctx: CanvasRenderingContext2D, state: CafeState, layout: Retu
     for (let start = from; start + 2.2 <= to; start += 3) {
       if (skip !== undefined && skip > start - 1.2 && skip < start + 3.4) continue;
       if (!within(start - 0.2, start + 2.4)) continue;
+      windowSpots.push({ wall, start, span: 2.2 });
       const span = 2.2, lo = 50, hi = 112, at = (c: number, h: number, out = 0) => on(c, h, out);
       poly(ctx, [at(start, lo), at(start + span, lo), at(start + span, hi), at(start, hi)], "#c9d2da", INK);
       ctx.strokeStyle = INK; line(ctx, at(start + span / 2, lo), at(start + span / 2, hi)); line(ctx, at(start, (lo + hi) / 2), at(start + span, (lo + hi) / 2));
@@ -1672,12 +1769,16 @@ export function renderScene(ctx: CanvasRenderingContext2D, scene: Scene, pixelSc
   ctx.setTransform(pixelScale, 0, 0, pixelScale, 0, 0);
   ctx.imageSmoothingEnabled = false;
   const cacheKey = `${state.shop}:${state.wallpaper}:${state.floor}:${level}:${state.size}:${state.building}:${state.scenery}:${view.zoom}:${view.x}:${view.y}:${viewTurn.r}:${pixelScale}`;
-  if (backdrop?.key !== cacheKey) { backdrop?.canvas && recycled.push(backdrop.canvas); backdrop = { canvas: paintBackdrop(state, pixelScale, camera), key: cacheKey }; }
+  if (backdrop?.key !== cacheKey) { backdrop?.canvas && recycled.push(backdrop.canvas); windowSpots = []; backdrop = { canvas: paintBackdrop(state, pixelScale, camera), key: cacheKey, windows: windowSpots }; }
   ctx.drawImage(backdrop.canvas, 0, 0, VIEW.width, VIEW.height);
   // Everything below is drawn in world space through the camera.
   const scale = pixelScale * camera.zoom;
   ctx.setTransform(scale, 0, 0, scale, pixelScale * camera.x, pixelScale * camera.y);
   for (const item of state.items) if (isRug(item.kind)) drawRug(ctx, item.kind, item, item.dir);
+  // The light on the floor (cached): repainted only when the layout, the view or the evening's eighth changes.
+  const evening = eveningOf(state), glowKey = `${cacheKey}:${evening}:${state.items.map(item => `${item.kind}${item.x},${item.y}`).join(";")}`;
+  if (glowLayer?.key !== glowKey) { glowLayer?.canvas && recycled.push(glowLayer.canvas); glowLayer = { canvas: paintGlow(state, pixelScale, camera, backdrop.windows, evening), key: glowKey }; }
+  ctx.save(); ctx.setTransform(pixelScale, 0, 0, pixelScale, 0, 0); ctx.drawImage(glowLayer.canvas, 0, 0, VIEW.width, VIEW.height); ctx.restore();
 
   if (build) {
     ctx.strokeStyle = "rgba(22,22,22,.28)"; ctx.setLineDash([2, 3]);
@@ -1760,6 +1861,7 @@ export function renderScene(ctx: CanvasRenderingContext2D, scene: Scene, pixelSc
         }
       }
       add(depthOf(item.x, item.y), 0, () => { ctx.globalAlpha = faded; drawTable(ctx, item, tableNumbers.get(item.id)!, accent, now, reducedMotion); ctx.globalAlpha = 1; });
+      if (!build) add(depthOf(item.x, item.y) + 0.35, 2, () => drawPendant(ctx, item.x, item.y, accent, 0.45 + 0.55 * evening));
     } else add(depthOf(item.x, item.y), 0, () => { ctx.globalAlpha = faded; drawItem(ctx, item.kind, item, item.dir, now, reducedMotion, statueRows(item.dir)); ctx.globalAlpha = 1; });
   }
   if (build?.ghost) {

@@ -6,7 +6,7 @@ import {
   SCENERIES, type SceneryId, type DishShape, type Finish, type ItemKind, type ShopId, type StatId,
 } from "./data.ts";
 import { TRACKS, type TrackId } from "./audio.ts";
-import { SHUFFLE_EVERY, type Prefs } from "./engine.ts";
+import { SHUFFLE_EVERY, itemCost, type Prefs } from "./engine.ts";
 import { generationOf, purchaseCost, purchaseLevel, staffAt, staffPower, statPoints, tableCount, type CafeState, type StaffRole, type StaffWho } from "./engine.ts";
 import type { GuestArt } from "./guests.ts";
 import { drawItem, drawShape, INK } from "./render.ts";
@@ -278,8 +278,8 @@ export function BuildBar({ state, tool, onTool, onFinish, onDone, message, onPre
           <Icon name={mode === "move" ? "fit" : mode === "turn" ? "turnRight" : "close"} size={14} /><span>{mode === "move" ? "Move" : mode === "turn" ? "Turn" : "Sell"}<small>{mode === "move" ? "tap item, then tile" : mode === "turn" ? "tap an item to turn it" : "50% refund"}</small></span></button>)}
         <button type="button" onClick={() => onTool({ ...tool, dir: turned(tool.dir) })} aria-label={`Rotate (R), now facing ${DIR_LABELS[tool.dir][1]}`}><Icon name="turnRight" size={14} /><span>Rotate {DIR_LABELS[tool.dir][0]}<small>R · Shift+R back</small></span></button>
         {CATALOG.filter(item => shelfOf(item.kind) === tool.shelf && (item.tier === undefined || (state.collection.has(item.kind) && !state.items.some(placed => placed.kind === item.kind)))).map(item =>
-          <button type="button" key={item.kind} aria-pressed={tool.mode === "place" && tool.kind === item.kind} disabled={state.beans < item.cost} className={item.tier !== undefined ? "cafe-exclusive" : undefined}
-            onClick={() => onTool({ ...tool, mode: "place", kind: item.kind })}><span>{item.name}<small>{item.tier !== undefined ? "RF exclusive · free" : <Beans n={item.cost} size={10} />}{item.ambience ? ` · +${item.ambience}` : ""}</small></span></button>)}
+          <button type="button" key={item.kind} aria-pressed={tool.mode === "place" && tool.kind === item.kind} disabled={state.beans < itemCost(state, item.kind)} className={item.tier !== undefined ? "cafe-exclusive" : undefined}
+            onClick={() => onTool({ ...tool, mode: "place", kind: item.kind })}><span>{item.name}<small>{item.tier !== undefined ? "RF exclusive · free" : <Beans n={itemCost(state, item.kind)} size={10} />}{item.ambience ? ` · +${item.ambience}` : ""}</small></span></button>)}
       </> : tool.tab === "walls" ? finishes("wallpaper", WALLPAPERS) : tool.tab === "floors" ? finishes("floor", FLOORS)
         : tool.tab === "outside" ? SCENERIES.map(scenery => {
           const owned = state.sceneries.has(scenery.id), active = state.scenery === scenery.id;

@@ -3,6 +3,16 @@ export type Release = Readonly<{ version: string; date: string; title: string; n
 
 export const CHANGELOG: readonly Release[] = [
   {
+    version: "1.10", date: "2026-09-30", title: "A cosier café, and tables that cost more",
+    notes: [
+      "The shop floor glows: a warm cast over the whole room, soft pools of light under lamps, candles, the fireplace and the counter, and slanted daylight from every window.",
+      "Toward closing time the daylight fades and the lamplight grows, so evenings feel snug.",
+      "Every table has a little pendant lamp hanging above it, in the table's colour.",
+      "A wooden skirting board and a picture rail on the walls, and soft shade where the floor meets them.",
+      "Tables cost more: 100 Beans for a table and chair, 210 for two, 380 for four, and each table past your first three costs 15% more for every table you already have. Selling still refunds half the base price.",
+    ],
+  },
+  {
     version: "1.9", date: "2026-09-30", title: "A polished new look",
     notes: [
       "Every panel, button and menu has a new look: chunky ink edges, soft corners, and keycap buttons that press down.",

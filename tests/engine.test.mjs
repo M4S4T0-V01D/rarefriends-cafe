@@ -108,7 +108,18 @@ test("build mode: place, rotate, move and sell in the dining room only", () => {
   assert.equal(moveItem(state, table.id, { x: 8, y: 2 }, 0), null);
   const beans = state.beans;
   assert.equal(sellItem(state, table.id), null);
-  assert.equal(state.beans, beans + 30);
+  assert.equal(state.beans, beans + 50, "half the table's base price back");
+});
+
+test("tables cost more the more you have: base price for the first three, then 15% more each", async () => {
+  const { itemCost } = await import("../games/rarefriends-cafe/engine.ts");
+  const three = { items: [{ kind: "table" }, { kind: "table" }, { kind: "table" }] };
+  assert.equal(itemCost({ items: [] }, "table"), 100);
+  assert.equal(itemCost({ items: [{ kind: "table" }, { kind: "tabletwo" }] }, "tablefour"), 380);
+  assert.equal(itemCost(three, "table"), 115);
+  assert.equal(itemCost(three, "tablefour"), 435);
+  assert.equal(itemCost({ items: [...three.items, ...three.items, ...three.items] }, "tabletwo"), 430, "the tenth table costs about double");
+  assert.equal(itemCost(three, "plant"), 35, "décor keeps its price");
 });
 
 test("every item turns four ways; a table's chair goes on any side and its guest faces the table", () => {
@@ -282,7 +293,7 @@ test("the building is chosen at setup and changed between days; misfit furniture
   state.phase = "summary";
   const beans = state.beans;
   assert.equal(setBuilding(state, "townhouse"), null);
-  assert.equal(state.beans, beans + 90 + 60, "the shelf and the table whose chair is now counter are refunded");
+  assert.equal(state.beans, beans + 90 + 100, "the shelf and the table whose chair is now counter are refunded");
   assert.equal(state.items.filter(item => item.kind === "table").length, 2);
   assert.equal(layoutProblem(state.items, plan(state)), null);
   assert.equal(setBuilding(state, "long"), null);

@@ -527,18 +527,27 @@ function afterLayoutChange(state: CafeState) {
     if (customer.state === "leaving") customer.walker.path = route(at(customer.walker), [{ x: layout.lane, y: layout.door.y }], state.blocked, layout) ?? [];
   }
 }
+/** Tables past the first three cost 15% more for each table already placed (rounded to 5), so a full room is earned. */
+export const TABLE_STEP = 0.15, FREE_TABLES = 3;
+/** What placing one more of an item costs now (the catalog price, raised for tables). */
+export function itemCost(state: Pick<CafeState, "items">, kind: ItemKind): number {
+  const base = catalogItem(kind).cost;
+  if (!isTable(kind)) return base;
+  const extra = Math.max(0, state.items.filter(item => isTable(item.kind)).length - (FREE_TABLES - 1));
+  return Math.round(base * (1 + TABLE_STEP * extra) / 5) * 5;
+}
 /** Place a new item bought with Beans. */
 export function placeItem(state: CafeState, kind: ItemKind, tile: Tile, dir: Dir = 0): string | null {
-  const entry = catalogItem(kind);
+  const entry = catalogItem(kind), cost = itemCost(state, kind);
   if (entry.tier !== undefined && !state.collection.has(kind)) return `${entry.name} comes from Rare Recipe Capsules.`;
   if (entry.tier !== undefined && state.items.some(item => item.kind === kind)) return `Your ${entry.name} is already placed. Move it instead.`;
   if (isTable(kind) && tableCount(state) >= tableLimit(state.level)) return `Level ${state.level} allows ${tableLimit(state.level)} tables. Level up for more.`;
-  if (state.beans < entry.cost) return "Not enough Beans.";
+  if (state.beans < cost) return "Not enough Beans.";
   const candidate = { kind, x: tile.x, y: tile.y, dir };
   if (occupiedByGuest(state, tile) || seatsOf(candidate).some(seat => occupiedByGuest(state, seat))) return "A guest is standing there.";
   const problem = placementProblem(state.items, candidate, plan(state));
   if (problem) return problem;
-  state.beans -= entry.cost;
+  state.beans -= cost;
   state.items.push({ id: state.nextId++, ...candidate });
   afterLayoutChange(state);
   return null;

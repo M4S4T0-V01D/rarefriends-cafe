@@ -210,9 +210,9 @@ export type ItemKind = "table" | "tabletwo" | "tablefour" | "plant" | "lamp" | "
 /** `seats` marks a table: 1 (chair on the `dir` side), 2 (opposite sides) or 4 (every side). */
 export type CatalogItem = Readonly<{ kind: ItemKind; name: string; cost: number; ambience: number; blocks: boolean; text: string; tier?: number; seats?: number }>;
 export const CATALOG: readonly CatalogItem[] = [
-  { kind: "table", name: "Table & chair", cost: 60, ambience: 0, blocks: true, seats: 1, text: "Seats one guest. R / Rotate turns the chair to any side." },
-  { kind: "tabletwo", name: "Table for two", cost: 110, ambience: 0, blocks: true, seats: 2, text: "Seats a pair across the table; one order for both." },
-  { kind: "tablefour", name: "Table for four", cost: 190, ambience: 1, blocks: true, seats: 4, text: "A chair on every side for groups of up to four; one order for the table." },
+  { kind: "table", name: "Table & chair", cost: 100, ambience: 0, blocks: true, seats: 1, text: "Seats one guest. R / Rotate turns the chair to any side." },
+  { kind: "tabletwo", name: "Table for two", cost: 210, ambience: 0, blocks: true, seats: 2, text: "Seats a pair across the table; one order for both." },
+  { kind: "tablefour", name: "Table for four", cost: 380, ambience: 1, blocks: true, seats: 4, text: "A chair on every side for groups of up to four; one order for the table." },
   { kind: "cactus", name: "Little cactus", cost: 25, ambience: 1, blocks: true, text: "+1 ambience" },
   { kind: "plant", name: "Potted monstera", cost: 35, ambience: 1, blocks: true, text: "+1 ambience" },
   { kind: "coatrack", name: "Coat rack", cost: 40, ambience: 1, blocks: true, text: "+1 ambience" },

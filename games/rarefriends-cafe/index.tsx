@@ -11,6 +11,7 @@ import {
   EVENTS, eventById, SCENERIES, challengeReward, type SceneryId, FLOORS, WALLPAPERS, dishById, BOOSTS, MANAGER_SKILLS, UPGRADES, upgradeById, type BoostId, type UpgradeId, BLEND_BONUSES, DAY_LENGTH, EXCLUSIVES, FAMILY_NAMES, workerLevel, type ItemKind, FAMILY_PERKS, LEVEL_XP, MAX_LEVEL, catalogItem, shopById, tableLimit, type DishId, type ShopId,
 } from "./data.ts";
 import {
+  itemCost,
   actOnCounter, actOnCustomer, actOnTable, ambience, ambiencePoints, applyFinish, assignStaff, availableDishes, buy, carryCapacity, chooseShop,
   CAPSULE_ID, eventSecondsLeft, applyScenery, challengesFor, unlockScenery, addBoost, raiseSkill, skillLevel, skillPoints, raiseStat, setBuilding, buyUpgrade, capsuleProblemAt, moveCapsule, nextUpgrade, upgradeLevel, clearQueue, createCafe, dayProgress, interactNearby, isClosing, itemAt, kitchenSlots, manager, moveItem, openCafe, placeItem, purchaseCost,
   purchaseLevel, restoreCafe, sellItem, serializeCafe, setBlends, setManual, setOwnedFriends, setStaffRole, unlockDish, update, walkTo, type CafeState,
@@ -216,8 +217,11 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
           const photo = document.createElement("canvas"); photo.width = VIEW.width; photo.height = VIEW.height;
           photo.getContext("2d")!.drawImage(node, 0, 0, VIEW.width, VIEW.height); daySnapshot.current = photo;
         }
+        const drawStart = performance.now();
         renderScene(ctx, { state, now, reducedMotion: live.current.reducedMotion, guests: GUESTS, regulars: regularMap, friend: sprites,
           staffSprites: staffSprites.current, floaters: floaters.current, hover: hover.current, build: live.current.build ? buildView.current : null }, pixelScale);
+        // Automated runs only: a rolling average of the frame's drawing time (window.__cafeFrameMs).
+        if (navigator.webdriver) { const w = window as unknown as { __cafeFrameMs?: number }; w.__cafeFrameMs = (w.__cafeFrameMs ?? 0) * 0.95 + (performance.now() - drawStart) * 0.05; }
         if (now - lastHud > 150) { lastHud = now; setHud(readHud(state)); }
         frame = requestAnimationFrame(render);
       };
@@ -256,7 +260,7 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
     if (build.cursor && build.tab === "items" && (build.mode === "place" || moving)) {
       const kind = moving ? moving.kind : build.kind;
       ghost = { kind, x: build.cursor.x, y: build.cursor.y, dir: build.dir };
-      valid = !placementProblem(state.items, ghost, plan(state), moving?.id) && (Boolean(moving) || state.beans >= catalogItem(kind).cost);
+      valid = !placementProblem(state.items, ghost, plan(state), moving?.id) && (Boolean(moving) || state.beans >= itemCost(state, kind));
     }
     buildView.current = { cursor: build.cursor, ghost, valid, selected: build.selected, capsule };
   }, [build, hud?.beans]);
@@ -272,7 +276,7 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
     if (!state || !build || build.tab !== "items") return;
     let problem: string | null = null, done = "";
     if (build.mode === "place") {
-      const entry = catalogItem(build.kind), candidate = { kind: build.kind, x: tile.x, y: tile.y, dir: build.dir };
+      const entry = { ...catalogItem(build.kind), cost: itemCost(state, build.kind) }, candidate = { kind: build.kind, x: tile.x, y: tile.y, dir: build.dir };
       // Ask before spending: check the spot first so a refused placement doesn't prompt.
       const blocked = placementProblem(state.items, candidate, plan(state));
       if (!blocked && entry.cost > 0 && state.prefs.confirm && state.beans >= entry.cost) {
