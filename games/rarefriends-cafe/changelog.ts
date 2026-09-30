@@ -11,6 +11,7 @@ export const CHANGELOG: readonly Release[] = [
       "A wooden skirting board and a picture rail on the walls, and soft shade where the floor meets them.",
       "Tables cost more: 100 Beans for a table and chair, 210 for two, 380 for four, and each table past your first three costs 15% more for every table you already have. Selling still refunds half the base price.",
       "The top bar always fits: big numbers shorten (123.4k, 98.7M, with the exact amount on hover), Beans sit over RF, and on a narrow screen the buttons drop their labels instead of sliding off the edge.",
+      "Levels come slower: your café (and so your manager's skill points) earns half the XP it did, and staff earn 40%. Nobody loses a level they already have.",
     ],
   },
   {

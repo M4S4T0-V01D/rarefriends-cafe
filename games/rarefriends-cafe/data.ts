@@ -127,6 +127,11 @@ export const GUEST_TIER = { name: "Guest applicant", power: 1 } as const;
 export const tierOf = (generation: number | null) => generation === null ? GUEST_TIER : GENERATION_TIERS[Math.min(6, Math.max(1, generation))];
 /** Worker XP (one per task, dish or guest brought in) needed for levels 2–10. Each level adds 4% to the worker's power. */
 export const WORKER_LEVEL_XP = [10, 25, 45, 70, 100, 140, 190, 250, 320] as const;
+/**
+ * How much of each XP award counts: the café (your manager's level) earns half, staff 40%, so levels come at a steadier
+ * pace. The thresholds stay put, so existing shops and workers keep the levels they have.
+ */
+export const CAFE_XP_RATE = 0.5, STAFF_XP_RATE = 0.4;
 export const workerLevel = (xp: number) => 1 + WORKER_LEVEL_XP.filter(need => xp >= need).length;
 /** Each worker level past the first earns one attribute point; each attribute takes up to MAX_STAT points. */
 export type StatId = "speed" | "stamina" | "skill";

@@ -5,7 +5,7 @@
 import {
   EVENTS, eventById, type EventId, CHALLENGES, SCENERIES, challengeReward, sceneryById, type ChallengeId, type SceneryId, isTable, AMBIENCE_LEVELS, BASE_WALK_IN, BLEND_BONUSES, CATALOG, DAY_LENGTH, DUPLICATE_BEANS, EXCLUSIVES, EAT_TIME, EXPAND_COSTS, EXPAND_LEVELS, FATIGUE, FLOORS, FOOD_PATIENCE,
   LEVEL_XP, MACHINE_COSTS, MAX_LEVEL, MAX_STAFF_SLOTS, ORDER_PATIENCE, PASSERBY_INTERVAL, PROMOTER_PULL, SELL_REFUND, SHOPS, START_STAFF_SLOTS,
-  BOOSTS, MANAGER_SKILLS, MAX_STAT, STAFF_SLOT_COSTS, type BoostId, type SkillId, STAFF_SLOT_LEVELS, TIP_RATE, type StatId, UPGRADES, WALLPAPERS, breakSeconds, catalogItem, isRug, upgradeById, type UpgradeId, dishById, machineFactor, shopById, tableLimit, tierOf, workerLevel,
+  CAFE_XP_RATE, STAFF_XP_RATE, BOOSTS, MANAGER_SKILLS, MAX_STAT, STAFF_SLOT_COSTS, type BoostId, type SkillId, STAFF_SLOT_LEVELS, TIP_RATE, type StatId, UPGRADES, WALLPAPERS, breakSeconds, catalogItem, isRug, upgradeById, type UpgradeId, dishById, machineFactor, shopById, tableLimit, tierOf, workerLevel,
   type DishId, type ItemKind, type ShopId,
 } from "./data.ts";
 import {
@@ -201,7 +201,7 @@ function train(state: CafeState, worker: Worker, amount = 1) {
   const member = memberOf(state, worker);
   if (!member) return;
   const before = workerLevel(member.xp);
-  member.xp += amount;
+  member.xp += amount * STAFF_XP_RATE;
   if (workerLevel(member.xp) > before) state.events.push({ kind: "workerLevel", slot: member.slot, level: workerLevel(member.xp) });
 }
 
@@ -645,6 +645,8 @@ export function serializeCafe(state: CafeState): CafeSave | null {
   };
 }
 const int = (value: unknown, min: number, max: number) => typeof value === "number" && Number.isInteger(value) && value >= min && value <= max;
+/** A finite number in range (XP can be fractional since awards are scaled). */
+const num = (value: unknown, min: number, max: number) => typeof value === "number" && Number.isFinite(value) && value >= min && value <= max;
 /**
  * Apply a save before the first day opens. Structurally invalid saves are rejected whole. Version 1 saves (before the
  * street, kitchen room and expansions) are migrated; furniture that no longer fits the plan is refunded in Beans.
@@ -654,7 +656,7 @@ export function restoreCafe(state: CafeState, input: unknown): boolean {
   const save = input as Partial<CafeSave>;
   const shop = SHOPS.find(item => item.id === save.shop);
   const size = save.v === 1 ? START_SIZE : save.size;
-  if ((save.v !== 1 && save.v !== SAVE_VERSION) || !shop || !int(save.day, 1, 1e6) || !int(save.beans, 0, 1e9) || !int(save.xp, 0, 1e9)
+  if ((save.v !== 1 && save.v !== SAVE_VERSION) || !shop || !int(save.day, 1, 1e6) || !int(save.beans, 0, 1e9) || !num(save.xp, 0, 1e9)
     || !int(save.level, 1, MAX_LEVEL) || typeof save.rating !== "number" || !(save.rating >= 1 && save.rating <= 5) || !int(save.machine, 0, MACHINE_COSTS.length)
     || !int(save.staffSlots, START_STAFF_SLOTS, MAX_STAFF_SLOTS) || !int(save.totalServed, 0, 1e9) || !int(size, START_SIZE, MAX_SIZE)
     || !Array.isArray(save.unlocked) || !Array.isArray(save.items) || !Array.isArray(save.finishes) || !Array.isArray(save.staff)) return false;
@@ -701,7 +703,7 @@ export function restoreCafe(state: CafeState, input: unknown): boolean {
   for (const member of save.staff) {
     const who: StaffWho | null = int(member?.owned, 1, Number.MAX_SAFE_INTEGER) ? { owned: member.owned! } : int(member?.guest, 0, 1e6) ? { guest: member.guest! } : null;
     if (who && ["waiter", "chef", "promoter"].includes(member.role)) {
-      const xp = int(member.xp, 0, 1e7) ? member.xp : 0, saved = member.stats, stats = noStats();
+      const xp = num(member.xp, 0, 1e7) ? member.xp : 0, saved = member.stats, stats = noStats();
       if (saved && typeof saved === "object" && (["speed", "stamina", "skill"] as const).every(id => int(saved[id], 0, MAX_STAT))) Object.assign(stats, saved);
       const spent = stats.speed + stats.stamina + stats.skill;
       state.staff.push({ slot: member.slot, who, role: member.role, xp, fatigue: 0, stats: spent <= workerLevel(xp) - 1 ? { speed: stats.speed, stamina: stats.stamina, skill: stats.skill } : noStats() });
@@ -958,7 +960,7 @@ function finish(state: CafeState, worker: Worker, job: Job) {
 
 function rate(state: CafeState, score: number) { state.rating = Math.max(1, Math.min(5, state.rating * 0.85 + score * 0.15)); }
 function gainXp(state: CafeState, amount: number) {
-  state.xp += amount;
+  state.xp += amount * CAFE_XP_RATE;
   while (state.level < MAX_LEVEL && state.xp >= LEVEL_XP[state.level - 1]) { state.level++; state.events.push({ kind: "levelup", level: state.level }); }
 }
 

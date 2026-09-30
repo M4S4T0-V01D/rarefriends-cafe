@@ -698,7 +698,7 @@ export default function RareFriendsCafe({ friendId, client, paused }: GameCompon
               <b key={boost.id} title={boost.text}><Icon name="spark" size={10} />{boost.name} · {state.boosts[boost.id]}d</b>)}</span>}
             {state?.event?.started && hud.phase === "open" && (eventSecondsLeft(state) > 0 || eventById(state.event.id).duration === 0) && <span className="cafe-boosts cafe-event">
               <b title={eventById(state.event.id).text}>{eventById(state.event.id).icon} {eventById(state.event.id).name}{eventSecondsLeft(state) ? ` · ${eventSecondsLeft(state)}s` : state.event.guestArrived ? " · here!" : " · on the way"}</b></span>}
-            <span className="cafe-xp" aria-label={nextXp ? `${hud.xp} of ${nextXp} XP` : "Max level"}><i style={{ width: `${nextXp ? Math.min(100, (hud.xp - prevXp) / (nextXp - prevXp) * 100) : 100}%` }} /></span>
+            <span className="cafe-xp" aria-label={nextXp ? `${Math.floor(hud.xp)} of ${nextXp} XP` : "Max level"}><i style={{ width: `${nextXp ? Math.min(100, (hud.xp - prevXp) / (nextXp - prevXp) * 100) : 100}%` }} /></span>
           </div>
           {!build && state && hud.phase !== "summary" && <div className="cafe-challenges">
             <button type="button" aria-expanded={showChallenges} onClick={() => setShowChallenges(!showChallenges)}>

@@ -111,6 +111,11 @@ test("build mode: place, rotate, move and sell in the dining room only", () => {
   assert.equal(state.beans, beans + 50, "half the table's base price back");
 });
 
+test("XP awards are scaled down: the café earns half, staff 40%", async () => {
+  const { CAFE_XP_RATE, STAFF_XP_RATE } = await import("../games/rarefriends-cafe/data.ts");
+  assert.equal(CAFE_XP_RATE, 0.5); assert.equal(STAFF_XP_RATE, 0.4);
+});
+
 test("tables cost more the more you have: base price for the first three, then 15% more each", async () => {
   const { itemCost } = await import("../games/rarefriends-cafe/engine.ts");
   const three = { items: [{ kind: "table" }, { kind: "table" }, { kind: "table" }] };
@@ -595,13 +600,15 @@ test("progress saves and restores per wallet, including size and worker XP", () 
   state.beans = 5000; state.level = 4;
   placeItem(state, "lamp", { x: 9, y: 9 }); applyFinish(state, "floor", "planks"); buy(state, "slot"); buy(state, "expand");
   assignStaff(state, 0, { owned: 3412 }, "promoter"); assignStaff(state, 1, { guest: state.applicants[1] }, "waiter"); unlockDish(state, "burger:2");
-  staffAt(state, 0).xp = 33;
+  // Scaled awards make XP fractional: the save must still load, XP intact.
+  staffAt(state, 0).xp = 33.6; state.xp = 20.5;
   openCafe(state); run(state, 20);
   const save = JSON.parse(JSON.stringify(serializeCafe(state)));
   const fresh = cafe({ ownedFriends: [{ id: 3412, generation: 3 }] });
   assert.equal(restoreCafe(fresh, save), true);
   assert.equal(fresh.shop, "burger"); assert.equal(fresh.size, 11); assert.equal(fresh.floor, "planks"); assert.ok(fresh.unlocked.has("burger:2"));
-  assert.equal(fresh.staff.length, 2); assert.equal(staffAt(fresh, 0).xp, staffAt(state, 0).xp); assert.ok(staffAt(fresh, 0).xp >= 33); assert.equal(staffAt(fresh, 0).role, "promoter");
+  assert.equal(fresh.xp, state.xp);
+  assert.equal(fresh.staff.length, 2); assert.equal(staffAt(fresh, 0).xp, staffAt(state, 0).xp); assert.ok(staffAt(fresh, 0).xp >= 33.6); assert.equal(staffAt(fresh, 0).role, "promoter");
   assert.equal(restoreCafe(fresh, save), false, "a save applies once");
   const other = cafe({ ownedFriends: [] });
   assert.equal(restoreCafe(other, save), true);
